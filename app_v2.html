@@ -1,0 +1,1981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SchedulePro</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8f9fa;
+            color: #212529;
+            line-height: 1.5;
+        }
+
+        /* ========== HEADER ========== */
+        header {
+            background: white;
+            padding: 16px 24px;
+            border-bottom: 2px solid #7c3aed;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #7c3aed;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* ========== BUTTONS ========== */
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            background: white;
+            color: #333;
+            transition: all 0.15s;
+        }
+
+        .btn:hover {
+            background: #f5f5f5;
+        }
+
+        .btn-primary {
+            background: #7c3aed;
+            color: white;
+            border-color: #7c3aed;
+        }
+
+        .btn-primary:hover {
+            background: #6d28d9;
+        }
+
+        .btn-danger {
+            color: #dc2626;
+            border-color: #fca5a5;
+        }
+
+        .btn-danger:hover {
+            background: #fef2f2;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+
+        /* ========== LAYOUT ========== */
+        .app-container {
+            display: flex;
+            height: calc(100vh - 60px);
+        }
+
+        /* ========== SIDEBAR ========== */
+        .sidebar {
+            width: 300px;
+            background: white;
+            border-right: 1px solid #e5e7eb;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .sidebar-header h2 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #7c3aed;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .filter-row select {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .course-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .course-card {
+            padding: 12px;
+            margin-bottom: 8px;
+            background: #fafafa;
+            border: 1px solid #e5e7eb;
+            border-left: 4px solid #7c3aed;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .course-card:hover {
+            background: #f3e8ff;
+            border-color: #c4b5fd;
+        }
+
+        .course-card.in-shortlist {
+            background: #ede9fe;
+            border-left-color: #7c3aed;
+        }
+
+        .course-card.assigned-here {
+            background: #ecfdf5;
+            border-left-color: #10b981;
+            opacity: 0.7;
+        }
+
+        .course-card.assigned-elsewhere {
+            background: #f3f4f6;
+            border-left-color: #9ca3af;
+            opacity: 0.5;
+        }
+
+        .course-card-title {
+            font-weight: 600;
+            font-size: 14px;
+            color: #374151;
+            margin-bottom: 4px;
+        }
+
+        .course-card-name {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+
+        .course-card-meta {
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        .course-card-meta .conflict {
+            color: #f59e0b;
+            font-weight: 500;
+        }
+
+        .no-event-selected {
+            padding: 20px;
+            text-align: center;
+            color: #9ca3af;
+            font-size: 14px;
+        }
+
+        /* ========== MAIN CONTENT ========== */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ========== NAVIGATION TABS ========== */
+        .nav-tabs {
+            display: flex;
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 0 16px;
+        }
+
+        .nav-tab {
+            padding: 14px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #6b7280;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.15s;
+        }
+
+        .nav-tab:hover {
+            color: #7c3aed;
+        }
+
+        .nav-tab.active {
+            color: #7c3aed;
+            border-bottom-color: #7c3aed;
+        }
+
+        /* ========== TAB PANELS ========== */
+        .tab-panels {
+            flex: 1;
+            overflow: auto;
+            padding: 20px;
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        /* ========== EVENTS VIEW ========== */
+        .event-selector {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .event-pill {
+            padding: 10px 20px;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .event-pill:hover {
+            border-color: #c4b5fd;
+        }
+
+        .event-pill.selected {
+            border-color: #7c3aed;
+            background: #faf5ff;
+        }
+
+        .event-pill-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: #374151;
+        }
+
+        .event-pill-dates {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+
+        /* ========== SELECTED EVENT PANEL ========== */
+        .event-panel {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            overflow: hidden;
+        }
+
+        .event-panel-header {
+            padding: 20px;
+            background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
+            color: white;
+        }
+
+        .event-panel-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .event-panel-subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .event-panel-stats {
+            display: flex;
+            gap: 24px;
+            margin-top: 12px;
+        }
+
+        .event-stat {
+            font-size: 13px;
+        }
+
+        .event-stat strong {
+            font-weight: 600;
+        }
+
+        .event-panel-body {
+            padding: 20px;
+        }
+
+        .event-actions {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        /* ========== SHORTLIST SECTION ========== */
+        .shortlist-section {
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title .count {
+            background: #7c3aed;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+
+        .shortlist-empty {
+            padding: 24px;
+            text-align: center;
+            color: #9ca3af;
+            background: #f9fafb;
+            border-radius: 8px;
+            border: 2px dashed #e5e7eb;
+        }
+
+        .shortlist-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .shortlist-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: #faf5ff;
+            border: 1px solid #e9d5ff;
+            border-radius: 8px;
+        }
+
+        .shortlist-item.has-conflict {
+            background: #fffbeb;
+            border-color: #fcd34d;
+        }
+
+        .shortlist-item-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .shortlist-item-title {
+            font-weight: 600;
+            font-size: 14px;
+            color: #374151;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .shortlist-item-meta {
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        .shortlist-item-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .shortlist-item-btn {
+            padding: 6px 10px;
+            font-size: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+            background: #7c3aed;
+            color: white;
+        }
+
+        .shortlist-item-btn:hover {
+            background: #6d28d9;
+        }
+
+        .shortlist-item-btn.remove {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .shortlist-item-btn.remove:hover {
+            background: #fecaca;
+        }
+
+        /* ========== SCHEDULE TABLE ========== */
+        .schedule-section {
+            margin-top: 24px;
+        }
+
+        .schedule-table-wrapper {
+            overflow-x: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+
+        .schedule-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .schedule-table th {
+            background: #f9fafb;
+            padding: 12px;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 1px solid #e5e7eb;
+            text-align: center;
+            min-width: 120px;
+        }
+
+        .schedule-table th.room-col {
+            min-width: 70px;
+            background: #f3f4f6;
+        }
+
+        .schedule-table td {
+            padding: 8px;
+            border-bottom: 1px solid #f3f4f6;
+            vertical-align: top;
+            height: 60px;
+        }
+
+        .schedule-table td.room-cell {
+            background: #f9fafb;
+            font-weight: 600;
+            text-align: center;
+            color: #6b7280;
+        }
+
+        .schedule-table tr:hover td {
+            background: #fafafa;
+        }
+
+        .schedule-table tr:hover td.room-cell {
+            background: #f3f4f6;
+        }
+
+        /* ========== SCHEDULE COURSE BLOCK ========== */
+        .course-block {
+            background: white;
+            border: 2px solid #7c3aed;
+            border-radius: 6px;
+            padding: 8px 10px;
+            cursor: pointer;
+            transition: all 0.15s;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .course-block:hover {
+            background: #faf5ff;
+            box-shadow: 0 2px 8px rgba(124, 58, 237, 0.2);
+        }
+
+        .course-block.has-conflict {
+            border-color: #f59e0b;
+            background: #fffbeb;
+        }
+
+        .course-block-name {
+            font-weight: 600;
+            font-size: 13px;
+            color: #374151;
+            line-height: 1.3;
+            margin-bottom: 2px;
+        }
+
+        .course-block-instructor {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .course-block-duration {
+            font-size: 11px;
+            color: #9ca3af;
+            margin-top: 2px;
+        }
+
+        .empty-slot {
+            height: 100%;
+            min-height: 44px;
+            border: 2px dashed #e5e7eb;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #d1d5db;
+            font-size: 12px;
+        }
+
+        /* ========== ALL COURSES TAB ========== */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #e5e7eb;
+        }
+
+        .data-table th {
+            background: #f9fafb;
+            padding: 12px 16px;
+            font-weight: 600;
+            font-size: 13px;
+            color: #374151;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .data-table td {
+            padding: 12px 16px;
+            font-size: 14px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .data-table tr:hover td {
+            background: #faf5ff;
+        }
+
+        .editable-cell {
+            cursor: pointer;
+        }
+
+        .editable-cell:hover {
+            background: #ede9fe;
+        }
+
+        .editable-cell input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 2px solid #7c3aed;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        /* ========== CHANGE LOG ========== */
+        .log-list {
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .log-item {
+            padding: 16px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .log-item:last-child {
+            border-bottom: none;
+        }
+
+        .log-time {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-bottom: 4px;
+        }
+
+        .log-action {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .log-action.assign { color: #10b981; }
+        .log-action.remove { color: #ef4444; }
+        .log-action.add { color: #7c3aed; }
+        .log-action.edit { color: #3b82f6; }
+
+        .log-details {
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        /* ========== MODAL ========== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow: auto;
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #9ca3af;
+            line-height: 1;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-footer {
+            padding: 16px 20px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #7c3aed;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .warning-box {
+            background: #fffbeb;
+            border: 1px solid #fcd34d;
+            color: #92400e;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-top: 12px;
+        }
+
+        /* ========== TOAST ========== */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #1f2937;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 2000;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast.success { background: #10b981; }
+        .toast.error { background: #ef4444; }
+        .toast.warning { background: #f59e0b; }
+
+        /* ========== UTILITIES ========== */
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            color: #9ca3af;
+        }
+
+        .empty-state h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #6b7280;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* ========== RESPONSIVE ========== */
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- HEADER -->
+    <header>
+        <h1>📅 SchedulePro</h1>
+        <div class="header-buttons">
+            <button class="btn" onclick="document.getElementById('fileInput').click()">📁 Load Excel</button>
+            <button class="btn" onclick="exportSchedule()">📤 Export</button>
+            <button class="btn" onclick="saveSession()">💾 Save</button>
+            <button class="btn" onclick="document.getElementById('loadSessionInput').click()">📂 Load</button>
+        </div>
+        <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="loadExcelFile(event)">
+        <input type="file" id="loadSessionInput" accept=".json" onchange="loadSession(event)">
+    </header>
+
+    <!-- APP CONTAINER -->
+    <div class="app-container">
+        <!-- SIDEBAR: COURSES -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>Courses</h2>
+                <input type="text" class="search-input" placeholder="Search courses..." id="courseSearch" oninput="renderCourseList()">
+                <div class="filter-row">
+                    <select id="topicFilter" onchange="renderCourseList()">
+                        <option value="">All Topics</option>
+                    </select>
+                    <select id="durationFilter" onchange="renderCourseList()">
+                        <option value="">All Days</option>
+                        <option value="0.5">½ Day</option>
+                        <option value="1">1 Day</option>
+                        <option value="2">2 Days</option>
+                        <option value="3">3 Days</option>
+                        <option value="4">4 Days</option>
+                    </select>
+                </div>
+            </div>
+            <div class="course-list" id="courseList">
+                <div class="no-event-selected">Select an event to start adding courses</div>
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT -->
+        <div class="main-content">
+            <div class="nav-tabs">
+                <div class="nav-tab active" data-tab="schedule">Schedule</div>
+                <div class="nav-tab" data-tab="courses">All Courses</div>
+                <div class="nav-tab" data-tab="log">Change Log</div>
+            </div>
+
+            <div class="tab-panels">
+                <!-- SCHEDULE TAB -->
+                <div class="tab-panel active" id="tab-schedule">
+                    <!-- Event Selector -->
+                    <div class="event-selector" id="eventSelector">
+                        <div class="empty-state">
+                            <h3>No events loaded</h3>
+                            <p>Load an Excel file to get started</p>
+                        </div>
+                    </div>
+
+                    <!-- Selected Event Panel -->
+                    <div id="eventPanel" style="display: none;">
+                        <div class="event-panel">
+                            <div class="event-panel-header">
+                                <div class="event-panel-title" id="eventTitle">Event Name</div>
+                                <div class="event-panel-subtitle" id="eventSubtitle">Location • Dates</div>
+                                <div class="event-panel-stats">
+                                    <div class="event-stat"><strong id="eventRooms">0</strong> Rooms</div>
+                                    <div class="event-stat"><strong id="eventDays">0</strong> Days</div>
+                                    <div class="event-stat"><strong id="eventAssigned">0</strong> Assigned</div>
+                                </div>
+                            </div>
+                            <div class="event-panel-body">
+                                <!-- Actions -->
+                                <div class="event-actions">
+                                    <button class="btn btn-sm" onclick="showEditEventModal()">✏️ Edit Event</button>
+                                    <button class="btn btn-sm btn-primary" onclick="autoPopulateRooms()" id="autoFillBtn">🔄 Auto-Fill Shortlist</button>
+                                    <button class="btn btn-sm btn-danger" onclick="clearEventSchedule()">🗑️ Clear All</button>
+                                </div>
+
+                                <!-- Shortlist -->
+                                <div class="shortlist-section">
+                                    <div class="section-title">
+                                        📋 Shortlist <span class="count" id="shortlistCount">0</span>
+                                    </div>
+                                    <div id="shortlistContainer">
+                                        <div class="shortlist-empty">
+                                            Click courses from the sidebar to add them here
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Schedule Table -->
+                                <div class="schedule-section">
+                                    <div class="section-title">📊 Room Schedule</div>
+                                    <div class="schedule-table-wrapper">
+                                        <table class="schedule-table" id="scheduleTable">
+                                            <thead id="scheduleHead"></thead>
+                                            <tbody id="scheduleBody"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ALL COURSES TAB -->
+                <div class="tab-panel" id="tab-courses">
+                    <p style="margin-bottom: 16px; color: #6b7280;">Click any cell to edit. Changes save automatically.</p>
+                    <table class="data-table" id="coursesTable">
+                        <thead>
+                            <tr>
+                                <th>Course ID</th>
+                                <th>Course Name</th>
+                                <th>Instructor</th>
+                                <th>Duration</th>
+                                <th>Topic</th>
+                                <th>Assigned To</th>
+                            </tr>
+                        </thead>
+                        <tbody id="coursesTableBody"></tbody>
+                    </table>
+                </div>
+
+                <!-- CHANGE LOG TAB -->
+                <div class="tab-panel" id="tab-log">
+                    <div style="margin-bottom: 16px; display: flex; gap: 8px;">
+                        <button class="btn btn-sm btn-danger" onclick="clearChangeLog()">Clear Log</button>
+                        <button class="btn btn-sm" onclick="exportChangeLog()">Export Log</button>
+                    </div>
+                    <div class="log-list" id="logList">
+                        <div class="empty-state">No changes recorded yet</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ASSIGN MODAL -->
+    <div class="modal-overlay" id="assignModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Assign Course</h2>
+                <button class="modal-close" onclick="closeModal('assignModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="assignCourseInfo" style="margin-bottom: 16px; font-size: 14px;"></p>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Starting Day</label>
+                        <select id="assignDaySelect"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Room</label>
+                        <select id="assignRoomSelect"></select>
+                    </div>
+                </div>
+                <div id="assignConflictWarning" class="warning-box" style="display: none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('assignModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="confirmAssignment()">Assign</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- EVENT MODAL -->
+    <div class="modal-overlay" id="eventModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="eventModalTitle">Edit Event</h2>
+                <button class="modal-close" onclick="closeModal('eventModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editEventId">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Event ID</label>
+                        <input type="text" id="eventIdInput">
+                    </div>
+                    <div class="form-group">
+                        <label>Event Name</label>
+                        <input type="text" id="eventNameInput">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Location</label>
+                        <input type="text" id="eventLocationInput">
+                    </div>
+                    <div class="form-group">
+                        <label>Rooms</label>
+                        <input type="number" id="eventRoomCountInput" min="1" max="50">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>First Day (MM/DD/YYYY)</label>
+                        <input type="text" id="eventFirstDayInput" placeholder="02/23/2027">
+                    </div>
+                    <div class="form-group">
+                        <label>Last Day (MM/DD/YYYY)</label>
+                        <input type="text" id="eventLastDayInput" placeholder="02/26/2027">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('eventModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveEvent()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ==================== DATA ====================
+        let events = [];
+        let courses = [];
+        let instructorAway = [];
+        let schedule = {};
+        let shortlists = {};
+        let changeLog = [];
+        let selectedEventId = null;
+
+        // ==================== INIT ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            setupTabs();
+            loadFromLocalStorage();
+            render();
+        });
+
+        function setupTabs() {
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+                    tab.classList.add('active');
+                    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+                });
+            });
+        }
+
+        // ==================== FILE LOADING ====================
+        function loadExcelFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+
+                    if (workbook.SheetNames.includes('Events')) {
+                        const sheet = workbook.Sheets['Events'];
+                        const rawData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+                        events = rawData.map(row => ({
+                            Event_ID: String(row.Event_ID || '').trim(),
+                            Event: String(row.Event || '').trim(),
+                            First_Event_Day: formatDateForStorage(row.First_Event_Day),
+                            Last_Event_Day: formatDateForStorage(row.Last_Event_Day),
+                            Location: String(row.Location || '').trim(),
+                            Room_Count: parseInt(row.Room_Count) || 10,
+                            Total_Days: parseInt(row.Total_Days) || 0
+                        })).filter(e => e.Event_ID);
+                        
+                        events.forEach(ev => {
+                            if (!ev.Total_Days) ev.Total_Days = calculateDays(ev.First_Event_Day, ev.Last_Event_Day);
+                            if (!schedule[ev.Event_ID]) schedule[ev.Event_ID] = {};
+                            if (!shortlists[ev.Event_ID]) shortlists[ev.Event_ID] = [];
+                        });
+                    }
+
+                    if (workbook.SheetNames.includes('Courses')) {
+                        const sheet = workbook.Sheets['Courses'];
+                        const rawData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+                        courses = rawData.map(row => ({
+                            Course_ID: String(row.Course_ID || '').trim(),
+                            Instructor: String(row.Instructor || '').trim(),
+                            Course_Name: String(row.Course_Name || '').trim(),
+                            Duration_Days: parseFloat(row.Duration_Days) || 1,
+                            Topic: String(row.Topic || '').trim()
+                        })).filter(c => c.Course_ID);
+                        updateTopicFilter();
+                    }
+
+                    if (workbook.SheetNames.includes('Instructor_Away')) {
+                        const sheet = workbook.Sheets['Instructor_Away'];
+                        const rawData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+                        instructorAway = rawData.map(row => ({
+                            Instructor: String(row.Instructor || '').trim(),
+                            Unavailable_Start: formatDateForStorage(row.Unavailable_Start),
+                            Unavailable_End: formatDateForStorage(row.Unavailable_End)
+                        })).filter(a => a.Instructor && a.Unavailable_Start);
+                    }
+
+                    saveToLocalStorage();
+                    render();
+                    showToast(`Loaded ${events.length} events, ${courses.length} courses`, 'success');
+                    addLogEntry('upload', null, null, `Loaded: ${file.name}`);
+                } catch (err) {
+                    console.error(err);
+                    showToast('Error loading file', 'error');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+            event.target.value = '';
+        }
+
+        // ==================== DATE UTILS ====================
+        function formatDateForStorage(value) {
+            if (!value) return '';
+            if (value instanceof Date) {
+                const m = String(value.getMonth() + 1).padStart(2, '0');
+                const d = String(value.getDate()).padStart(2, '0');
+                const y = value.getFullYear();
+                return `${m}/${d}/${y}`;
+            }
+            // Convert any dashes to slashes
+            return String(value).trim().replace(/-/g, '/');
+        }
+
+        function parseDate(dateStr) {
+            if (!dateStr) return null;
+            const parts = dateStr.split('/');
+            if (parts.length === 3) {
+                return new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
+            }
+            return null;
+        }
+
+        function calculateDays(start, end) {
+            const s = parseDate(start), e = parseDate(end);
+            if (!s || !e) return 1;
+            return Math.round((e - s) / (1000 * 60 * 60 * 24)) + 1;
+        }
+
+        function getEventDates(event) {
+            const dates = [];
+            const start = parseDate(event.First_Event_Day);
+            const end = parseDate(event.Last_Event_Day);
+            if (!start || !end) return dates;
+            let current = new Date(start);
+            while (current <= end) {
+                dates.push(formatDateForStorage(current));
+                current.setDate(current.getDate() + 1);
+            }
+            return dates;
+        }
+
+        function shortDate(dateStr) {
+            if (!dateStr) return '';
+            const parts = dateStr.split('/');
+            return `${parts[0]}/${parts[1]}`;
+        }
+
+        // ==================== RENDERING ====================
+        function render() {
+            renderEventSelector();
+            renderCourseList();
+            renderSelectedEvent();
+            renderCoursesTable();
+            renderChangeLog();
+        }
+
+        function renderEventSelector() {
+            const container = document.getElementById('eventSelector');
+            
+            if (events.length === 0) {
+                container.innerHTML = `<div class="empty-state"><h3>No events loaded</h3><p>Load an Excel file to get started</p></div>`;
+                return;
+            }
+
+            container.innerHTML = events.map(ev => `
+                <div class="event-pill ${selectedEventId === ev.Event_ID ? 'selected' : ''}" 
+                     onclick="selectEvent('${ev.Event_ID}')">
+                    <div class="event-pill-name">${ev.Event}</div>
+                    <div class="event-pill-dates">${ev.First_Event_Day} – ${ev.Last_Event_Day}</div>
+                </div>
+            `).join('') + `
+                <div class="event-pill" onclick="showAddEventModal()" style="border-style: dashed;">
+                    <div class="event-pill-name">+ Add Event</div>
+                </div>
+            `;
+        }
+
+        function renderCourseList() {
+            const container = document.getElementById('courseList');
+            
+            if (!selectedEventId) {
+                container.innerHTML = '<div class="no-event-selected">Select an event to start adding courses</div>';
+                return;
+            }
+
+            const search = document.getElementById('courseSearch').value.toLowerCase();
+            const topicFilter = document.getElementById('topicFilter').value;
+            const durationFilter = document.getElementById('durationFilter').value;
+
+            const shortlist = shortlists[selectedEventId] || [];
+            const assignedHere = getAssignedCoursesForEvent(selectedEventId);
+            const assignedElsewhere = getAssignedCourseIds();
+
+            let filtered = courses.filter(c => {
+                const matchSearch = !search || 
+                    c.Course_ID.toLowerCase().includes(search) ||
+                    c.Course_Name.toLowerCase().includes(search) ||
+                    c.Instructor.toLowerCase().includes(search);
+                const matchTopic = !topicFilter || c.Topic === topicFilter;
+                const matchDuration = !durationFilter || c.Duration_Days == parseFloat(durationFilter);
+                return matchSearch && matchTopic && matchDuration;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="no-event-selected">No courses match filters</div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(c => {
+                const inShortlist = shortlist.includes(c.Course_ID);
+                const isAssignedHere = assignedHere.has(c.Course_ID);
+                const isAssignedElsewhere = !isAssignedHere && assignedElsewhere.has(c.Course_ID);
+                const hasConflict = checkInstructorConflict(c.Instructor, selectedEventId);
+                
+                let classes = 'course-card';
+                if (inShortlist) classes += ' in-shortlist';
+                if (isAssignedHere) classes += ' assigned-here';
+                if (isAssignedElsewhere) classes += ' assigned-elsewhere';
+
+                return `
+                    <div class="${classes}" onclick="handleCourseClick('${c.Course_ID}')">
+                        <div class="course-card-title">${c.Course_ID}</div>
+                        <div class="course-card-name">${c.Course_Name}</div>
+                        <div class="course-card-meta">
+                            ${c.Instructor} · ${c.Duration_Days}d
+                            ${hasConflict ? '<span class="conflict">⚠️ Away</span>' : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderSelectedEvent() {
+            const panel = document.getElementById('eventPanel');
+            
+            if (!selectedEventId) {
+                panel.style.display = 'none';
+                return;
+            }
+
+            const event = events.find(e => e.Event_ID === selectedEventId);
+            if (!event) {
+                panel.style.display = 'none';
+                return;
+            }
+
+            panel.style.display = 'block';
+
+            document.getElementById('eventTitle').textContent = event.Event;
+            document.getElementById('eventSubtitle').textContent = `${event.Location} · ${event.First_Event_Day} – ${event.Last_Event_Day}`;
+            document.getElementById('eventRooms').textContent = event.Room_Count;
+            document.getElementById('eventDays').textContent = event.Total_Days;
+            document.getElementById('eventAssigned').textContent = countAssignedCourses(selectedEventId);
+
+            renderShortlist();
+            renderScheduleTable();
+        }
+
+        function renderShortlist() {
+            const container = document.getElementById('shortlistContainer');
+            const shortlist = shortlists[selectedEventId] || [];
+            
+            document.getElementById('shortlistCount').textContent = shortlist.length;
+            document.getElementById('autoFillBtn').disabled = shortlist.length === 0;
+
+            if (shortlist.length === 0) {
+                container.innerHTML = '<div class="shortlist-empty">Click courses from the sidebar to add them here</div>';
+                return;
+            }
+
+            container.innerHTML = '<div class="shortlist-grid">' + shortlist.map(courseId => {
+                const course = courses.find(c => c.Course_ID === courseId);
+                if (!course) return '';
+                const hasConflict = checkInstructorConflict(course.Instructor, selectedEventId);
+                
+                return `
+                    <div class="shortlist-item ${hasConflict ? 'has-conflict' : ''}">
+                        <div class="shortlist-item-info">
+                            <div class="shortlist-item-title">${course.Course_Name}</div>
+                            <div class="shortlist-item-meta">${course.Instructor} · ${course.Duration_Days}d ${hasConflict ? '⚠️' : ''}</div>
+                        </div>
+                        <div class="shortlist-item-actions">
+                            <button class="shortlist-item-btn" onclick="showAssignModal('${courseId}')">Assign</button>
+                            <button class="shortlist-item-btn remove" onclick="removeFromShortlist('${courseId}')">✕</button>
+                        </div>
+                    </div>
+                `;
+            }).join('') + '</div>';
+        }
+
+        function renderScheduleTable() {
+            const event = events.find(e => e.Event_ID === selectedEventId);
+            if (!event) return;
+
+            const eventDates = getEventDates(event);
+            const totalDays = eventDates.length;
+            const roomCount = event.Room_Count;
+
+            // Header
+            let headHtml = '<tr><th class="room-col">Room</th>';
+            for (let day = 1; day <= totalDays; day++) {
+                headHtml += `<th>Day ${day}<br><small style="font-weight:400;color:#6b7280;">${shortDate(eventDates[day-1])}</small></th>`;
+            }
+            headHtml += '</tr>';
+            document.getElementById('scheduleHead').innerHTML = headHtml;
+
+            // Body
+            let bodyHtml = '';
+            for (let room = 1; room <= roomCount; room++) {
+                bodyHtml += `<tr><td class="room-cell">R${room}</td>`;
+                
+                let day = 1;
+                while (day <= totalDays) {
+                    const assignment = findAssignment(selectedEventId, room, day);
+                    
+                    if (assignment && assignment.startDay === day) {
+                        const course = courses.find(c => c.Course_ID === assignment.courseId);
+                        const hasConflict = course && checkInstructorConflict(course.Instructor, selectedEventId);
+                        
+                        bodyHtml += `
+                            <td colspan="${assignment.duration}">
+                                <div class="course-block ${hasConflict ? 'has-conflict' : ''}" 
+                                     onclick="confirmRemoveCourse('${selectedEventId}', ${room}, '${assignment.courseId}')"
+                                     title="Click to remove">
+                                    <div class="course-block-name">${course?.Course_Name || assignment.courseId}</div>
+                                    <div class="course-block-instructor">${course?.Instructor || ''}</div>
+                                </div>
+                            </td>
+                        `;
+                        day += assignment.duration;
+                    } else if (!assignment) {
+                        bodyHtml += '<td><div class="empty-slot"></div></td>';
+                        day++;
+                    } else {
+                        day++;
+                    }
+                }
+                bodyHtml += '</tr>';
+            }
+            document.getElementById('scheduleBody').innerHTML = bodyHtml;
+        }
+
+        function renderCoursesTable() {
+            const tbody = document.getElementById('coursesTableBody');
+            const assignedMap = buildAssignmentMap();
+
+            tbody.innerHTML = courses.map((c, idx) => {
+                const assignments = assignedMap[c.Course_ID] || [];
+                return `
+                    <tr>
+                        <td class="editable-cell" onclick="editCell(${idx}, 'Course_ID', this)">${c.Course_ID}</td>
+                        <td class="editable-cell" onclick="editCell(${idx}, 'Course_Name', this)">${c.Course_Name}</td>
+                        <td class="editable-cell" onclick="editCell(${idx}, 'Instructor', this)">${c.Instructor}</td>
+                        <td class="editable-cell" onclick="editCell(${idx}, 'Duration_Days', this)">${c.Duration_Days} day${c.Duration_Days !== 1 ? 's' : ''}</td>
+                        <td class="editable-cell" onclick="editCell(${idx}, 'Topic', this)">${c.Topic || '—'}</td>
+                        <td>${assignments.length ? assignments.join(', ') : '—'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderChangeLog() {
+            const container = document.getElementById('logList');
+            
+            if (changeLog.length === 0) {
+                container.innerHTML = '<div class="empty-state">No changes recorded yet</div>';
+                return;
+            }
+
+            container.innerHTML = changeLog.slice().reverse().map(entry => {
+                let courseName = entry.courseName;
+                if (!courseName && entry.courseId) {
+                    const course = courses.find(c => c.Course_ID === entry.courseId);
+                    courseName = course?.Course_Name || '';
+                }
+                let eventName = '';
+                if (entry.eventId) {
+                    const event = events.find(e => e.Event_ID === entry.eventId);
+                    eventName = event?.Event || entry.eventId;
+                }
+
+                return `
+                    <div class="log-item">
+                        <div class="log-time">${entry.timestamp}</div>
+                        <div class="log-action ${entry.action}">${getActionLabel(entry.action)}</div>
+                        <div class="log-details">
+                            ${courseName ? `<strong>${entry.courseId}</strong>: ${courseName}` : ''}
+                            ${eventName ? `@ ${eventName}` : ''}
+                            ${entry.description ? `— ${entry.description}` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getActionLabel(action) {
+            const labels = {
+                'add': '➕ Added', 'remove': '➖ Removed', 'assign': '✅ Assigned',
+                'clear': '🗑️ Cleared', 'edit': '✏️ Edited', 'auto-fill': '🔄 Auto-Filled',
+                'upload': '📁 Uploaded', 'load': '📂 Loaded'
+            };
+            return labels[action] || action;
+        }
+
+        function updateTopicFilter() {
+            const topics = [...new Set(courses.map(c => c.Topic).filter(t => t))];
+            document.getElementById('topicFilter').innerHTML = '<option value="">All Topics</option>' + 
+                topics.map(t => `<option value="${t}">${t}</option>`).join('');
+        }
+
+        // ==================== EVENT SELECTION ====================
+        function selectEvent(eventId) {
+            selectedEventId = selectedEventId === eventId ? null : eventId;
+            render();
+        }
+
+        // ==================== COURSE ACTIONS ====================
+        function handleCourseClick(courseId) {
+            if (!selectedEventId) {
+                showToast('Select an event first', 'warning');
+                return;
+            }
+
+            const shortlist = shortlists[selectedEventId] || [];
+            const course = courses.find(c => c.Course_ID === courseId);
+            
+            if (shortlist.includes(courseId)) {
+                showAssignModal(courseId);
+            } else {
+                shortlists[selectedEventId] = [...shortlist, courseId];
+                addLogEntry('add', selectedEventId, courseId, `Added to shortlist`);
+                saveToLocalStorage();
+                render();
+                showToast(`Added "${course?.Course_Name}"`, 'success');
+            }
+        }
+
+        function removeFromShortlist(courseId) {
+            const course = courses.find(c => c.Course_ID === courseId);
+            shortlists[selectedEventId] = (shortlists[selectedEventId] || []).filter(id => id !== courseId);
+            addLogEntry('remove', selectedEventId, courseId, `Removed from shortlist`);
+            saveToLocalStorage();
+            render();
+        }
+
+        // ==================== ASSIGNMENT ====================
+        function showAssignModal(courseId) {
+            const course = courses.find(c => c.Course_ID === courseId);
+            const event = events.find(e => e.Event_ID === selectedEventId);
+            if (!course || !event) return;
+
+            const totalDays = event.Total_Days;
+            const duration = Math.ceil(course.Duration_Days);
+            const eventDates = getEventDates(event);
+
+            document.getElementById('assignCourseInfo').innerHTML = `
+                <strong>${course.Course_Name}</strong><br>
+                ${course.Instructor} · ${course.Duration_Days} day(s)
+            `;
+
+            const daySelect = document.getElementById('assignDaySelect');
+            daySelect.innerHTML = '';
+            for (let i = 1; i <= totalDays - duration + 1; i++) {
+                daySelect.innerHTML += `<option value="${i}">Day ${i} (${eventDates[i-1]}) → Day ${i + duration - 1}</option>`;
+            }
+
+            const roomSelect = document.getElementById('assignRoomSelect');
+            roomSelect.innerHTML = '';
+            for (let r = 1; r <= event.Room_Count; r++) {
+                roomSelect.innerHTML += `<option value="${r}">Room ${r}</option>`;
+            }
+
+            const warning = document.getElementById('assignConflictWarning');
+            if (checkInstructorConflict(course.Instructor, selectedEventId)) {
+                warning.textContent = `⚠️ ${course.Instructor} is marked as unavailable during this event.`;
+                warning.style.display = 'block';
+            } else {
+                warning.style.display = 'none';
+            }
+
+            document.getElementById('assignModal').dataset.courseId = courseId;
+            document.getElementById('assignModal').classList.add('active');
+        }
+
+        function confirmAssignment() {
+            const modal = document.getElementById('assignModal');
+            const courseId = modal.dataset.courseId;
+            const startDay = parseInt(document.getElementById('assignDaySelect').value);
+            const room = parseInt(document.getElementById('assignRoomSelect').value);
+
+            const course = courses.find(c => c.Course_ID === courseId);
+            if (!course) return;
+
+            const duration = Math.ceil(course.Duration_Days);
+
+            if (hasRoomConflict(selectedEventId, room, startDay, duration)) {
+                showToast('Room conflict - slot already taken', 'error');
+                return;
+            }
+
+            if (!schedule[selectedEventId]) schedule[selectedEventId] = {};
+            if (!schedule[selectedEventId][room]) schedule[selectedEventId][room] = [];
+
+            schedule[selectedEventId][room].push({ courseId, startDay, duration });
+            shortlists[selectedEventId] = (shortlists[selectedEventId] || []).filter(id => id !== courseId);
+
+            addLogEntry('assign', selectedEventId, courseId, `Room ${room}, Days ${startDay}-${startDay + duration - 1}`);
+            closeModal('assignModal');
+            saveToLocalStorage();
+            render();
+            showToast(`Assigned "${course.Course_Name}"`, 'success');
+        }
+
+        function confirmRemoveCourse(eventId, room, courseId) {
+            const course = courses.find(c => c.Course_ID === courseId);
+            if (confirm(`Remove "${course?.Course_Name || courseId}" from Room ${room}?`)) {
+                schedule[eventId][room] = schedule[eventId][room].filter(a => a.courseId !== courseId);
+                addLogEntry('remove', eventId, courseId, `Removed from Room ${room}`);
+                saveToLocalStorage();
+                render();
+                showToast('Course removed', 'success');
+            }
+        }
+
+        function clearEventSchedule() {
+            const event = events.find(e => e.Event_ID === selectedEventId);
+            if (!confirm(`Clear all assignments for "${event?.Event}"?`)) return;
+            schedule[selectedEventId] = {};
+            addLogEntry('clear', selectedEventId, null, 'Cleared all');
+            saveToLocalStorage();
+            render();
+            showToast('Schedule cleared', 'success');
+        }
+
+        // ==================== AUTO-POPULATE ====================
+        function autoPopulateRooms() {
+            const event = events.find(e => e.Event_ID === selectedEventId);
+            const shortlist = shortlists[selectedEventId] || [];
+            
+            if (!event || shortlist.length === 0) return;
+
+            const totalDays = event.Total_Days;
+            const roomCount = event.Room_Count;
+            const toAssign = shortlist.map(id => courses.find(c => c.Course_ID === id)).filter(c => c);
+
+            // Group by instructor
+            const byInstructor = {};
+            for (const course of toAssign) {
+                if (!byInstructor[course.Instructor]) byInstructor[course.Instructor] = [];
+                byInstructor[course.Instructor].push(course);
+            }
+
+            const instructors = Object.keys(byInstructor).sort((a, b) => {
+                const aDays = byInstructor[a].reduce((sum, c) => sum + Math.ceil(c.Duration_Days), 0);
+                const bDays = byInstructor[b].reduce((sum, c) => sum + Math.ceil(c.Duration_Days), 0);
+                return bDays - aDays;
+            });
+
+            if (!schedule[selectedEventId]) schedule[selectedEventId] = {};
+
+            const roomAssignments = {};
+            for (let r = 1; r <= roomCount; r++) {
+                roomAssignments[r] = schedule[selectedEventId][r] ? [...schedule[selectedEventId][r]] : [];
+            }
+
+            let assigned = 0;
+            const unassigned = [];
+            const assignedIds = new Set();
+
+            for (const instructor of instructors) {
+                const instructorCourses = byInstructor[instructor].sort((a, b) => b.Duration_Days - a.Duration_Days);
+                
+                let bestRoom = null, bestFit = null;
+
+                for (let room = 1; room <= roomCount; room++) {
+                    const fit = tryFitCourses(roomAssignments[room], instructorCourses, totalDays);
+                    if (fit && fit.length === instructorCourses.length) {
+                        bestRoom = room; bestFit = fit; break;
+                    } else if (fit && fit.length > 0 && (!bestFit || fit.length > bestFit.length)) {
+                        bestRoom = room; bestFit = fit;
+                    }
+                }
+
+                if (bestRoom && bestFit) {
+                    for (const p of bestFit) {
+                        roomAssignments[bestRoom].push({
+                            courseId: p.course.Course_ID,
+                            startDay: p.startDay,
+                            duration: Math.ceil(p.course.Duration_Days)
+                        });
+                        assignedIds.add(p.course.Course_ID);
+                        assigned++;
+                    }
+                }
+            }
+
+            for (let r = 1; r <= roomCount; r++) {
+                schedule[selectedEventId][r] = roomAssignments[r];
+            }
+
+            for (const course of toAssign) {
+                if (!assignedIds.has(course.Course_ID)) unassigned.push(course.Course_ID);
+            }
+
+            shortlists[selectedEventId] = unassigned;
+            addLogEntry('auto-fill', selectedEventId, null, `Assigned ${assigned}, ${unassigned.length} remaining`);
+            saveToLocalStorage();
+            render();
+            showToast(`Assigned ${assigned} courses`, unassigned.length ? 'warning' : 'success');
+        }
+
+        function tryFitCourses(existing, coursesToFit, totalDays) {
+            const placements = [];
+            
+            function hasConflict(startDay, duration) {
+                const endDay = startDay + duration - 1;
+                for (const a of existing) {
+                    const aEnd = a.startDay + a.duration - 1;
+                    if (!(endDay < a.startDay || startDay > aEnd)) return true;
+                }
+                for (const p of placements) {
+                    const pEnd = p.startDay + Math.ceil(p.course.Duration_Days) - 1;
+                    if (!(endDay < p.startDay || startDay > pEnd)) return true;
+                }
+                return false;
+            }
+
+            const sorted = [...coursesToFit].sort((a, b) => b.Duration_Days - a.Duration_Days);
+            let nextDay = 1;
+
+            for (const course of sorted) {
+                const duration = Math.ceil(course.Duration_Days);
+                let placed = false;
+                
+                for (let day = nextDay; day <= totalDays - duration + 1; day++) {
+                    if (!hasConflict(day, duration)) {
+                        placements.push({ course, startDay: day });
+                        nextDay = day + duration;
+                        placed = true;
+                        break;
+                    }
+                }
+
+                if (!placed) {
+                    for (let day = 1; day <= totalDays - duration + 1; day++) {
+                        if (!hasConflict(day, duration)) {
+                            placements.push({ course, startDay: day });
+                            placed = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            return placements;
+        }
+
+        // ==================== HELPERS ====================
+        function findAssignment(eventId, room, day) {
+            const roomSchedule = schedule[eventId]?.[room] || [];
+            for (const a of roomSchedule) {
+                const endDay = a.startDay + a.duration - 1;
+                if (day >= a.startDay && day <= endDay) return a;
+            }
+            return null;
+        }
+
+        function hasRoomConflict(eventId, room, startDay, duration) {
+            const roomSchedule = schedule[eventId]?.[room] || [];
+            const endDay = startDay + duration - 1;
+            for (const a of roomSchedule) {
+                const aEnd = a.startDay + a.duration - 1;
+                if (!(endDay < a.startDay || startDay > aEnd)) return true;
+            }
+            return false;
+        }
+
+        function getAssignedCourseIds() {
+            const ids = new Set();
+            for (const eventId in schedule) {
+                for (const room in schedule[eventId]) {
+                    for (const a of schedule[eventId][room]) ids.add(a.courseId);
+                }
+            }
+            return ids;
+        }
+
+        function getAssignedCoursesForEvent(eventId) {
+            const ids = new Set();
+            const eventSchedule = schedule[eventId] || {};
+            for (const room in eventSchedule) {
+                for (const a of eventSchedule[room]) ids.add(a.courseId);
+            }
+            return ids;
+        }
+
+        function countAssignedCourses(eventId) {
+            let count = 0;
+            const eventSchedule = schedule[eventId] || {};
+            for (const room in eventSchedule) count += eventSchedule[room].length;
+            return count;
+        }
+
+        function buildAssignmentMap() {
+            const map = {};
+            for (const eventId in schedule) {
+                for (const room in schedule[eventId]) {
+                    for (const a of schedule[eventId][room]) {
+                        if (!map[a.courseId]) map[a.courseId] = [];
+                        const event = events.find(e => e.Event_ID === eventId);
+                        map[a.courseId].push(event?.Event || eventId);
+                    }
+                }
+            }
+            return map;
+        }
+
+        function checkInstructorConflict(instructor, eventId) {
+            if (!instructor) return false;
+            const event = events.find(e => e.Event_ID === eventId);
+            if (!event) return false;
+
+            const eventStart = parseDate(event.First_Event_Day);
+            const eventEnd = parseDate(event.Last_Event_Day);
+            if (!eventStart || !eventEnd) return false;
+
+            for (const away of instructorAway) {
+                const instructors = away.Instructor.split(',').map(i => i.trim().toLowerCase());
+                if (!instructors.includes(instructor.toLowerCase())) continue;
+
+                const awayStart = parseDate(away.Unavailable_Start);
+                const awayEnd = parseDate(away.Unavailable_End);
+                if (!awayStart || !awayEnd) continue;
+
+                if (!(eventEnd < awayStart || eventStart > awayEnd)) return true;
+            }
+            return false;
+        }
+
+        // ==================== EDIT CELL ====================
+        function editCell(idx, field, cell) {
+            if (cell.querySelector('input')) return;
+            
+            const course = courses[idx];
+            let val = course[field];
+            
+            const input = document.createElement('input');
+            input.type = field === 'Duration_Days' ? 'number' : 'text';
+            input.value = val;
+            if (field === 'Duration_Days') { input.step = '0.5'; input.min = '0.5'; }
+            
+            const original = cell.innerHTML;
+            cell.innerHTML = '';
+            cell.appendChild(input);
+            input.focus();
+            input.select();
+
+            const save = () => {
+                let newVal = input.value.trim();
+                if (field === 'Duration_Days') newVal = parseFloat(newVal) || 1;
+                
+                if (newVal !== val) {
+                    course[field] = newVal;
+                    addLogEntry('edit', null, course.Course_ID, `Changed ${field}`);
+                    saveToLocalStorage();
+                    updateTopicFilter();
+                }
+                render();
+            };
+
+            input.addEventListener('blur', save);
+            input.addEventListener('keydown', e => {
+                if (e.key === 'Enter') save();
+                if (e.key === 'Escape') cell.innerHTML = original;
+            });
+        }
+
+        // ==================== EVENT MODALS ====================
+        function showAddEventModal() {
+            document.getElementById('eventModalTitle').textContent = 'Add Event';
+            document.getElementById('editEventId').value = '';
+            document.getElementById('eventIdInput').value = '';
+            document.getElementById('eventNameInput').value = '';
+            document.getElementById('eventLocationInput').value = '';
+            document.getElementById('eventRoomCountInput').value = '10';
+            document.getElementById('eventFirstDayInput').value = '';
+            document.getElementById('eventLastDayInput').value = '';
+            document.getElementById('eventModal').classList.add('active');
+        }
+
+        function showEditEventModal() {
+            const event = events.find(e => e.Event_ID === selectedEventId);
+            if (!event) return;
+
+            document.getElementById('eventModalTitle').textContent = 'Edit Event';
+            document.getElementById('editEventId').value = selectedEventId;
+            document.getElementById('eventIdInput').value = event.Event_ID;
+            document.getElementById('eventNameInput').value = event.Event;
+            document.getElementById('eventLocationInput').value = event.Location;
+            document.getElementById('eventRoomCountInput').value = event.Room_Count;
+            document.getElementById('eventFirstDayInput').value = event.First_Event_Day;
+            document.getElementById('eventLastDayInput').value = event.Last_Event_Day;
+            document.getElementById('eventModal').classList.add('active');
+        }
+
+        function saveEvent() {
+            const editId = document.getElementById('editEventId').value;
+            const eventData = {
+                Event_ID: document.getElementById('eventIdInput').value.trim(),
+                Event: document.getElementById('eventNameInput').value.trim(),
+                Location: document.getElementById('eventLocationInput').value.trim(),
+                Room_Count: parseInt(document.getElementById('eventRoomCountInput').value) || 10,
+                First_Event_Day: document.getElementById('eventFirstDayInput').value.trim(),
+                Last_Event_Day: document.getElementById('eventLastDayInput').value.trim(),
+                Total_Days: 0
+            };
+
+            eventData.Total_Days = calculateDays(eventData.First_Event_Day, eventData.Last_Event_Day);
+
+            if (!eventData.Event_ID || !eventData.Event) {
+                showToast('ID and Name required', 'error');
+                return;
+            }
+
+            if (editId) {
+                const idx = events.findIndex(e => e.Event_ID === editId);
+                if (idx !== -1) events[idx] = eventData;
+            } else {
+                if (events.find(e => e.Event_ID === eventData.Event_ID)) {
+                    showToast('Event ID exists', 'error');
+                    return;
+                }
+                events.push(eventData);
+                schedule[eventData.Event_ID] = {};
+                shortlists[eventData.Event_ID] = [];
+            }
+
+            closeModal('eventModal');
+            saveToLocalStorage();
+            render();
+            showToast('Event saved', 'success');
+        }
+
+        // ==================== CHANGE LOG ====================
+        function addLogEntry(action, eventId, courseId, description) {
+            const course = courseId ? courses.find(c => c.Course_ID === courseId) : null;
+            changeLog.push({
+                timestamp: new Date().toLocaleString(),
+                action,
+                eventId,
+                courseId,
+                courseName: course?.Course_Name || '',
+                description
+            });
+            saveToLocalStorage();
+        }
+
+        function clearChangeLog() {
+            if (!confirm('Clear all log entries?')) return;
+            changeLog = [];
+            saveToLocalStorage();
+            renderChangeLog();
+        }
+
+        function exportChangeLog() {
+            let csv = 'Timestamp,Action,Event,Course,Description\n';
+            for (const e of changeLog) {
+                const eventName = e.eventId ? (events.find(ev => ev.Event_ID === e.eventId)?.Event || e.eventId) : '';
+                csv += `"${e.timestamp}","${e.action}","${eventName}","${e.courseName || e.courseId || ''}","${e.description || ''}"\n`;
+            }
+            downloadFile(csv, 'change_log.csv', 'text/csv');
+        }
+
+        // ==================== EXPORT ====================
+        function exportSchedule() {
+            let csv = 'Event,Room,Course_ID,Course_Name,Instructor,Duration,Start_Day,End_Day\n';
+            for (const event of events) {
+                const eventDates = getEventDates(event);
+                const eventSchedule = schedule[event.Event_ID] || {};
+                for (const room in eventSchedule) {
+                    for (const a of eventSchedule[room]) {
+                        const course = courses.find(c => c.Course_ID === a.courseId);
+                        csv += `"${event.Event}",${room},"${a.courseId}","${course?.Course_Name || ''}","${course?.Instructor || ''}",${a.duration},"${eventDates[a.startDay-1] || ''}","${eventDates[a.startDay + a.duration - 2] || ''}"\n`;
+                    }
+                }
+            }
+            downloadFile(csv, 'schedule.csv', 'text/csv');
+            showToast('Exported', 'success');
+        }
+
+        // ==================== SAVE/LOAD ====================
+        function saveSession() {
+            const session = { events, courses, instructorAway, schedule, shortlists, changeLog };
+            downloadFile(JSON.stringify(session, null, 2), `schedule_${new Date().toISOString().slice(0,10)}.json`, 'application/json');
+            showToast('Saved', 'success');
+        }
+
+        function loadSession(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = e => {
+                try {
+                    const s = JSON.parse(e.target.result);
+                    events = s.events || [];
+                    courses = s.courses || [];
+                    instructorAway = s.instructorAway || [];
+                    schedule = s.schedule || {};
+                    shortlists = s.shortlists || {};
+                    changeLog = s.changeLog || [];
+                    updateTopicFilter();
+                    saveToLocalStorage();
+                    render();
+                    showToast('Loaded', 'success');
+                } catch (err) {
+                    showToast('Error loading', 'error');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // ==================== LOCAL STORAGE ====================
+        function saveToLocalStorage() {
+            try {
+                localStorage.setItem('sp_events', JSON.stringify(events));
+                localStorage.setItem('sp_courses', JSON.stringify(courses));
+                localStorage.setItem('sp_away', JSON.stringify(instructorAway));
+                localStorage.setItem('sp_schedule', JSON.stringify(schedule));
+                localStorage.setItem('sp_shortlists', JSON.stringify(shortlists));
+                localStorage.setItem('sp_log', JSON.stringify(changeLog));
+            } catch (err) {}
+        }
+
+        function loadFromLocalStorage() {
+            try {
+                events = JSON.parse(localStorage.getItem('sp_events')) || [];
+                courses = JSON.parse(localStorage.getItem('sp_courses')) || [];
+                instructorAway = JSON.parse(localStorage.getItem('sp_away')) || [];
+                schedule = JSON.parse(localStorage.getItem('sp_schedule')) || {};
+                shortlists = JSON.parse(localStorage.getItem('sp_shortlists')) || {};
+                changeLog = JSON.parse(localStorage.getItem('sp_log')) || [];
+                updateTopicFilter();
+            } catch (err) {}
+        }
+
+        // ==================== UI ====================
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        function showToast(msg, type = 'info') {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = 'toast ' + type + ' show';
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
+
+        function downloadFile(content, filename, mime) {
+            const blob = new Blob([content], { type: mime });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        document.addEventListener('click', e => {
+            if (e.target.classList.contains('modal-overlay')) e.target.classList.remove('active');
+        });
+
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+        });
+    </script>
+</body>
+</html>
