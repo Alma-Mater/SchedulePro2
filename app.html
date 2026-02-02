@@ -113,6 +113,11 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            transition: opacity 0.3s;
+        }
+
+        .sidebar.dimmed {
+            opacity: 0.4;
         }
 
         .sidebar-section {
@@ -157,7 +162,14 @@
 
         .course-item.assigned {
             opacity: 0.5;
-            border-left-color: #9ca3af;
+            border-left-color: #10b981;
+            background: #ecfdf5;
+        }
+
+        .course-item.assigned-elsewhere {
+            opacity: 0.6;
+            border-left-color: #6b7280;
+            background: #f3f4f6;
         }
 
         .course-item.conflict {
@@ -260,46 +272,99 @@
             color: #374151;
             position: sticky;
             top: 0;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        th:hover {
+            background: #f3e8ff;
+        }
+
+        th.sorted-asc::after {
+            content: ' ▲';
+            font-size: 0.7em;
+        }
+
+        th.sorted-desc::after {
+            content: ' ▼';
+            font-size: 0.7em;
         }
 
         tr:hover {
             background: #faf5ff;
         }
 
-        /* Event Cards */
-        .event-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 20px;
+        /* Editable table cells */
+        td.editable {
+            cursor: pointer;
+            position: relative;
+        }
+
+        td.editable:hover {
+            background: #f3e8ff;
+        }
+
+        td.editable input {
+            width: 100%;
+            padding: 6px;
+            border: 2px solid #7c3aed;
+            border-radius: 4px;
+            font-size: inherit;
+            font-family: inherit;
+        }
+
+        /* Event List - Vertical Layout */
+        .event-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
         }
 
         .event-card {
             background: white;
-            border: 1px solid #e5e7eb;
+            border: 2px solid #e5e7eb;
             border-radius: 8px;
             overflow: hidden;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .event-card:hover {
+            border-color: #c4b5fd;
         }
 
         .event-card.selected {
             border-color: #7c3aed;
-            box-shadow: 0 0 0 2px #ede9fe;
+            box-shadow: 0 0 0 3px #ede9fe;
+        }
+
+        .event-card.dimmed {
+            opacity: 0.3;
+            pointer-events: none;
         }
 
         .event-header {
             background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
             color: white;
             padding: 15px;
-            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        .event-header h3 {
+        .event-header-left h3 {
             font-size: 1.1em;
-            margin-bottom: 5px;
+            margin-bottom: 3px;
         }
 
-        .event-header p {
+        .event-header-left p {
             font-size: 0.85em;
             opacity: 0.9;
+        }
+
+        .event-header-right {
+            text-align: right;
+            font-size: 0.85em;
         }
 
         .event-body {
@@ -307,124 +372,103 @@
         }
 
         .event-meta {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
+            display: flex;
+            gap: 20px;
             margin-bottom: 15px;
             font-size: 0.85em;
+            flex-wrap: wrap;
         }
 
         .event-meta-item {
             display: flex;
-            flex-direction: column;
+            gap: 5px;
         }
 
         .event-meta-item label {
             color: #6b7280;
-            font-size: 0.8em;
         }
 
         .event-meta-item span {
-            font-weight: 500;
-        }
-
-        /* Room Grid */
-        .room-grid {
-            margin-top: 15px;
-        }
-
-        .room-grid-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-
-        .room-grid-header h4 {
-            font-size: 0.9em;
-            color: #374151;
-        }
-
-        .room-row {
-            display: flex;
-            align-items: stretch;
-            margin-bottom: 4px;
-            min-height: 36px;
-        }
-
-        .room-label {
-            width: 50px;
-            background: #f3f4f6;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.75em;
             font-weight: 600;
-            color: #6b7280;
-            border: 1px solid #e5e7eb;
-            border-right: none;
         }
 
-        .room-days {
-            flex: 1;
+        .event-actions {
             display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        /* Room Schedule Table */
+        .room-schedule-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8em;
+            margin-top: 10px;
+        }
+
+        .room-schedule-table th,
+        .room-schedule-table td {
             border: 1px solid #e5e7eb;
-            background: #fafafa;
-        }
-
-        .room-day {
-            flex: 1;
-            min-width: 30px;
-            border-right: 1px solid #e5e7eb;
-            position: relative;
-        }
-
-        .room-day:last-child {
-            border-right: none;
-        }
-
-        .room-day-header {
-            background: #f9fafb;
-            font-size: 0.65em;
+            padding: 6px 8px;
             text-align: center;
-            padding: 2px;
-            color: #6b7280;
-            border-bottom: 1px solid #e5e7eb;
         }
 
-        .course-block {
-            position: absolute;
-            top: 18px;
-            left: 1px;
-            right: 1px;
-            bottom: 1px;
+        .room-schedule-table th {
+            background: #f9fafb;
+            font-weight: 600;
+        }
+
+        .room-schedule-table .room-label {
+            background: #f3f4f6;
+            font-weight: 600;
+            width: 60px;
+        }
+
+        .room-schedule-table .course-cell {
             background: #7c3aed;
             color: white;
-            font-size: 0.65em;
-            padding: 2px 4px;
-            border-radius: 2px;
-            overflow: hidden;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            font-size: 0.85em;
+            padding: 4px;
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
-        .course-block.conflict {
+        .room-schedule-table .course-cell:hover {
+            background: #6d28d9;
+        }
+
+        .room-schedule-table .course-cell.conflict {
             background: #f59e0b;
         }
 
-        .course-block.multi-day {
-            border-radius: 2px 0 0 2px;
+        .room-schedule-table .course-cell.continuation {
+            background: #a78bfa;
+            border-left: 2px dashed white;
         }
 
-        .course-block.continuation {
-            border-radius: 0;
-            border-left: 1px dashed rgba(255,255,255,0.5);
+        .course-cell-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            line-height: 1.2;
         }
 
-        .course-block.end {
-            border-radius: 0 2px 2px 0;
+        .course-cell-id {
+            font-weight: 600;
+        }
+
+        .course-cell-name {
+            font-weight: 600;
+            font-size: 0.85em;
+        }
+
+        .course-cell-instructor {
+            font-size: 0.9em;
+            opacity: 0.9;
         }
 
         /* Shortlist Panel */
@@ -434,11 +478,10 @@
             border-radius: 6px;
             padding: 15px;
             margin-top: 15px;
-            min-height: 80px;
         }
 
         .shortlist-panel h4 {
-            font-size: 0.85em;
+            font-size: 0.9em;
             color: #7c3aed;
             margin-bottom: 10px;
         }
@@ -446,18 +489,23 @@
         .shortlist-courses {
             display: flex;
             flex-wrap: wrap;
-            gap: 6px;
+            gap: 8px;
         }
 
         .shortlist-course {
             background: white;
             border: 1px solid #c4b5fd;
-            padding: 4px 8px;
+            padding: 6px 10px;
             border-radius: 4px;
-            font-size: 0.75em;
+            font-size: 0.8em;
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .shortlist-course:hover {
+            background: #ede9fe;
         }
 
         .shortlist-course.conflict {
@@ -465,10 +513,27 @@
             background: #fffbeb;
         }
 
+        .shortlist-course .course-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .shortlist-course .course-title {
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .shortlist-course .course-instructor {
+            font-size: 0.9em;
+            color: #6b7280;
+        }
+
         .shortlist-course .remove {
             cursor: pointer;
             color: #9ca3af;
             font-weight: bold;
+            font-size: 1.2em;
+            line-height: 1;
         }
 
         .shortlist-course .remove:hover {
@@ -496,11 +561,15 @@
         .modal {
             background: white;
             border-radius: 8px;
-            max-width: 500px;
+            max-width: 600px;
             width: 90%;
-            max-height: 80vh;
+            max-height: 85vh;
             overflow: auto;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .modal.wide {
+            max-width: 900px;
         }
 
         .modal-header {
@@ -571,47 +640,63 @@
             box-shadow: 0 0 0 2px #ede9fe;
         }
 
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
         /* Change Log */
         .change-log {
-            max-height: 400px;
-            overflow-y: auto;
+            max-height: none;
         }
 
         .log-entry {
-            padding: 10px;
+            padding: 12px 15px;
             border-bottom: 1px solid #e5e7eb;
-            font-size: 0.85em;
+            font-size: 0.9em;
         }
 
         .log-entry:last-child {
             border-bottom: none;
         }
 
+        .log-entry:hover {
+            background: #faf5ff;
+        }
+
         .log-time {
             color: #6b7280;
-            font-size: 0.8em;
+            font-size: 0.85em;
+            margin-bottom: 4px;
         }
 
         .log-action {
             font-weight: 500;
-            margin: 3px 0;
+            margin-bottom: 4px;
         }
 
-        .log-action.add {
+        .log-action.add, .log-action.assign {
             color: #10b981;
         }
 
-        .log-action.remove {
+        .log-action.remove, .log-action.clear {
             color: #ef4444;
         }
 
-        .log-action.move {
+        .log-action.edit, .log-action.auto-fill {
             color: #3b82f6;
         }
 
-        .log-note {
+        .log-details {
             color: #6b7280;
+            font-size: 0.9em;
+        }
+
+        .log-note {
+            color: #7c3aed;
             font-style: italic;
+            margin-top: 4px;
         }
 
         /* Stats Bar */
@@ -673,6 +758,7 @@
             border: 1px solid #d1d5db;
             border-radius: 4px;
             font-size: 0.85em;
+            flex: 1;
         }
 
         /* Toast */
@@ -708,25 +794,39 @@
             background: #f59e0b;
         }
 
-        /* Editable cell */
-        .editable {
-            cursor: pointer;
-        }
-
-        .editable:hover {
-            background: #faf5ff;
-        }
-
-        .editable input {
-            border: 1px solid #7c3aed;
-            padding: 4px 8px;
-            width: 100%;
-            font-size: inherit;
-        }
-
         /* Hidden file input */
         input[type="file"] {
             display: none;
+        }
+
+        /* Selection indicator */
+        .selection-hint {
+            background: #ede9fe;
+            color: #7c3aed;
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .selection-hint.none {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        /* Room assignments table */
+        .assignments-table {
+            width: 100%;
+        }
+
+        .assignments-table th {
+            cursor: pointer;
+        }
+
+        .assignments-table th:hover {
+            background: #ede9fe;
         }
     </style>
 </head>
@@ -751,7 +851,7 @@
     <!-- Main Container -->
     <div class="main-container">
         <!-- Sidebar: Course List -->
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <div class="sidebar-section">
                 <h3>Courses</h3>
                 <input type="text" class="search-box" placeholder="Search courses..." 
@@ -803,6 +903,7 @@
             <!-- Tabs -->
             <div class="tabs">
                 <div class="tab active" data-tab="events">Events & Schedule</div>
+                <div class="tab" data-tab="assignments">Room Assignments</div>
                 <div class="tab" data-tab="all-courses">All Courses</div>
                 <div class="tab" data-tab="change-log">Change Log</div>
             </div>
@@ -811,15 +912,13 @@
             <div class="tab-content">
                 <!-- Events Tab -->
                 <div class="tab-panel active" id="tab-events">
-                    <div style="margin-bottom: 15px; display: flex; justify-content: space-between;">
-                        <button class="btn btn-primary" onclick="showAddEventModal()">+ Add Event</button>
-                        <div>
-                            <span style="font-size: 0.85em; color: #6b7280; margin-right: 10px;">
-                                Select an event, then click courses to add to shortlist
-                            </span>
-                        </div>
+                    <div class="selection-hint none" id="selectionHint">
+                        💡 Click on an event to select it, then click courses from the sidebar to build a shortlist
                     </div>
-                    <div class="event-grid" id="eventGrid">
+                    <div style="margin-bottom: 15px;">
+                        <button class="btn btn-primary" onclick="showAddEventModal()">+ Add Event</button>
+                    </div>
+                    <div class="event-list" id="eventList">
                         <div class="empty-state">
                             <h3>No events loaded</h3>
                             <p>Load an Excel file or add events manually</p>
@@ -827,8 +926,36 @@
                     </div>
                 </div>
 
+                <!-- Room Assignments Tab -->
+                <div class="tab-panel" id="tab-assignments">
+                    <div style="margin-bottom: 15px;">
+                        <select id="assignmentsEventFilter" onchange="renderAssignmentsTable()">
+                            <option value="">All Events</option>
+                        </select>
+                    </div>
+                    <table class="assignments-table" id="assignmentsTable">
+                        <thead>
+                            <tr>
+                                <th data-sort="event">Event</th>
+                                <th data-sort="room">Room</th>
+                                <th data-sort="courseId">Course ID</th>
+                                <th data-sort="courseName">Course Name</th>
+                                <th data-sort="instructor">Instructor</th>
+                                <th data-sort="days">Days</th>
+                                <th data-sort="conflict">Conflict</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="assignmentsTableBody">
+                        </tbody>
+                    </table>
+                </div>
+
                 <!-- All Courses Tab -->
                 <div class="tab-panel" id="tab-all-courses">
+                    <p style="margin-bottom: 15px; color: #6b7280; font-size: 0.9em;">
+                        💡 Click on any cell to edit. Changes are saved automatically.
+                    </p>
                     <table>
                         <thead>
                             <tr>
@@ -870,29 +997,35 @@
             </div>
             <div class="modal-body">
                 <input type="hidden" id="editEventId">
-                <div class="form-group">
-                    <label>Event ID</label>
-                    <input type="text" id="eventIdInput" placeholder="EV001">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Event ID</label>
+                        <input type="text" id="eventIdInput" placeholder="EV001">
+                    </div>
+                    <div class="form-group">
+                        <label>Event Name</label>
+                        <input type="text" id="eventNameInput" placeholder="Virtual-Feb">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Event Name</label>
-                    <input type="text" id="eventNameInput" placeholder="Virtual-Feb">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Location</label>
+                        <input type="text" id="eventLocationInput" placeholder="Virtual">
+                    </div>
+                    <div class="form-group">
+                        <label>Room Count</label>
+                        <input type="number" id="eventRoomCountInput" placeholder="10" min="1" max="50">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Location</label>
-                    <input type="text" id="eventLocationInput" placeholder="Virtual">
-                </div>
-                <div class="form-group">
-                    <label>First Day (MM-DD-YYYY)</label>
-                    <input type="text" id="eventFirstDayInput" placeholder="02-23-2027">
-                </div>
-                <div class="form-group">
-                    <label>Last Day (MM-DD-YYYY)</label>
-                    <input type="text" id="eventLastDayInput" placeholder="02-26-2027">
-                </div>
-                <div class="form-group">
-                    <label>Room Count</label>
-                    <input type="number" id="eventRoomCountInput" placeholder="10" min="1" max="50">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>First Day (MM-DD-YYYY)</label>
+                        <input type="text" id="eventFirstDayInput" placeholder="02-23-2027">
+                    </div>
+                    <div class="form-group">
+                        <label>Last Day (MM-DD-YYYY)</label>
+                        <input type="text" id="eventLastDayInput" placeholder="02-26-2027">
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Hotel Location</label>
@@ -919,13 +1052,15 @@
             </div>
             <div class="modal-body">
                 <p id="assignCourseInfo" style="margin-bottom: 15px;"></p>
-                <div class="form-group">
-                    <label>Select Starting Day</label>
-                    <select id="assignDaySelect"></select>
-                </div>
-                <div class="form-group">
-                    <label>Room Number</label>
-                    <select id="assignRoomSelect"></select>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Select Starting Day</label>
+                        <select id="assignDaySelect"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Room Number</label>
+                        <select id="assignRoomSelect"></select>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Note (optional)</label>
@@ -952,16 +1087,19 @@
         let events = [];
         let courses = [];
         let instructorAway = [];
-        let schedule = {}; // { eventId: { roomNumber: [{ courseId, startDay, days }] } }
-        let shortlists = {}; // { eventId: [courseIds] }
+        let schedule = {};
+        let shortlists = {};
         let changeLog = [];
         let selectedEventId = null;
+        let assignmentsSortColumn = 'room';
+        let assignmentsSortAsc = true;
 
         // ============================================
         // INITIALIZATION
         // ============================================
         document.addEventListener('DOMContentLoaded', () => {
             setupTabs();
+            setupAssignmentsTableSort();
             loadFromLocalStorage();
             render();
         });
@@ -973,6 +1111,24 @@
                     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
                     tab.classList.add('active');
                     document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+                    if (tab.dataset.tab === 'assignments') {
+                        renderAssignmentsTable();
+                    }
+                });
+            });
+        }
+
+        function setupAssignmentsTableSort() {
+            document.querySelectorAll('.assignments-table th[data-sort]').forEach(th => {
+                th.addEventListener('click', () => {
+                    const col = th.dataset.sort;
+                    if (assignmentsSortColumn === col) {
+                        assignmentsSortAsc = !assignmentsSortAsc;
+                    } else {
+                        assignmentsSortColumn = col;
+                        assignmentsSortAsc = true;
+                    }
+                    renderAssignmentsTable();
                 });
             });
         }
@@ -992,7 +1148,6 @@
 
                     let eventsLoaded = 0, coursesLoaded = 0, awayLoaded = 0;
 
-                    // Load Events tab
                     if (workbook.SheetNames.includes('Events')) {
                         const sheet = workbook.Sheets['Events'];
                         const rawData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
@@ -1009,15 +1164,12 @@
                             Notes: String(row.Notes || '').trim()
                         })).filter(e => e.Event_ID);
                         eventsLoaded = events.length;
-                        
-                        // Initialize schedule and shortlists for new events
                         events.forEach(ev => {
                             if (!schedule[ev.Event_ID]) schedule[ev.Event_ID] = {};
                             if (!shortlists[ev.Event_ID]) shortlists[ev.Event_ID] = [];
                         });
                     }
 
-                    // Load Courses tab
                     if (workbook.SheetNames.includes('Courses')) {
                         const sheet = workbook.Sheets['Courses'];
                         const rawData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
@@ -1032,7 +1184,6 @@
                         updateTopicFilter();
                     }
 
-                    // Load Instructor_Away tab
                     if (workbook.SheetNames.includes('Instructor_Away')) {
                         const sheet = workbook.Sheets['Instructor_Away'];
                         const rawData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
@@ -1044,11 +1195,11 @@
                         awayLoaded = instructorAway.length;
                     }
 
+                    updateAssignmentsEventFilter();
                     saveToLocalStorage();
                     render();
                     showToast(`Loaded: ${eventsLoaded} events, ${coursesLoaded} courses, ${awayLoaded} away entries`, 'success');
-                    
-                    addLogEntry('upload', null, null, `Loaded Excel file: ${file.name}`);
+                    addLogEntry('upload', null, null, null, `Loaded Excel file: ${file.name}`);
                 } catch (err) {
                     console.error('Error loading Excel:', err);
                     showToast('Error loading file: ' + err.message, 'error');
@@ -1066,8 +1217,14 @@
                 const y = value.getFullYear();
                 return `${m}-${d}-${y}`;
             }
-            // Already a string in MM-DD-YYYY format
             return String(value).trim();
+        }
+
+        // Display dates as MM/DD/YYYY
+        function displayDate(dateStr) {
+            if (!dateStr) return '';
+            // Convert MM-DD-YYYY to MM/DD/YYYY
+            return dateStr.replace(/-/g, '/');
         }
 
         function parseDate(dateStr) {
@@ -1094,17 +1251,33 @@
         // ============================================
         function render() {
             renderCourseList();
-            renderEventGrid();
+            renderEventList();
             renderAllCoursesTable();
             renderChangeLog();
             updateStats();
+            updateSelectionHint();
+        }
+
+        function updateSelectionHint() {
+            const hint = document.getElementById('selectionHint');
+            if (selectedEventId) {
+                const event = events.find(e => e.Event_ID === selectedEventId);
+                hint.className = 'selection-hint';
+                hint.innerHTML = `✅ <strong>${event?.Event || selectedEventId}</strong> selected — Click courses from the sidebar to add to shortlist`;
+            } else {
+                hint.className = 'selection-hint none';
+                hint.innerHTML = '💡 Click on an event to select it, then click courses from the sidebar to build a shortlist';
+            }
         }
 
         function renderCourseList() {
             const container = document.getElementById('courseList');
+            const sidebar = document.getElementById('sidebar');
             const searchTerm = document.getElementById('courseSearch').value.toLowerCase();
             const topicFilter = document.getElementById('topicFilter').value;
             const durationFilter = document.getElementById('durationFilter').value;
+
+            sidebar.classList.toggle('dimmed', !selectedEventId);
 
             const assignedCourseIds = getAssignedCourseIds();
 
@@ -1124,12 +1297,14 @@
             }
 
             container.innerHTML = filtered.map(c => {
-                const isAssigned = assignedCourseIds.has(c.Course_ID);
+                const isAssignedToSelectedEvent = selectedEventId && isAssignedToEvent(c.Course_ID, selectedEventId);
+                const isAssignedElsewhere = assignedCourseIds.has(c.Course_ID) && !isAssignedToSelectedEvent;
                 const hasConflict = selectedEventId && checkInstructorConflict(c.Instructor, selectedEventId);
                 const isInShortlist = selectedEventId && shortlists[selectedEventId]?.includes(c.Course_ID);
                 
                 let classes = 'course-item';
-                if (isAssigned) classes += ' assigned';
+                if (isAssignedToSelectedEvent) classes += ' assigned';
+                if (isAssignedElsewhere) classes += ' assigned-elsewhere';
                 if (hasConflict) classes += ' conflict';
                 if (isInShortlist) classes += ' selected';
 
@@ -1148,8 +1323,8 @@
             }).join('');
         }
 
-        function renderEventGrid() {
-            const container = document.getElementById('eventGrid');
+        function renderEventList() {
+            const container = document.getElementById('eventList');
             
             if (events.length === 0) {
                 container.innerHTML = `<div class="empty-state"><h3>No events loaded</h3><p>Load an Excel file or add events manually</p></div>`;
@@ -1158,60 +1333,73 @@
 
             container.innerHTML = events.map(ev => {
                 const isSelected = selectedEventId === ev.Event_ID;
+                const isDimmed = selectedEventId && !isSelected;
                 const shortlist = shortlists[ev.Event_ID] || [];
                 const eventSchedule = schedule[ev.Event_ID] || {};
                 const totalDays = ev.Total_Days || calculateDays(ev.First_Event_Day, ev.Last_Event_Day);
                 const eventDates = getEventDates(ev);
 
+                let cardClasses = 'event-card';
+                if (isSelected) cardClasses += ' selected';
+                if (isDimmed) cardClasses += ' dimmed';
+
                 return `
-                    <div class="event-card ${isSelected ? 'selected' : ''}" data-event="${ev.Event_ID}">
-                        <div class="event-header" onclick="selectEvent('${ev.Event_ID}')">
-                            <h3>${ev.Event} (${ev.Event_ID})</h3>
-                            <p>${ev.Location} · ${ev.First_Event_Day} to ${ev.Last_Event_Day}</p>
+                    <div class="${cardClasses}" onclick="selectEvent('${ev.Event_ID}')">
+                        <div class="event-header">
+                            <div class="event-header-left">
+                                <h3>${ev.Event}</h3>
+                                <p>${ev.Location}</p>
+                            </div>
+                            <div class="event-header-right">
+                                <div><strong>${ev.Event_ID}</strong></div>
+                                <div>${displayDate(ev.First_Event_Day)} — ${displayDate(ev.Last_Event_Day)}</div>
+                            </div>
                         </div>
                         <div class="event-body">
                             <div class="event-meta">
                                 <div class="event-meta-item">
-                                    <label>Rooms</label>
+                                    <label>Rooms:</label>
                                     <span>${ev.Room_Count}</span>
                                 </div>
                                 <div class="event-meta-item">
-                                    <label>Days</label>
+                                    <label>Days:</label>
                                     <span>${totalDays}</span>
                                 </div>
                                 <div class="event-meta-item">
-                                    <label>Hotel</label>
-                                    <span>${ev.Hotel_Location || '-'}</span>
+                                    <label>Assigned:</label>
+                                    <span>${countAssignedCourses(ev.Event_ID)}</span>
                                 </div>
                                 <div class="event-meta-item">
-                                    <label>Assigned</label>
-                                    <span>${countAssignedCourses(ev.Event_ID)}</span>
+                                    <label>Shortlisted:</label>
+                                    <span>${shortlist.length}</span>
                                 </div>
                             </div>
                             
-                            <div style="display: flex; gap: 5px; margin-bottom: 10px;">
-                                <button class="btn btn-sm" onclick="event.stopPropagation(); showEditEventModal('${ev.Event_ID}')">✏️ Edit</button>
-                                <button class="btn btn-sm btn-success" onclick="event.stopPropagation(); autoPopulateRooms('${ev.Event_ID}')" 
+                            <div class="event-actions" onclick="event.stopPropagation()">
+                                <button class="btn btn-sm" onclick="showEditEventModal('${ev.Event_ID}')">✏️ Edit</button>
+                                <button class="btn btn-sm btn-success" onclick="autoPopulateRooms('${ev.Event_ID}')" 
                                         ${shortlist.length === 0 ? 'disabled' : ''}>
-                                    🔄 Auto-Fill Rooms
+                                    🔄 Auto-Fill (${shortlist.length})
                                 </button>
-                                <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); clearEventSchedule('${ev.Event_ID}')">🗑️ Clear</button>
+                                <button class="btn btn-sm btn-danger" onclick="clearEventSchedule('${ev.Event_ID}')">🗑️ Clear</button>
                             </div>
 
-                            ${renderRoomGrid(ev, eventSchedule, eventDates)}
+                            ${renderRoomScheduleTable(ev, eventSchedule, eventDates)}
 
-                            <div class="shortlist-panel">
-                                <h4>Shortlisted Courses (${shortlist.length})</h4>
+                            <div class="shortlist-panel" onclick="event.stopPropagation()">
+                                <h4>📋 Shortlist (${shortlist.length})</h4>
                                 <div class="shortlist-courses">
-                                    ${shortlist.length === 0 ? '<span style="color: #9ca3af; font-size: 0.8em;">Click courses to add to shortlist</span>' : ''}
+                                    ${shortlist.length === 0 ? '<span style="color: #9ca3af; font-size: 0.85em;">Select this event and click courses to add</span>' : ''}
                                     ${shortlist.map(courseId => {
                                         const course = courses.find(c => c.Course_ID === courseId);
                                         if (!course) return '';
                                         const hasConflict = checkInstructorConflict(course.Instructor, ev.Event_ID);
                                         return `
-                                            <div class="shortlist-course ${hasConflict ? 'conflict' : ''}">
-                                                ${course.Course_ID} (${course.Duration_Days}d)
-                                                ${hasConflict ? '⚠️' : ''}
+                                            <div class="shortlist-course ${hasConflict ? 'conflict' : ''}" onclick="showAssignModal('${courseId}', '${ev.Event_ID}')">
+                                                <div class="course-info">
+                                                    <span class="course-title">${course.Course_ID}: ${course.Course_Name} (${course.Duration_Days}d)</span>
+                                                    <span class="course-instructor">${course.Instructor} ${hasConflict ? '⚠️' : ''}</span>
+                                                </div>
                                                 <span class="remove" onclick="event.stopPropagation(); removeFromShortlist('${ev.Event_ID}', '${courseId}')">&times;</span>
                                             </div>
                                         `;
@@ -1224,66 +1412,56 @@
             }).join('');
         }
 
-        function renderRoomGrid(event, eventSchedule, eventDates) {
+        function renderRoomScheduleTable(event, eventSchedule, eventDates) {
             const roomCount = event.Room_Count || 10;
             const totalDays = eventDates.length;
+            if (totalDays === 0) return '';
 
-            let html = '<div class="room-grid">';
-            html += '<div class="room-grid-header"><h4>Room Schedule</h4></div>';
+            let html = '<table class="room-schedule-table">';
+            html += '<thead><tr><th>Room</th>';
+            for (let day = 1; day <= totalDays; day++) {
+                const dateStr = eventDates[day - 1] || '';
+                const shortDate = displayDate(dateStr).split('/').slice(0, 2).join('/');
+                html += `<th>Day ${day}<br><small>${shortDate}</small></th>`;
+            }
+            html += '</tr></thead>';
 
+            html += '<tbody>';
             for (let room = 1; room <= roomCount; room++) {
-                html += '<div class="room-row">';
-                html += `<div class="room-label">R${room}</div>`;
-                html += '<div class="room-days">';
-
-                for (let day = 1; day <= totalDays; day++) {
-                    const dateStr = eventDates[day - 1] || `Day ${day}`;
-                    const shortDate = dateStr.split('-').slice(0, 2).join('/');
-                    
-                    // Check if there's a course in this room on this day
+                html += `<tr><td class="room-label">R${room}</td>`;
+                
+                let day = 1;
+                while (day <= totalDays) {
                     const courseInSlot = findCourseInSlot(event.Event_ID, room, day);
                     
-                    html += `<div class="room-day">`;
-                    html += `<div class="room-day-header">${shortDate}</div>`;
-                    
-                    if (courseInSlot) {
+                    if (courseInSlot && courseInSlot.startDay === day) {
                         const course = courses.find(c => c.Course_ID === courseInSlot.courseId);
                         const hasConflict = course && checkInstructorConflict(course.Instructor, event.Event_ID);
-                        const isStart = courseInSlot.startDay === day;
-                        const isEnd = courseInSlot.startDay + courseInSlot.duration - 1 === day;
+                        const colspan = courseInSlot.duration;
                         
-                        let blockClass = 'course-block';
-                        if (hasConflict) blockClass += ' conflict';
-                        if (courseInSlot.duration > 1) {
-                            if (isStart) blockClass += ' multi-day';
-                            else if (isEnd) blockClass += ' end';
-                            else blockClass += ' continuation';
-                        }
-                        
-                        if (isStart) {
-                            html += `<div class="${blockClass}" title="${course?.Course_Name || courseInSlot.courseId}" 
-                                         onclick="event.stopPropagation(); showRemoveCourseConfirm('${event.Event_ID}', ${room}, '${courseInSlot.courseId}')">
-                                        ${courseInSlot.courseId}
-                                     </div>`;
-                        } else {
-                            html += `<div class="${blockClass}" onclick="event.stopPropagation(); showRemoveCourseConfirm('${event.Event_ID}', ${room}, '${courseInSlot.courseId}')"></div>`;
-                        }
+                        html += `<td colspan="${colspan}" class="course-cell ${hasConflict ? 'conflict' : ''}" 
+                                    onclick="event.stopPropagation(); showRemoveCourseConfirm('${event.Event_ID}', ${room}, '${courseInSlot.courseId}')"
+                                    title="${course?.Course_Name || ''} - ${course?.Instructor || ''}">
+                                    <div class="course-cell-content">
+                                        <span class="course-cell-name">${course?.Course_Name || courseInSlot.courseId}</span>
+                                        <span class="course-cell-instructor">${course?.Instructor || ''}</span>
+                                    </div>
+                                </td>`;
+                        day += colspan;
+                    } else {
+                        html += '<td></td>';
+                        day++;
                     }
-                    
-                    html += '</div>';
                 }
-
-                html += '</div></div>';
+                html += '</tr>';
             }
-
-            html += '</div>';
+            html += '</tbody></table>';
             return html;
         }
 
         function findCourseInSlot(eventId, room, day) {
             const eventSchedule = schedule[eventId] || {};
             const roomSchedule = eventSchedule[room] || [];
-            
             for (const assignment of roomSchedule) {
                 const endDay = assignment.startDay + assignment.duration - 1;
                 if (day >= assignment.startDay && day <= endDay) {
@@ -1297,9 +1475,7 @@
             const dates = [];
             const start = parseDate(event.First_Event_Day);
             const end = parseDate(event.Last_Event_Day);
-            
             if (!start || !end) return dates;
-            
             let current = new Date(start);
             while (current <= end) {
                 dates.push(formatDate(current));
@@ -1308,23 +1484,151 @@
             return dates;
         }
 
+        function updateAssignmentsEventFilter() {
+            const select = document.getElementById('assignmentsEventFilter');
+            select.innerHTML = '<option value="">All Events</option>' +
+                events.map(e => `<option value="${e.Event_ID}">${e.Event} (${e.Event_ID})</option>`).join('');
+        }
+
+        function renderAssignmentsTable() {
+            const tbody = document.getElementById('assignmentsTableBody');
+            const filterEventId = document.getElementById('assignmentsEventFilter').value;
+            
+            let assignments = [];
+            for (const eventId in schedule) {
+                if (filterEventId && eventId !== filterEventId) continue;
+                const event = events.find(e => e.Event_ID === eventId);
+                const eventDates = event ? getEventDates(event) : [];
+                
+                for (const room in schedule[eventId]) {
+                    for (const assignment of schedule[eventId][room]) {
+                        const course = courses.find(c => c.Course_ID === assignment.courseId);
+                        const hasConflict = course && checkInstructorConflict(course.Instructor, eventId);
+                        const startDate = displayDate(eventDates[assignment.startDay - 1]) || `Day ${assignment.startDay}`;
+                        const endDate = displayDate(eventDates[assignment.startDay + assignment.duration - 2]) || `Day ${assignment.startDay + assignment.duration - 1}`;
+                        
+                        assignments.push({
+                            eventId,
+                            event: event?.Event || eventId,
+                            room: parseInt(room),
+                            courseId: assignment.courseId,
+                            courseName: course?.Course_Name || '',
+                            instructor: course?.Instructor || '',
+                            days: `${startDate} - ${endDate}`,
+                            startDay: assignment.startDay,
+                            conflict: hasConflict
+                        });
+                    }
+                }
+            }
+
+            assignments.sort((a, b) => {
+                let aVal = a[assignmentsSortColumn];
+                let bVal = b[assignmentsSortColumn];
+                if (typeof aVal === 'string') {
+                    aVal = aVal.toLowerCase();
+                    bVal = bVal.toLowerCase();
+                }
+                if (aVal < bVal) return assignmentsSortAsc ? -1 : 1;
+                if (aVal > bVal) return assignmentsSortAsc ? 1 : -1;
+                return 0;
+            });
+
+            document.querySelectorAll('.assignments-table th').forEach(th => {
+                th.classList.remove('sorted-asc', 'sorted-desc');
+                if (th.dataset.sort === assignmentsSortColumn) {
+                    th.classList.add(assignmentsSortAsc ? 'sorted-asc' : 'sorted-desc');
+                }
+            });
+
+            if (assignments.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #9ca3af; padding: 40px;">No assignments yet</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = assignments.map(a => `
+                <tr>
+                    <td>${a.event}</td>
+                    <td>Room ${a.room}</td>
+                    <td>${a.courseId}</td>
+                    <td>${a.courseName}</td>
+                    <td>${a.instructor}</td>
+                    <td>${a.days}</td>
+                    <td style="color: ${a.conflict ? '#f59e0b' : '#10b981'}">${a.conflict ? '⚠️ Yes' : '✓ No'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="removeCourseFromSchedule('${a.eventId}', ${a.room}, '${a.courseId}')">Remove</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
         function renderAllCoursesTable() {
             const tbody = document.getElementById('allCoursesTable');
             const assignedMap = buildAssignmentMap();
 
-            tbody.innerHTML = courses.map(c => {
+            tbody.innerHTML = courses.map((c, idx) => {
                 const assignments = assignedMap[c.Course_ID] || [];
                 return `
                     <tr>
-                        <td>${c.Course_ID}</td>
-                        <td>${c.Course_Name}</td>
-                        <td>${c.Instructor}</td>
-                        <td>${c.Duration_Days} day${c.Duration_Days !== 1 ? 's' : ''}</td>
-                        <td>${c.Topic || '-'}</td>
+                        <td class="editable" onclick="editCourseCell(${idx}, 'Course_ID', this)">${c.Course_ID}</td>
+                        <td class="editable" onclick="editCourseCell(${idx}, 'Course_Name', this)">${c.Course_Name}</td>
+                        <td class="editable" onclick="editCourseCell(${idx}, 'Instructor', this)">${c.Instructor}</td>
+                        <td class="editable" onclick="editCourseCell(${idx}, 'Duration_Days', this)">${c.Duration_Days} day${c.Duration_Days !== 1 ? 's' : ''}</td>
+                        <td class="editable" onclick="editCourseCell(${idx}, 'Topic', this)">${c.Topic || '-'}</td>
                         <td>${assignments.length > 0 ? assignments.join(', ') : '<span style="color: #9ca3af;">Not assigned</span>'}</td>
                     </tr>
                 `;
             }).join('');
+        }
+
+        function editCourseCell(courseIdx, field, cell) {
+            if (cell.querySelector('input')) return;
+            
+            const course = courses[courseIdx];
+            let currentValue = course[field];
+            if (field === 'Duration_Days') {
+                currentValue = course.Duration_Days;
+            }
+            
+            const input = document.createElement('input');
+            input.type = field === 'Duration_Days' ? 'number' : 'text';
+            input.value = currentValue;
+            if (field === 'Duration_Days') {
+                input.step = '0.5';
+                input.min = '0.5';
+                input.max = '10';
+            }
+            
+            const originalContent = cell.innerHTML;
+            cell.innerHTML = '';
+            cell.appendChild(input);
+            input.focus();
+            input.select();
+
+            const save = () => {
+                let newValue = input.value.trim();
+                if (field === 'Duration_Days') {
+                    newValue = parseFloat(newValue) || 1;
+                }
+                
+                if (newValue !== currentValue) {
+                    const oldValue = course[field];
+                    course[field] = newValue;
+                    addLogEntry('edit', null, course.Course_ID, course.Course_Name, 
+                        `Changed ${field} from "${oldValue}" to "${newValue}"`);
+                    saveToLocalStorage();
+                    updateTopicFilter();
+                }
+                render();
+            };
+
+            input.addEventListener('blur', save);
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') save();
+                if (e.key === 'Escape') {
+                    cell.innerHTML = originalContent;
+                }
+            });
         }
 
         function renderChangeLog() {
@@ -1335,13 +1639,46 @@
                 return;
             }
 
-            container.innerHTML = changeLog.slice().reverse().map(entry => `
+            container.innerHTML = changeLog.slice().reverse().map(entry => {
+                // Look up course name if we have a courseId but no courseName stored
+                let courseName = entry.courseName;
+                if (!courseName && entry.courseId) {
+                    const course = courses.find(c => c.Course_ID === entry.courseId);
+                    courseName = course?.Course_Name || '';
+                }
+                // Look up event name
+                let eventName = '';
+                if (entry.eventId) {
+                    const event = events.find(e => e.Event_ID === entry.eventId);
+                    eventName = event?.Event || entry.eventId;
+                }
+                return `
                 <div class="log-entry">
                     <div class="log-time">${entry.timestamp}</div>
-                    <div class="log-action ${entry.action}">${entry.description}</div>
+                    <div class="log-action ${entry.action}">${getActionLabel(entry.action)}</div>
+                    <div class="log-details">
+                        ${courseName ? `<strong>${entry.courseId}</strong>: ${courseName}` : ''}
+                        ${eventName ? `@ ${eventName}` : ''}
+                        ${entry.description ? `— ${entry.description}` : ''}
+                    </div>
                     ${entry.note ? `<div class="log-note">"${entry.note}"</div>` : ''}
                 </div>
-            `).join('');
+            `;
+            }).join('');
+        }
+
+        function getActionLabel(action) {
+            const labels = {
+                'add': '➕ Added to Shortlist',
+                'remove': '➖ Removed',
+                'assign': '✅ Assigned',
+                'clear': '🗑️ Cleared',
+                'edit': '✏️ Edited',
+                'auto-fill': '🔄 Auto-Filled',
+                'upload': '📁 Uploaded',
+                'load': '📂 Loaded Session'
+            };
+            return labels[action] || action;
         }
 
         function updateStats() {
@@ -1419,14 +1756,12 @@
             }
 
             if (editId) {
-                // Update existing
                 const idx = events.findIndex(e => e.Event_ID === editId);
                 if (idx !== -1) {
                     events[idx] = eventData;
-                    addLogEntry('edit', eventData.Event_ID, null, `Updated event: ${eventData.Event}`);
+                    addLogEntry('edit', eventData.Event_ID, null, null, `Updated event: ${eventData.Event}`);
                 }
             } else {
-                // Check for duplicate
                 if (events.find(e => e.Event_ID === eventData.Event_ID)) {
                     showToast('Event ID already exists', 'error');
                     return;
@@ -1434,10 +1769,11 @@
                 events.push(eventData);
                 schedule[eventData.Event_ID] = {};
                 shortlists[eventData.Event_ID] = [];
-                addLogEntry('add', eventData.Event_ID, null, `Added event: ${eventData.Event}`);
+                addLogEntry('add', eventData.Event_ID, null, null, `Added event: ${eventData.Event}`);
             }
 
             closeModal('eventModal');
+            updateAssignmentsEventFilter();
             saveToLocalStorage();
             render();
             showToast('Event saved', 'success');
@@ -1453,24 +1789,23 @@
             }
 
             const shortlist = shortlists[selectedEventId] || [];
+            const course = courses.find(c => c.Course_ID === courseId);
             
             if (shortlist.includes(courseId)) {
-                // Already in shortlist - offer to assign
                 showAssignModal(courseId, selectedEventId);
             } else {
-                // Add to shortlist
                 shortlists[selectedEventId] = [...shortlist, courseId];
-                const course = courses.find(c => c.Course_ID === courseId);
-                addLogEntry('add', selectedEventId, courseId, `Added ${courseId} to shortlist`);
+                addLogEntry('add', selectedEventId, courseId, course?.Course_Name, `Added to shortlist`);
                 saveToLocalStorage();
                 render();
-                showToast(`Added ${courseId} to shortlist`, 'success');
+                showToast(`Added "${course?.Course_Name}" to shortlist`, 'success');
             }
         }
 
         function removeFromShortlist(eventId, courseId) {
+            const course = courses.find(c => c.Course_ID === courseId);
             shortlists[eventId] = (shortlists[eventId] || []).filter(id => id !== courseId);
-            addLogEntry('remove', eventId, courseId, `Removed ${courseId} from shortlist`);
+            addLogEntry('remove', eventId, courseId, course?.Course_Name, `Removed from shortlist`);
             saveToLocalStorage();
             render();
         }
@@ -1489,23 +1824,20 @@
                 <span style="color: #6b7280;">Instructor: ${course.Instructor} · Duration: ${course.Duration_Days} day(s)</span>
             `;
 
-            // Populate day select
             const daySelect = document.getElementById('assignDaySelect');
             daySelect.innerHTML = '';
             for (let i = 1; i <= totalDays - duration + 1; i++) {
-                const startDate = eventDates[i - 1] || `Day ${i}`;
-                const endDate = eventDates[i + duration - 2] || `Day ${i + duration - 1}`;
+                const startDate = displayDate(eventDates[i - 1]) || `Day ${i}`;
+                const endDate = displayDate(eventDates[i + duration - 2]) || `Day ${i + duration - 1}`;
                 daySelect.innerHTML += `<option value="${i}">Day ${i} (${startDate}) to Day ${i + duration - 1} (${endDate})</option>`;
             }
 
-            // Populate room select
             const roomSelect = document.getElementById('assignRoomSelect');
             roomSelect.innerHTML = '';
             for (let r = 1; r <= event.Room_Count; r++) {
                 roomSelect.innerHTML += `<option value="${r}">Room ${r}</option>`;
             }
 
-            // Check for conflict
             const conflictWarning = document.getElementById('assignConflictWarning');
             const hasConflict = checkInstructorConflict(course.Instructor, eventId);
             if (hasConflict) {
@@ -1535,13 +1867,11 @@
 
             const duration = Math.ceil(course.Duration_Days);
 
-            // Check for room conflict
             if (hasRoomConflict(eventId, room, startDay, duration, courseId)) {
                 showToast('Room conflict: Another course is already scheduled in this slot', 'error');
                 return;
             }
 
-            // Add assignment
             if (!schedule[eventId]) schedule[eventId] = {};
             if (!schedule[eventId][room]) schedule[eventId][room] = [];
 
@@ -1551,15 +1881,15 @@
                 duration
             });
 
-            // Remove from shortlist
             shortlists[eventId] = (shortlists[eventId] || []).filter(id => id !== courseId);
 
-            addLogEntry('assign', eventId, courseId, `Assigned ${courseId} to Room ${room}, Day ${startDay}-${startDay + duration - 1}`, note);
+            addLogEntry('assign', eventId, courseId, course.Course_Name, 
+                `Assigned to Room ${room}, Days ${startDay}-${startDay + duration - 1}`, note);
             
             closeModal('assignModal');
             saveToLocalStorage();
             render();
-            showToast(`Assigned ${courseId} to Room ${room}`, 'success');
+            showToast(`Assigned "${course.Course_Name}" to Room ${room}`, 'success');
         }
 
         function hasRoomConflict(eventId, room, startDay, duration, excludeCourseId = null) {
@@ -1577,32 +1907,35 @@
         }
 
         function showRemoveCourseConfirm(eventId, room, courseId) {
-            if (confirm(`Remove ${courseId} from Room ${room}?`)) {
+            const course = courses.find(c => c.Course_ID === courseId);
+            if (confirm(`Remove "${course?.Course_Name || courseId}" from Room ${room}?`)) {
                 removeCourseFromSchedule(eventId, room, courseId);
             }
         }
 
         function removeCourseFromSchedule(eventId, room, courseId) {
+            const course = courses.find(c => c.Course_ID === courseId);
             if (schedule[eventId]?.[room]) {
                 schedule[eventId][room] = schedule[eventId][room].filter(a => a.courseId !== courseId);
             }
-            addLogEntry('remove', eventId, courseId, `Removed ${courseId} from Room ${room}`);
+            addLogEntry('remove', eventId, courseId, course?.Course_Name, `Removed from Room ${room}`);
             saveToLocalStorage();
             render();
-            showToast(`Removed ${courseId}`, 'success');
+            showToast(`Removed "${course?.Course_Name || courseId}"`, 'success');
         }
 
         function clearEventSchedule(eventId) {
-            if (!confirm(`Clear all assignments for this event?`)) return;
+            const event = events.find(e => e.Event_ID === eventId);
+            if (!confirm(`Clear all assignments for "${event?.Event || eventId}"?`)) return;
             schedule[eventId] = {};
-            addLogEntry('clear', eventId, null, `Cleared all assignments`);
+            addLogEntry('clear', eventId, null, null, `Cleared all assignments`);
             saveToLocalStorage();
             render();
             showToast('Schedule cleared', 'success');
         }
 
         // ============================================
-        // AUTO-POPULATE ROOMS
+        // AUTO-POPULATE ROOMS (SMART - INSTRUCTOR GROUPING)
         // ============================================
         function autoPopulateRooms(eventId) {
             const event = events.find(e => e.Event_ID === eventId);
@@ -1616,27 +1949,100 @@
             const totalDays = event.Total_Days || calculateDays(event.First_Event_Day, event.Last_Event_Day);
             const roomCount = event.Room_Count;
 
-            // Get courses to assign, sorted by duration (longest first for better packing)
-            const toAssign = shortlist.map(id => courses.find(c => c.Course_ID === id))
-                .filter(c => c)
-                .sort((a, b) => b.Duration_Days - a.Duration_Days);
+            const toAssign = shortlist.map(id => courses.find(c => c.Course_ID === id)).filter(c => c);
 
-            // Initialize or preserve existing schedule
+            // Group courses by instructor
+            const byInstructor = {};
+            for (const course of toAssign) {
+                if (!byInstructor[course.Instructor]) {
+                    byInstructor[course.Instructor] = [];
+                }
+                byInstructor[course.Instructor].push(course);
+            }
+
+            // Sort instructors by total days needed (descending)
+            const instructors = Object.keys(byInstructor).sort((a, b) => {
+                const aDays = byInstructor[a].reduce((sum, c) => sum + Math.ceil(c.Duration_Days), 0);
+                const bDays = byInstructor[b].reduce((sum, c) => sum + Math.ceil(c.Duration_Days), 0);
+                return bDays - aDays;
+            });
+
             if (!schedule[eventId]) schedule[eventId] = {};
+            
+            // Track room assignments during this auto-fill
+            const roomAssignments = {};
+            for (let r = 1; r <= roomCount; r++) {
+                roomAssignments[r] = schedule[eventId][r] ? [...schedule[eventId][r]] : [];
+            }
 
             let assigned = 0;
             const unassigned = [];
+            const assignedCourseIds = new Set();
+            const instructorRoomMap = {}; // Track which room each instructor is assigned to
 
+            // For each instructor, try to place all their courses in the same room
+            for (const instructor of instructors) {
+                const instructorCourses = byInstructor[instructor].sort((a, b) => b.Duration_Days - a.Duration_Days);
+                
+                let bestRoom = null;
+                let bestRoomFit = null;
+
+                for (let room = 1; room <= roomCount; room++) {
+                    const fit = tryFitInstructorCoursesWithTemp(roomAssignments[room], instructorCourses, totalDays);
+                    if (fit && fit.length === instructorCourses.length) {
+                        bestRoom = room;
+                        bestRoomFit = fit;
+                        break;
+                    } else if (fit && fit.length > 0 && (!bestRoomFit || fit.length > bestRoomFit.length)) {
+                        bestRoom = room;
+                        bestRoomFit = fit;
+                    }
+                }
+
+                if (bestRoom && bestRoomFit) {
+                    instructorRoomMap[instructor] = bestRoom;
+                    for (const placement of bestRoomFit) {
+                        const assignment = {
+                            courseId: placement.course.Course_ID,
+                            startDay: placement.startDay,
+                            duration: Math.ceil(placement.course.Duration_Days)
+                        };
+                        roomAssignments[bestRoom].push(assignment);
+                        assignedCourseIds.add(placement.course.Course_ID);
+                        assigned++;
+                    }
+                }
+            }
+            
+            // Copy final assignments to schedule
+            for (let r = 1; r <= roomCount; r++) {
+                schedule[eventId][r] = roomAssignments[r];
+            }
+
+            // Place remaining unassigned courses anywhere
             for (const course of toAssign) {
+                if (assignedCourseIds.has(course.Course_ID)) continue;
+
                 const duration = Math.ceil(course.Duration_Days);
                 let placed = false;
+                
+                // Helper to check conflict in a room
+                function checkRoomConflict(room, startDay, dur) {
+                    const endDay = startDay + dur - 1;
+                    for (const a of (schedule[eventId][room] || [])) {
+                        const aEnd = a.startDay + a.duration - 1;
+                        if (!(endDay < a.startDay || startDay > aEnd)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
 
-                // Try to find a slot
                 for (let room = 1; room <= roomCount && !placed; room++) {
                     if (!schedule[eventId][room]) schedule[eventId][room] = [];
 
                     for (let day = 1; day <= totalDays - duration + 1 && !placed; day++) {
-                        if (!hasRoomConflict(eventId, room, day, duration)) {
+                        if (!checkRoomConflict(room, day, duration)) {
                             schedule[eventId][room].push({
                                 courseId: course.Course_ID,
                                 startDay: day,
@@ -1653,18 +2059,73 @@
                 }
             }
 
-            // Clear shortlist for assigned courses
             shortlists[eventId] = unassigned;
 
-            addLogEntry('auto-fill', eventId, null, `Auto-populated ${assigned} courses, ${unassigned.length} couldn't fit`);
+            addLogEntry('auto-fill', eventId, null, null, 
+                `Auto-filled ${assigned} courses (instructor-grouped), ${unassigned.length} couldn't fit`);
             saveToLocalStorage();
             render();
 
             if (unassigned.length > 0) {
-                showToast(`Assigned ${assigned} courses. ${unassigned.length} couldn't fit and remain in shortlist.`, 'warning');
+                showToast(`Assigned ${assigned} courses. ${unassigned.length} couldn't fit.`, 'warning');
             } else {
                 showToast(`Successfully assigned all ${assigned} courses!`, 'success');
             }
+        }
+
+        function tryFitInstructorCoursesWithTemp(existingAssignments, coursesToFit, totalDays) {
+            const placements = [];
+            
+            // Helper to check conflict with existing + new placements
+            function hasConflictInRoom(startDay, duration) {
+                const endDay = startDay + duration - 1;
+                // Check existing assignments
+                for (const a of existingAssignments) {
+                    const aEnd = a.startDay + a.duration - 1;
+                    if (!(endDay < a.startDay || startDay > aEnd)) {
+                        return true;
+                    }
+                }
+                // Check new placements
+                for (const p of placements) {
+                    const pEnd = p.startDay + Math.ceil(p.course.Duration_Days) - 1;
+                    if (!(endDay < p.startDay || startDay > pEnd)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            const sorted = [...coursesToFit].sort((a, b) => b.Duration_Days - a.Duration_Days);
+            let nextDay = 1;
+
+            for (const course of sorted) {
+                const duration = Math.ceil(course.Duration_Days);
+                let placed = false;
+                
+                // Try to place sequentially first
+                for (let day = nextDay; day <= totalDays - duration + 1; day++) {
+                    if (!hasConflictInRoom(day, duration)) {
+                        placements.push({ course, startDay: day });
+                        nextDay = day + duration;
+                        placed = true;
+                        break;
+                    }
+                }
+
+                // If not placed, try any available slot
+                if (!placed) {
+                    for (let day = 1; day <= totalDays - duration + 1; day++) {
+                        if (!hasConflictInRoom(day, duration)) {
+                            placements.push({ course, startDay: day });
+                            placed = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            return placements;
         }
 
         // ============================================
@@ -1679,9 +2140,7 @@
             const eventEnd = parseDate(event.Last_Event_Day);
             if (!eventStart || !eventEnd) return false;
 
-            // Check each away entry
             for (const away of instructorAway) {
-                // Handle multiple instructors in one row (comma-separated)
                 const instructors = away.Instructor.split(',').map(i => i.trim().toLowerCase());
                 if (!instructors.includes(instructor.toLowerCase())) continue;
 
@@ -1689,7 +2148,6 @@
                 const awayEnd = parseDate(away.Unavailable_End);
                 if (!awayStart || !awayEnd) continue;
 
-                // Check for overlap
                 if (!(eventEnd < awayStart || eventStart > awayEnd)) {
                     return true;
                 }
@@ -1750,6 +2208,16 @@
             return count;
         }
 
+        function isAssignedToEvent(courseId, eventId) {
+            const eventSchedule = schedule[eventId] || {};
+            for (const room in eventSchedule) {
+                if (eventSchedule[room].some(a => a.courseId === courseId)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         function filterCourses() {
             renderCourseList();
         }
@@ -1757,12 +2225,13 @@
         // ============================================
         // CHANGE LOG
         // ============================================
-        function addLogEntry(action, eventId, courseId, description, note = '') {
+        function addLogEntry(action, eventId, courseId, courseName, description, note = '') {
             changeLog.push({
                 timestamp: new Date().toLocaleString(),
                 action,
                 eventId,
                 courseId,
+                courseName,
                 description,
                 note
             });
@@ -1778,7 +2247,7 @@
         }
 
         function exportChangeLog() {
-            const headers = ['Timestamp', 'Action', 'Event_ID', 'Course_ID', 'Description', 'Note'];
+            const headers = ['Timestamp', 'Action', 'Event_ID', 'Course_ID', 'Course_Name', 'Description', 'Note'];
             let csv = headers.join(',') + '\n';
             
             for (const entry of changeLog) {
@@ -1787,7 +2256,8 @@
                     entry.action,
                     entry.eventId || '',
                     entry.courseId || '',
-                    `"${entry.description}"`,
+                    `"${entry.courseName || ''}"`,
+                    `"${entry.description || ''}"`,
                     `"${entry.note || ''}"`
                 ].join(',') + '\n';
             }
@@ -1838,7 +2308,7 @@
         // ============================================
         function saveSession() {
             const session = {
-                version: 1,
+                version: 2,
                 timestamp: new Date().toISOString(),
                 events,
                 courses,
@@ -1870,10 +2340,11 @@
                     changeLog = session.changeLog || [];
 
                     updateTopicFilter();
+                    updateAssignmentsEventFilter();
                     saveToLocalStorage();
                     render();
                     showToast('Session loaded', 'success');
-                    addLogEntry('load', null, null, `Loaded session from ${file.name}`);
+                    addLogEntry('load', null, null, null, `Loaded session from ${file.name}`);
                 } catch (err) {
                     showToast('Error loading session: ' + err.message, 'error');
                 }
@@ -1915,6 +2386,7 @@
                 if (savedChangelog) changeLog = JSON.parse(savedChangelog);
 
                 updateTopicFilter();
+                updateAssignmentsEventFilter();
             } catch (err) {
                 console.error('Error loading from localStorage:', err);
             }
@@ -1944,14 +2416,12 @@
             URL.revokeObjectURL(url);
         }
 
-        // Close modal on overlay click
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('modal-overlay')) {
                 e.target.classList.remove('active');
             }
         });
 
-        // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
