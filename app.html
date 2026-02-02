@@ -1,0 +1,1962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SchedulePro - Course Scheduler</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            color: #333;
+        }
+
+        /* Header */
+        .header {
+            background: white;
+            border-bottom: 3px solid #7c3aed;
+            padding: 15px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .header h1 {
+            font-size: 1.5em;
+            color: #7c3aed;
+            font-weight: 600;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* Buttons */
+        .btn {
+            background: white;
+            color: #7c3aed;
+            border: 2px solid #7c3aed;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: #7c3aed;
+            color: white;
+        }
+
+        .btn-primary {
+            background: #7c3aed;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #6d28d9;
+            border-color: #6d28d9;
+        }
+
+        .btn-success {
+            border-color: #10b981;
+            color: #10b981;
+        }
+
+        .btn-success:hover {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-danger {
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+
+        .btn-danger:hover {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 4px 10px;
+            font-size: 0.8em;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Main Layout */
+        .main-container {
+            display: flex;
+            height: calc(100vh - 60px);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 320px;
+            background: white;
+            border-right: 1px solid #e5e7eb;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-section {
+            border-bottom: 1px solid #e5e7eb;
+            padding: 15px;
+        }
+
+        .sidebar-section h3 {
+            font-size: 0.85em;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+
+        .course-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .course-item {
+            background: #fafafa;
+            border: 1px solid #e5e7eb;
+            border-left: 3px solid #7c3aed;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .course-item:hover {
+            background: #f3e8ff;
+            border-color: #c4b5fd;
+        }
+
+        .course-item.selected {
+            background: #ede9fe;
+            border-color: #7c3aed;
+        }
+
+        .course-item.assigned {
+            opacity: 0.5;
+            border-left-color: #9ca3af;
+        }
+
+        .course-item.conflict {
+            border-left-color: #f59e0b;
+            background: #fffbeb;
+        }
+
+        .course-id {
+            font-weight: 600;
+            color: #7c3aed;
+            font-size: 0.9em;
+        }
+
+        .course-name {
+            font-size: 0.85em;
+            color: #374151;
+            margin: 2px 0;
+        }
+
+        .course-meta {
+            font-size: 0.75em;
+            color: #6b7280;
+        }
+
+        .conflict-badge {
+            background: #fef3c7;
+            color: #b45309;
+            font-size: 0.7em;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-left: 5px;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            color: #6b7280;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            color: #7c3aed;
+            background: #faf5ff;
+        }
+
+        .tab.active {
+            color: #7c3aed;
+            border-bottom-color: #7c3aed;
+        }
+
+        /* Tab Content */
+        .tab-content {
+            flex: 1;
+            overflow: auto;
+            padding: 20px;
+            background: white;
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+
+        th, td {
+            border: 1px solid #e5e7eb;
+            padding: 10px 12px;
+            text-align: left;
+        }
+
+        th {
+            background: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+            position: sticky;
+            top: 0;
+        }
+
+        tr:hover {
+            background: #faf5ff;
+        }
+
+        /* Event Cards */
+        .event-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .event-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .event-card.selected {
+            border-color: #7c3aed;
+            box-shadow: 0 0 0 2px #ede9fe;
+        }
+
+        .event-header {
+            background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
+            color: white;
+            padding: 15px;
+            cursor: pointer;
+        }
+
+        .event-header h3 {
+            font-size: 1.1em;
+            margin-bottom: 5px;
+        }
+
+        .event-header p {
+            font-size: 0.85em;
+            opacity: 0.9;
+        }
+
+        .event-body {
+            padding: 15px;
+        }
+
+        .event-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+            font-size: 0.85em;
+        }
+
+        .event-meta-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .event-meta-item label {
+            color: #6b7280;
+            font-size: 0.8em;
+        }
+
+        .event-meta-item span {
+            font-weight: 500;
+        }
+
+        /* Room Grid */
+        .room-grid {
+            margin-top: 15px;
+        }
+
+        .room-grid-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .room-grid-header h4 {
+            font-size: 0.9em;
+            color: #374151;
+        }
+
+        .room-row {
+            display: flex;
+            align-items: stretch;
+            margin-bottom: 4px;
+            min-height: 36px;
+        }
+
+        .room-label {
+            width: 50px;
+            background: #f3f4f6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75em;
+            font-weight: 600;
+            color: #6b7280;
+            border: 1px solid #e5e7eb;
+            border-right: none;
+        }
+
+        .room-days {
+            flex: 1;
+            display: flex;
+            border: 1px solid #e5e7eb;
+            background: #fafafa;
+        }
+
+        .room-day {
+            flex: 1;
+            min-width: 30px;
+            border-right: 1px solid #e5e7eb;
+            position: relative;
+        }
+
+        .room-day:last-child {
+            border-right: none;
+        }
+
+        .room-day-header {
+            background: #f9fafb;
+            font-size: 0.65em;
+            text-align: center;
+            padding: 2px;
+            color: #6b7280;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .course-block {
+            position: absolute;
+            top: 18px;
+            left: 1px;
+            right: 1px;
+            bottom: 1px;
+            background: #7c3aed;
+            color: white;
+            font-size: 0.65em;
+            padding: 2px 4px;
+            border-radius: 2px;
+            overflow: hidden;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .course-block.conflict {
+            background: #f59e0b;
+        }
+
+        .course-block.multi-day {
+            border-radius: 2px 0 0 2px;
+        }
+
+        .course-block.continuation {
+            border-radius: 0;
+            border-left: 1px dashed rgba(255,255,255,0.5);
+        }
+
+        .course-block.end {
+            border-radius: 0 2px 2px 0;
+        }
+
+        /* Shortlist Panel */
+        .shortlist-panel {
+            background: #faf5ff;
+            border: 1px dashed #c4b5fd;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 15px;
+            min-height: 80px;
+        }
+
+        .shortlist-panel h4 {
+            font-size: 0.85em;
+            color: #7c3aed;
+            margin-bottom: 10px;
+        }
+
+        .shortlist-courses {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .shortlist-course {
+            background: white;
+            border: 1px solid #c4b5fd;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75em;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .shortlist-course.conflict {
+            border-color: #f59e0b;
+            background: #fffbeb;
+        }
+
+        .shortlist-course .remove {
+            cursor: pointer;
+            color: #9ca3af;
+            font-weight: bold;
+        }
+
+        .shortlist-course .remove:hover {
+            color: #ef4444;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 1.2em;
+            color: #374151;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            cursor: pointer;
+            color: #9ca3af;
+        }
+
+        .modal-close:hover {
+            color: #374151;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-footer {
+            padding: 15px 20px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85em;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 5px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #7c3aed;
+            box-shadow: 0 0 0 2px #ede9fe;
+        }
+
+        /* Change Log */
+        .change-log {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            padding: 10px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 0.85em;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-time {
+            color: #6b7280;
+            font-size: 0.8em;
+        }
+
+        .log-action {
+            font-weight: 500;
+            margin: 3px 0;
+        }
+
+        .log-action.add {
+            color: #10b981;
+        }
+
+        .log-action.remove {
+            color: #ef4444;
+        }
+
+        .log-action.move {
+            color: #3b82f6;
+        }
+
+        .log-note {
+            color: #6b7280;
+            font-style: italic;
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: flex;
+            gap: 20px;
+            padding: 10px 20px;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 0.85em;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: #7c3aed;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #9ca3af;
+        }
+
+        .empty-state h3 {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+        }
+
+        /* Search */
+        .search-box {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            width: 100%;
+            font-size: 0.9em;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #7c3aed;
+        }
+
+        /* Filters */
+        .filter-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .filter-row select {
+            padding: 6px 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #374151;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 2000;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast.success {
+            background: #10b981;
+        }
+
+        .toast.error {
+            background: #ef4444;
+        }
+
+        .toast.warning {
+            background: #f59e0b;
+        }
+
+        /* Editable cell */
+        .editable {
+            cursor: pointer;
+        }
+
+        .editable:hover {
+            background: #faf5ff;
+        }
+
+        .editable input {
+            border: 1px solid #7c3aed;
+            padding: 4px 8px;
+            width: 100%;
+            font-size: inherit;
+        }
+
+        /* Hidden file input */
+        input[type="file"] {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>📅 SchedulePro</h1>
+        <div class="header-actions">
+            <button class="btn" onclick="document.getElementById('fileInput').click()">
+                📁 Load Excel File
+            </button>
+            <button class="btn" onclick="exportSchedule()">📤 Export Schedule</button>
+            <button class="btn" onclick="saveSession()">💾 Save Session</button>
+            <button class="btn" onclick="document.getElementById('loadSessionInput').click()">
+                📂 Load Session
+            </button>
+        </div>
+        <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="loadExcelFile(event)">
+        <input type="file" id="loadSessionInput" accept=".json" onchange="loadSession(event)">
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Sidebar: Course List -->
+        <div class="sidebar">
+            <div class="sidebar-section">
+                <h3>Courses</h3>
+                <input type="text" class="search-box" placeholder="Search courses..." 
+                       id="courseSearch" oninput="filterCourses()">
+                <div class="filter-row" style="margin-top: 10px;">
+                    <select id="topicFilter" onchange="filterCourses()">
+                        <option value="">All Topics</option>
+                    </select>
+                    <select id="durationFilter" onchange="filterCourses()">
+                        <option value="">All Durations</option>
+                        <option value="0.5">Half Day</option>
+                        <option value="1">1 Day</option>
+                        <option value="2">2 Days</option>
+                        <option value="3">3 Days</option>
+                        <option value="4">4 Days</option>
+                    </select>
+                </div>
+            </div>
+            <div class="course-list" id="courseList">
+                <div class="empty-state">
+                    <h3>No courses loaded</h3>
+                    <p>Load an Excel file to begin</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Stats Bar -->
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <span>Events:</span>
+                    <span class="stat-value" id="statEvents">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Courses:</span>
+                    <span class="stat-value" id="statCourses">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Assigned:</span>
+                    <span class="stat-value" id="statAssigned">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Conflicts:</span>
+                    <span class="stat-value" id="statConflicts">0</span>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs">
+                <div class="tab active" data-tab="events">Events & Schedule</div>
+                <div class="tab" data-tab="all-courses">All Courses</div>
+                <div class="tab" data-tab="change-log">Change Log</div>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="tab-content">
+                <!-- Events Tab -->
+                <div class="tab-panel active" id="tab-events">
+                    <div style="margin-bottom: 15px; display: flex; justify-content: space-between;">
+                        <button class="btn btn-primary" onclick="showAddEventModal()">+ Add Event</button>
+                        <div>
+                            <span style="font-size: 0.85em; color: #6b7280; margin-right: 10px;">
+                                Select an event, then click courses to add to shortlist
+                            </span>
+                        </div>
+                    </div>
+                    <div class="event-grid" id="eventGrid">
+                        <div class="empty-state">
+                            <h3>No events loaded</h3>
+                            <p>Load an Excel file or add events manually</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- All Courses Tab -->
+                <div class="tab-panel" id="tab-all-courses">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Course ID</th>
+                                <th>Course Name</th>
+                                <th>Instructor</th>
+                                <th>Duration</th>
+                                <th>Topic</th>
+                                <th>Assigned To</th>
+                            </tr>
+                        </thead>
+                        <tbody id="allCoursesTable">
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Change Log Tab -->
+                <div class="tab-panel" id="tab-change-log">
+                    <div style="margin-bottom: 15px; display: flex; justify-content: space-between;">
+                        <button class="btn btn-danger btn-sm" onclick="clearChangeLog()">Clear Log</button>
+                        <button class="btn btn-sm" onclick="exportChangeLog()">Export Log</button>
+                    </div>
+                    <div class="change-log" id="changeLogList">
+                        <div class="empty-state">
+                            <p>No changes recorded yet</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Event Modal -->
+    <div class="modal-overlay" id="eventModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="eventModalTitle">Add Event</h2>
+                <button class="modal-close" onclick="closeModal('eventModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editEventId">
+                <div class="form-group">
+                    <label>Event ID</label>
+                    <input type="text" id="eventIdInput" placeholder="EV001">
+                </div>
+                <div class="form-group">
+                    <label>Event Name</label>
+                    <input type="text" id="eventNameInput" placeholder="Virtual-Feb">
+                </div>
+                <div class="form-group">
+                    <label>Location</label>
+                    <input type="text" id="eventLocationInput" placeholder="Virtual">
+                </div>
+                <div class="form-group">
+                    <label>First Day (MM-DD-YYYY)</label>
+                    <input type="text" id="eventFirstDayInput" placeholder="02-23-2027">
+                </div>
+                <div class="form-group">
+                    <label>Last Day (MM-DD-YYYY)</label>
+                    <input type="text" id="eventLastDayInput" placeholder="02-26-2027">
+                </div>
+                <div class="form-group">
+                    <label>Room Count</label>
+                    <input type="number" id="eventRoomCountInput" placeholder="10" min="1" max="50">
+                </div>
+                <div class="form-group">
+                    <label>Hotel Location</label>
+                    <input type="text" id="eventHotelInput" placeholder="Hotel name">
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="eventNotesInput" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('eventModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveEvent()">Save Event</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assign Course Modal -->
+    <div class="modal-overlay" id="assignModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Assign Course</h2>
+                <button class="modal-close" onclick="closeModal('assignModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="assignCourseInfo" style="margin-bottom: 15px;"></p>
+                <div class="form-group">
+                    <label>Select Starting Day</label>
+                    <select id="assignDaySelect"></select>
+                </div>
+                <div class="form-group">
+                    <label>Room Number</label>
+                    <select id="assignRoomSelect"></select>
+                </div>
+                <div class="form-group">
+                    <label>Note (optional)</label>
+                    <input type="text" id="assignNoteInput" placeholder="Add a note about this assignment">
+                </div>
+                <div id="assignConflictWarning" style="display: none; background: #fef3c7; color: #b45309; padding: 10px; border-radius: 4px; margin-top: 10px;">
+                    ⚠️ <span id="conflictWarningText"></span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('assignModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="confirmAssignment()">Assign</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ============================================
+        // DATA STRUCTURES
+        // ============================================
+        let events = [];
+        let courses = [];
+        let instructorAway = [];
+        let schedule = {}; // { eventId: { roomNumber: [{ courseId, startDay, days }] } }
+        let shortlists = {}; // { eventId: [courseIds] }
+        let changeLog = [];
+        let selectedEventId = null;
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        document.addEventListener('DOMContentLoaded', () => {
+            setupTabs();
+            loadFromLocalStorage();
+            render();
+        });
+
+        function setupTabs() {
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+                    tab.classList.add('active');
+                    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+                });
+            });
+        }
+
+        // ============================================
+        // FILE LOADING
+        // ============================================
+        function loadExcelFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+
+                    let eventsLoaded = 0, coursesLoaded = 0, awayLoaded = 0;
+
+                    // Load Events tab
+                    if (workbook.SheetNames.includes('Events')) {
+                        const sheet = workbook.Sheets['Events'];
+                        const rawData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+                        events = rawData.map(row => ({
+                            Event_ID: String(row.Event_ID || '').trim(),
+                            Event: String(row.Event || '').trim(),
+                            First_Event_Day: formatDate(row.First_Event_Day),
+                            Last_Event_Day: formatDate(row.Last_Event_Day),
+                            Location: String(row.Location || '').trim(),
+                            Hotel_Location: String(row.Hotel_Location || '').trim(),
+                            Room_Count: parseInt(row.Room_Count) || 10,
+                            Total_Days: parseInt(row.Total_Days) || calculateDays(row.First_Event_Day, row.Last_Event_Day),
+                            EarlyBird_End_Date: formatDate(row.EarlyBird_End_Date),
+                            Notes: String(row.Notes || '').trim()
+                        })).filter(e => e.Event_ID);
+                        eventsLoaded = events.length;
+                        
+                        // Initialize schedule and shortlists for new events
+                        events.forEach(ev => {
+                            if (!schedule[ev.Event_ID]) schedule[ev.Event_ID] = {};
+                            if (!shortlists[ev.Event_ID]) shortlists[ev.Event_ID] = [];
+                        });
+                    }
+
+                    // Load Courses tab
+                    if (workbook.SheetNames.includes('Courses')) {
+                        const sheet = workbook.Sheets['Courses'];
+                        const rawData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+                        courses = rawData.map(row => ({
+                            Course_ID: String(row.Course_ID || '').trim(),
+                            Instructor: String(row.Instructor || '').trim(),
+                            Course_Name: String(row.Course_Name || '').trim(),
+                            Duration_Days: parseFloat(row.Duration_Days) || 1,
+                            Topic: String(row.Topic || '').trim()
+                        })).filter(c => c.Course_ID);
+                        coursesLoaded = courses.length;
+                        updateTopicFilter();
+                    }
+
+                    // Load Instructor_Away tab
+                    if (workbook.SheetNames.includes('Instructor_Away')) {
+                        const sheet = workbook.Sheets['Instructor_Away'];
+                        const rawData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+                        instructorAway = rawData.map(row => ({
+                            Instructor: String(row.Instructor || '').trim(),
+                            Unavailable_Start: formatDate(row.Unavailable_Start),
+                            Unavailable_End: formatDate(row.Unavailable_End)
+                        })).filter(a => a.Instructor && a.Unavailable_Start);
+                        awayLoaded = instructorAway.length;
+                    }
+
+                    saveToLocalStorage();
+                    render();
+                    showToast(`Loaded: ${eventsLoaded} events, ${coursesLoaded} courses, ${awayLoaded} away entries`, 'success');
+                    
+                    addLogEntry('upload', null, null, `Loaded Excel file: ${file.name}`);
+                } catch (err) {
+                    console.error('Error loading Excel:', err);
+                    showToast('Error loading file: ' + err.message, 'error');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+            event.target.value = '';
+        }
+
+        function formatDate(value) {
+            if (!value) return '';
+            if (value instanceof Date) {
+                const m = String(value.getMonth() + 1).padStart(2, '0');
+                const d = String(value.getDate()).padStart(2, '0');
+                const y = value.getFullYear();
+                return `${m}-${d}-${y}`;
+            }
+            // Already a string in MM-DD-YYYY format
+            return String(value).trim();
+        }
+
+        function parseDate(dateStr) {
+            if (!dateStr) return null;
+            const parts = dateStr.split('-');
+            if (parts.length === 3) {
+                const m = parseInt(parts[0]) - 1;
+                const d = parseInt(parts[1]);
+                const y = parseInt(parts[2]);
+                return new Date(y, m, d);
+            }
+            return null;
+        }
+
+        function calculateDays(start, end) {
+            const startDate = parseDate(formatDate(start));
+            const endDate = parseDate(formatDate(end));
+            if (!startDate || !endDate) return 1;
+            return Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+        }
+
+        // ============================================
+        // RENDERING
+        // ============================================
+        function render() {
+            renderCourseList();
+            renderEventGrid();
+            renderAllCoursesTable();
+            renderChangeLog();
+            updateStats();
+        }
+
+        function renderCourseList() {
+            const container = document.getElementById('courseList');
+            const searchTerm = document.getElementById('courseSearch').value.toLowerCase();
+            const topicFilter = document.getElementById('topicFilter').value;
+            const durationFilter = document.getElementById('durationFilter').value;
+
+            const assignedCourseIds = getAssignedCourseIds();
+
+            let filtered = courses.filter(c => {
+                const matchSearch = !searchTerm || 
+                    c.Course_ID.toLowerCase().includes(searchTerm) ||
+                    c.Course_Name.toLowerCase().includes(searchTerm) ||
+                    c.Instructor.toLowerCase().includes(searchTerm);
+                const matchTopic = !topicFilter || c.Topic === topicFilter;
+                const matchDuration = !durationFilter || c.Duration_Days == parseFloat(durationFilter);
+                return matchSearch && matchTopic && matchDuration;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="empty-state"><p>No courses match your filters</p></div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(c => {
+                const isAssigned = assignedCourseIds.has(c.Course_ID);
+                const hasConflict = selectedEventId && checkInstructorConflict(c.Instructor, selectedEventId);
+                const isInShortlist = selectedEventId && shortlists[selectedEventId]?.includes(c.Course_ID);
+                
+                let classes = 'course-item';
+                if (isAssigned) classes += ' assigned';
+                if (hasConflict) classes += ' conflict';
+                if (isInShortlist) classes += ' selected';
+
+                return `
+                    <div class="${classes}" onclick="handleCourseClick('${c.Course_ID}')">
+                        <div class="course-id">
+                            ${c.Course_ID}
+                            ${hasConflict ? '<span class="conflict-badge">⚠️ Away</span>' : ''}
+                        </div>
+                        <div class="course-name">${c.Course_Name}</div>
+                        <div class="course-meta">
+                            ${c.Instructor} · ${c.Duration_Days} day${c.Duration_Days !== 1 ? 's' : ''} · ${c.Topic || 'No topic'}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderEventGrid() {
+            const container = document.getElementById('eventGrid');
+            
+            if (events.length === 0) {
+                container.innerHTML = `<div class="empty-state"><h3>No events loaded</h3><p>Load an Excel file or add events manually</p></div>`;
+                return;
+            }
+
+            container.innerHTML = events.map(ev => {
+                const isSelected = selectedEventId === ev.Event_ID;
+                const shortlist = shortlists[ev.Event_ID] || [];
+                const eventSchedule = schedule[ev.Event_ID] || {};
+                const totalDays = ev.Total_Days || calculateDays(ev.First_Event_Day, ev.Last_Event_Day);
+                const eventDates = getEventDates(ev);
+
+                return `
+                    <div class="event-card ${isSelected ? 'selected' : ''}" data-event="${ev.Event_ID}">
+                        <div class="event-header" onclick="selectEvent('${ev.Event_ID}')">
+                            <h3>${ev.Event} (${ev.Event_ID})</h3>
+                            <p>${ev.Location} · ${ev.First_Event_Day} to ${ev.Last_Event_Day}</p>
+                        </div>
+                        <div class="event-body">
+                            <div class="event-meta">
+                                <div class="event-meta-item">
+                                    <label>Rooms</label>
+                                    <span>${ev.Room_Count}</span>
+                                </div>
+                                <div class="event-meta-item">
+                                    <label>Days</label>
+                                    <span>${totalDays}</span>
+                                </div>
+                                <div class="event-meta-item">
+                                    <label>Hotel</label>
+                                    <span>${ev.Hotel_Location || '-'}</span>
+                                </div>
+                                <div class="event-meta-item">
+                                    <label>Assigned</label>
+                                    <span>${countAssignedCourses(ev.Event_ID)}</span>
+                                </div>
+                            </div>
+                            
+                            <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                                <button class="btn btn-sm" onclick="event.stopPropagation(); showEditEventModal('${ev.Event_ID}')">✏️ Edit</button>
+                                <button class="btn btn-sm btn-success" onclick="event.stopPropagation(); autoPopulateRooms('${ev.Event_ID}')" 
+                                        ${shortlist.length === 0 ? 'disabled' : ''}>
+                                    🔄 Auto-Fill Rooms
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); clearEventSchedule('${ev.Event_ID}')">🗑️ Clear</button>
+                            </div>
+
+                            ${renderRoomGrid(ev, eventSchedule, eventDates)}
+
+                            <div class="shortlist-panel">
+                                <h4>Shortlisted Courses (${shortlist.length})</h4>
+                                <div class="shortlist-courses">
+                                    ${shortlist.length === 0 ? '<span style="color: #9ca3af; font-size: 0.8em;">Click courses to add to shortlist</span>' : ''}
+                                    ${shortlist.map(courseId => {
+                                        const course = courses.find(c => c.Course_ID === courseId);
+                                        if (!course) return '';
+                                        const hasConflict = checkInstructorConflict(course.Instructor, ev.Event_ID);
+                                        return `
+                                            <div class="shortlist-course ${hasConflict ? 'conflict' : ''}">
+                                                ${course.Course_ID} (${course.Duration_Days}d)
+                                                ${hasConflict ? '⚠️' : ''}
+                                                <span class="remove" onclick="event.stopPropagation(); removeFromShortlist('${ev.Event_ID}', '${courseId}')">&times;</span>
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderRoomGrid(event, eventSchedule, eventDates) {
+            const roomCount = event.Room_Count || 10;
+            const totalDays = eventDates.length;
+
+            let html = '<div class="room-grid">';
+            html += '<div class="room-grid-header"><h4>Room Schedule</h4></div>';
+
+            for (let room = 1; room <= roomCount; room++) {
+                html += '<div class="room-row">';
+                html += `<div class="room-label">R${room}</div>`;
+                html += '<div class="room-days">';
+
+                for (let day = 1; day <= totalDays; day++) {
+                    const dateStr = eventDates[day - 1] || `Day ${day}`;
+                    const shortDate = dateStr.split('-').slice(0, 2).join('/');
+                    
+                    // Check if there's a course in this room on this day
+                    const courseInSlot = findCourseInSlot(event.Event_ID, room, day);
+                    
+                    html += `<div class="room-day">`;
+                    html += `<div class="room-day-header">${shortDate}</div>`;
+                    
+                    if (courseInSlot) {
+                        const course = courses.find(c => c.Course_ID === courseInSlot.courseId);
+                        const hasConflict = course && checkInstructorConflict(course.Instructor, event.Event_ID);
+                        const isStart = courseInSlot.startDay === day;
+                        const isEnd = courseInSlot.startDay + courseInSlot.duration - 1 === day;
+                        
+                        let blockClass = 'course-block';
+                        if (hasConflict) blockClass += ' conflict';
+                        if (courseInSlot.duration > 1) {
+                            if (isStart) blockClass += ' multi-day';
+                            else if (isEnd) blockClass += ' end';
+                            else blockClass += ' continuation';
+                        }
+                        
+                        if (isStart) {
+                            html += `<div class="${blockClass}" title="${course?.Course_Name || courseInSlot.courseId}" 
+                                         onclick="event.stopPropagation(); showRemoveCourseConfirm('${event.Event_ID}', ${room}, '${courseInSlot.courseId}')">
+                                        ${courseInSlot.courseId}
+                                     </div>`;
+                        } else {
+                            html += `<div class="${blockClass}" onclick="event.stopPropagation(); showRemoveCourseConfirm('${event.Event_ID}', ${room}, '${courseInSlot.courseId}')"></div>`;
+                        }
+                    }
+                    
+                    html += '</div>';
+                }
+
+                html += '</div></div>';
+            }
+
+            html += '</div>';
+            return html;
+        }
+
+        function findCourseInSlot(eventId, room, day) {
+            const eventSchedule = schedule[eventId] || {};
+            const roomSchedule = eventSchedule[room] || [];
+            
+            for (const assignment of roomSchedule) {
+                const endDay = assignment.startDay + assignment.duration - 1;
+                if (day >= assignment.startDay && day <= endDay) {
+                    return assignment;
+                }
+            }
+            return null;
+        }
+
+        function getEventDates(event) {
+            const dates = [];
+            const start = parseDate(event.First_Event_Day);
+            const end = parseDate(event.Last_Event_Day);
+            
+            if (!start || !end) return dates;
+            
+            let current = new Date(start);
+            while (current <= end) {
+                dates.push(formatDate(current));
+                current.setDate(current.getDate() + 1);
+            }
+            return dates;
+        }
+
+        function renderAllCoursesTable() {
+            const tbody = document.getElementById('allCoursesTable');
+            const assignedMap = buildAssignmentMap();
+
+            tbody.innerHTML = courses.map(c => {
+                const assignments = assignedMap[c.Course_ID] || [];
+                return `
+                    <tr>
+                        <td>${c.Course_ID}</td>
+                        <td>${c.Course_Name}</td>
+                        <td>${c.Instructor}</td>
+                        <td>${c.Duration_Days} day${c.Duration_Days !== 1 ? 's' : ''}</td>
+                        <td>${c.Topic || '-'}</td>
+                        <td>${assignments.length > 0 ? assignments.join(', ') : '<span style="color: #9ca3af;">Not assigned</span>'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderChangeLog() {
+            const container = document.getElementById('changeLogList');
+            
+            if (changeLog.length === 0) {
+                container.innerHTML = `<div class="empty-state"><p>No changes recorded yet</p></div>`;
+                return;
+            }
+
+            container.innerHTML = changeLog.slice().reverse().map(entry => `
+                <div class="log-entry">
+                    <div class="log-time">${entry.timestamp}</div>
+                    <div class="log-action ${entry.action}">${entry.description}</div>
+                    ${entry.note ? `<div class="log-note">"${entry.note}"</div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function updateStats() {
+            document.getElementById('statEvents').textContent = events.length;
+            document.getElementById('statCourses').textContent = courses.length;
+            document.getElementById('statAssigned').textContent = getAssignedCourseIds().size;
+            document.getElementById('statConflicts').textContent = countTotalConflicts();
+        }
+
+        function updateTopicFilter() {
+            const topics = [...new Set(courses.map(c => c.Topic).filter(t => t))];
+            const select = document.getElementById('topicFilter');
+            select.innerHTML = '<option value="">All Topics</option>' + 
+                topics.map(t => `<option value="${t}">${t}</option>`).join('');
+        }
+
+        // ============================================
+        // EVENT MANAGEMENT
+        // ============================================
+        function selectEvent(eventId) {
+            selectedEventId = selectedEventId === eventId ? null : eventId;
+            render();
+        }
+
+        function showAddEventModal() {
+            document.getElementById('eventModalTitle').textContent = 'Add Event';
+            document.getElementById('editEventId').value = '';
+            document.getElementById('eventIdInput').value = '';
+            document.getElementById('eventNameInput').value = '';
+            document.getElementById('eventLocationInput').value = '';
+            document.getElementById('eventFirstDayInput').value = '';
+            document.getElementById('eventLastDayInput').value = '';
+            document.getElementById('eventRoomCountInput').value = '10';
+            document.getElementById('eventHotelInput').value = '';
+            document.getElementById('eventNotesInput').value = '';
+            document.getElementById('eventModal').classList.add('active');
+        }
+
+        function showEditEventModal(eventId) {
+            const event = events.find(e => e.Event_ID === eventId);
+            if (!event) return;
+
+            document.getElementById('eventModalTitle').textContent = 'Edit Event';
+            document.getElementById('editEventId').value = eventId;
+            document.getElementById('eventIdInput').value = event.Event_ID;
+            document.getElementById('eventNameInput').value = event.Event;
+            document.getElementById('eventLocationInput').value = event.Location;
+            document.getElementById('eventFirstDayInput').value = event.First_Event_Day;
+            document.getElementById('eventLastDayInput').value = event.Last_Event_Day;
+            document.getElementById('eventRoomCountInput').value = event.Room_Count;
+            document.getElementById('eventHotelInput').value = event.Hotel_Location;
+            document.getElementById('eventNotesInput').value = event.Notes;
+            document.getElementById('eventModal').classList.add('active');
+        }
+
+        function saveEvent() {
+            const editId = document.getElementById('editEventId').value;
+            const eventData = {
+                Event_ID: document.getElementById('eventIdInput').value.trim(),
+                Event: document.getElementById('eventNameInput').value.trim(),
+                Location: document.getElementById('eventLocationInput').value.trim(),
+                First_Event_Day: document.getElementById('eventFirstDayInput').value.trim(),
+                Last_Event_Day: document.getElementById('eventLastDayInput').value.trim(),
+                Room_Count: parseInt(document.getElementById('eventRoomCountInput').value) || 10,
+                Hotel_Location: document.getElementById('eventHotelInput').value.trim(),
+                Notes: document.getElementById('eventNotesInput').value.trim(),
+                Total_Days: 0
+            };
+
+            eventData.Total_Days = calculateDays(eventData.First_Event_Day, eventData.Last_Event_Day);
+
+            if (!eventData.Event_ID || !eventData.Event) {
+                showToast('Event ID and Name are required', 'error');
+                return;
+            }
+
+            if (editId) {
+                // Update existing
+                const idx = events.findIndex(e => e.Event_ID === editId);
+                if (idx !== -1) {
+                    events[idx] = eventData;
+                    addLogEntry('edit', eventData.Event_ID, null, `Updated event: ${eventData.Event}`);
+                }
+            } else {
+                // Check for duplicate
+                if (events.find(e => e.Event_ID === eventData.Event_ID)) {
+                    showToast('Event ID already exists', 'error');
+                    return;
+                }
+                events.push(eventData);
+                schedule[eventData.Event_ID] = {};
+                shortlists[eventData.Event_ID] = [];
+                addLogEntry('add', eventData.Event_ID, null, `Added event: ${eventData.Event}`);
+            }
+
+            closeModal('eventModal');
+            saveToLocalStorage();
+            render();
+            showToast('Event saved', 'success');
+        }
+
+        // ============================================
+        // COURSE SHORTLISTING & ASSIGNMENT
+        // ============================================
+        function handleCourseClick(courseId) {
+            if (!selectedEventId) {
+                showToast('Please select an event first', 'warning');
+                return;
+            }
+
+            const shortlist = shortlists[selectedEventId] || [];
+            
+            if (shortlist.includes(courseId)) {
+                // Already in shortlist - offer to assign
+                showAssignModal(courseId, selectedEventId);
+            } else {
+                // Add to shortlist
+                shortlists[selectedEventId] = [...shortlist, courseId];
+                const course = courses.find(c => c.Course_ID === courseId);
+                addLogEntry('add', selectedEventId, courseId, `Added ${courseId} to shortlist`);
+                saveToLocalStorage();
+                render();
+                showToast(`Added ${courseId} to shortlist`, 'success');
+            }
+        }
+
+        function removeFromShortlist(eventId, courseId) {
+            shortlists[eventId] = (shortlists[eventId] || []).filter(id => id !== courseId);
+            addLogEntry('remove', eventId, courseId, `Removed ${courseId} from shortlist`);
+            saveToLocalStorage();
+            render();
+        }
+
+        function showAssignModal(courseId, eventId) {
+            const course = courses.find(c => c.Course_ID === courseId);
+            const event = events.find(e => e.Event_ID === eventId);
+            if (!course || !event) return;
+
+            const totalDays = event.Total_Days || calculateDays(event.First_Event_Day, event.Last_Event_Day);
+            const duration = Math.ceil(course.Duration_Days);
+            const eventDates = getEventDates(event);
+
+            document.getElementById('assignCourseInfo').innerHTML = `
+                <strong>${course.Course_ID}</strong>: ${course.Course_Name}<br>
+                <span style="color: #6b7280;">Instructor: ${course.Instructor} · Duration: ${course.Duration_Days} day(s)</span>
+            `;
+
+            // Populate day select
+            const daySelect = document.getElementById('assignDaySelect');
+            daySelect.innerHTML = '';
+            for (let i = 1; i <= totalDays - duration + 1; i++) {
+                const startDate = eventDates[i - 1] || `Day ${i}`;
+                const endDate = eventDates[i + duration - 2] || `Day ${i + duration - 1}`;
+                daySelect.innerHTML += `<option value="${i}">Day ${i} (${startDate}) to Day ${i + duration - 1} (${endDate})</option>`;
+            }
+
+            // Populate room select
+            const roomSelect = document.getElementById('assignRoomSelect');
+            roomSelect.innerHTML = '';
+            for (let r = 1; r <= event.Room_Count; r++) {
+                roomSelect.innerHTML += `<option value="${r}">Room ${r}</option>`;
+            }
+
+            // Check for conflict
+            const conflictWarning = document.getElementById('assignConflictWarning');
+            const hasConflict = checkInstructorConflict(course.Instructor, eventId);
+            if (hasConflict) {
+                document.getElementById('conflictWarningText').textContent = 
+                    `${course.Instructor} is marked as unavailable during this event period.`;
+                conflictWarning.style.display = 'block';
+            } else {
+                conflictWarning.style.display = 'none';
+            }
+
+            document.getElementById('assignNoteInput').value = '';
+            document.getElementById('assignModal').dataset.courseId = courseId;
+            document.getElementById('assignModal').dataset.eventId = eventId;
+            document.getElementById('assignModal').classList.add('active');
+        }
+
+        function confirmAssignment() {
+            const modal = document.getElementById('assignModal');
+            const courseId = modal.dataset.courseId;
+            const eventId = modal.dataset.eventId;
+            const startDay = parseInt(document.getElementById('assignDaySelect').value);
+            const room = parseInt(document.getElementById('assignRoomSelect').value);
+            const note = document.getElementById('assignNoteInput').value.trim();
+
+            const course = courses.find(c => c.Course_ID === courseId);
+            if (!course) return;
+
+            const duration = Math.ceil(course.Duration_Days);
+
+            // Check for room conflict
+            if (hasRoomConflict(eventId, room, startDay, duration, courseId)) {
+                showToast('Room conflict: Another course is already scheduled in this slot', 'error');
+                return;
+            }
+
+            // Add assignment
+            if (!schedule[eventId]) schedule[eventId] = {};
+            if (!schedule[eventId][room]) schedule[eventId][room] = [];
+
+            schedule[eventId][room].push({
+                courseId,
+                startDay,
+                duration
+            });
+
+            // Remove from shortlist
+            shortlists[eventId] = (shortlists[eventId] || []).filter(id => id !== courseId);
+
+            addLogEntry('assign', eventId, courseId, `Assigned ${courseId} to Room ${room}, Day ${startDay}-${startDay + duration - 1}`, note);
+            
+            closeModal('assignModal');
+            saveToLocalStorage();
+            render();
+            showToast(`Assigned ${courseId} to Room ${room}`, 'success');
+        }
+
+        function hasRoomConflict(eventId, room, startDay, duration, excludeCourseId = null) {
+            const roomSchedule = schedule[eventId]?.[room] || [];
+            const endDay = startDay + duration - 1;
+
+            for (const assignment of roomSchedule) {
+                if (excludeCourseId && assignment.courseId === excludeCourseId) continue;
+                const assignEnd = assignment.startDay + assignment.duration - 1;
+                if (!(endDay < assignment.startDay || startDay > assignEnd)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function showRemoveCourseConfirm(eventId, room, courseId) {
+            if (confirm(`Remove ${courseId} from Room ${room}?`)) {
+                removeCourseFromSchedule(eventId, room, courseId);
+            }
+        }
+
+        function removeCourseFromSchedule(eventId, room, courseId) {
+            if (schedule[eventId]?.[room]) {
+                schedule[eventId][room] = schedule[eventId][room].filter(a => a.courseId !== courseId);
+            }
+            addLogEntry('remove', eventId, courseId, `Removed ${courseId} from Room ${room}`);
+            saveToLocalStorage();
+            render();
+            showToast(`Removed ${courseId}`, 'success');
+        }
+
+        function clearEventSchedule(eventId) {
+            if (!confirm(`Clear all assignments for this event?`)) return;
+            schedule[eventId] = {};
+            addLogEntry('clear', eventId, null, `Cleared all assignments`);
+            saveToLocalStorage();
+            render();
+            showToast('Schedule cleared', 'success');
+        }
+
+        // ============================================
+        // AUTO-POPULATE ROOMS
+        // ============================================
+        function autoPopulateRooms(eventId) {
+            const event = events.find(e => e.Event_ID === eventId);
+            const shortlist = shortlists[eventId] || [];
+            
+            if (!event || shortlist.length === 0) {
+                showToast('No courses in shortlist', 'warning');
+                return;
+            }
+
+            const totalDays = event.Total_Days || calculateDays(event.First_Event_Day, event.Last_Event_Day);
+            const roomCount = event.Room_Count;
+
+            // Get courses to assign, sorted by duration (longest first for better packing)
+            const toAssign = shortlist.map(id => courses.find(c => c.Course_ID === id))
+                .filter(c => c)
+                .sort((a, b) => b.Duration_Days - a.Duration_Days);
+
+            // Initialize or preserve existing schedule
+            if (!schedule[eventId]) schedule[eventId] = {};
+
+            let assigned = 0;
+            const unassigned = [];
+
+            for (const course of toAssign) {
+                const duration = Math.ceil(course.Duration_Days);
+                let placed = false;
+
+                // Try to find a slot
+                for (let room = 1; room <= roomCount && !placed; room++) {
+                    if (!schedule[eventId][room]) schedule[eventId][room] = [];
+
+                    for (let day = 1; day <= totalDays - duration + 1 && !placed; day++) {
+                        if (!hasRoomConflict(eventId, room, day, duration)) {
+                            schedule[eventId][room].push({
+                                courseId: course.Course_ID,
+                                startDay: day,
+                                duration
+                            });
+                            placed = true;
+                            assigned++;
+                        }
+                    }
+                }
+
+                if (!placed) {
+                    unassigned.push(course.Course_ID);
+                }
+            }
+
+            // Clear shortlist for assigned courses
+            shortlists[eventId] = unassigned;
+
+            addLogEntry('auto-fill', eventId, null, `Auto-populated ${assigned} courses, ${unassigned.length} couldn't fit`);
+            saveToLocalStorage();
+            render();
+
+            if (unassigned.length > 0) {
+                showToast(`Assigned ${assigned} courses. ${unassigned.length} couldn't fit and remain in shortlist.`, 'warning');
+            } else {
+                showToast(`Successfully assigned all ${assigned} courses!`, 'success');
+            }
+        }
+
+        // ============================================
+        // CONFLICT DETECTION
+        // ============================================
+        function checkInstructorConflict(instructor, eventId) {
+            if (!instructor) return false;
+            const event = events.find(e => e.Event_ID === eventId);
+            if (!event) return false;
+
+            const eventStart = parseDate(event.First_Event_Day);
+            const eventEnd = parseDate(event.Last_Event_Day);
+            if (!eventStart || !eventEnd) return false;
+
+            // Check each away entry
+            for (const away of instructorAway) {
+                // Handle multiple instructors in one row (comma-separated)
+                const instructors = away.Instructor.split(',').map(i => i.trim().toLowerCase());
+                if (!instructors.includes(instructor.toLowerCase())) continue;
+
+                const awayStart = parseDate(away.Unavailable_Start);
+                const awayEnd = parseDate(away.Unavailable_End);
+                if (!awayStart || !awayEnd) continue;
+
+                // Check for overlap
+                if (!(eventEnd < awayStart || eventStart > awayEnd)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function countTotalConflicts() {
+            let count = 0;
+            for (const eventId in schedule) {
+                for (const room in schedule[eventId]) {
+                    for (const assignment of schedule[eventId][room]) {
+                        const course = courses.find(c => c.Course_ID === assignment.courseId);
+                        if (course && checkInstructorConflict(course.Instructor, eventId)) {
+                            count++;
+                        }
+                    }
+                }
+            }
+            return count;
+        }
+
+        // ============================================
+        // HELPERS
+        // ============================================
+        function getAssignedCourseIds() {
+            const assigned = new Set();
+            for (const eventId in schedule) {
+                for (const room in schedule[eventId]) {
+                    for (const assignment of schedule[eventId][room]) {
+                        assigned.add(assignment.courseId);
+                    }
+                }
+            }
+            return assigned;
+        }
+
+        function buildAssignmentMap() {
+            const map = {};
+            for (const eventId in schedule) {
+                for (const room in schedule[eventId]) {
+                    for (const assignment of schedule[eventId][room]) {
+                        if (!map[assignment.courseId]) map[assignment.courseId] = [];
+                        const event = events.find(e => e.Event_ID === eventId);
+                        map[assignment.courseId].push(event?.Event || eventId);
+                    }
+                }
+            }
+            return map;
+        }
+
+        function countAssignedCourses(eventId) {
+            let count = 0;
+            const eventSchedule = schedule[eventId] || {};
+            for (const room in eventSchedule) {
+                count += eventSchedule[room].length;
+            }
+            return count;
+        }
+
+        function filterCourses() {
+            renderCourseList();
+        }
+
+        // ============================================
+        // CHANGE LOG
+        // ============================================
+        function addLogEntry(action, eventId, courseId, description, note = '') {
+            changeLog.push({
+                timestamp: new Date().toLocaleString(),
+                action,
+                eventId,
+                courseId,
+                description,
+                note
+            });
+            saveToLocalStorage();
+        }
+
+        function clearChangeLog() {
+            if (!confirm('Clear all change log entries?')) return;
+            changeLog = [];
+            saveToLocalStorage();
+            renderChangeLog();
+            showToast('Change log cleared', 'success');
+        }
+
+        function exportChangeLog() {
+            const headers = ['Timestamp', 'Action', 'Event_ID', 'Course_ID', 'Description', 'Note'];
+            let csv = headers.join(',') + '\n';
+            
+            for (const entry of changeLog) {
+                csv += [
+                    `"${entry.timestamp}"`,
+                    entry.action,
+                    entry.eventId || '',
+                    entry.courseId || '',
+                    `"${entry.description}"`,
+                    `"${entry.note || ''}"`
+                ].join(',') + '\n';
+            }
+
+            downloadFile(csv, 'change_log.csv', 'text/csv');
+        }
+
+        // ============================================
+        // EXPORT
+        // ============================================
+        function exportSchedule() {
+            const headers = ['Event_ID', 'Event', 'Room_Number', 'Course_ID', 'Course_Name', 'Instructor', 'Duration_Days', 'First_Day', 'Last_Day', 'Conflict'];
+            let csv = headers.join(',') + '\n';
+
+            for (const event of events) {
+                const eventSchedule = schedule[event.Event_ID] || {};
+                const eventDates = getEventDates(event);
+
+                for (const room in eventSchedule) {
+                    for (const assignment of eventSchedule[room]) {
+                        const course = courses.find(c => c.Course_ID === assignment.courseId);
+                        const firstDay = eventDates[assignment.startDay - 1] || '';
+                        const lastDay = eventDates[assignment.startDay + assignment.duration - 2] || '';
+                        const hasConflict = course && checkInstructorConflict(course.Instructor, event.Event_ID);
+
+                        csv += [
+                            event.Event_ID,
+                            `"${event.Event}"`,
+                            room,
+                            assignment.courseId,
+                            `"${course?.Course_Name || ''}"`,
+                            `"${course?.Instructor || ''}"`,
+                            course?.Duration_Days || '',
+                            firstDay,
+                            lastDay,
+                            hasConflict ? 'Yes' : 'No'
+                        ].join(',') + '\n';
+                    }
+                }
+            }
+
+            downloadFile(csv, 'schedule_export.csv', 'text/csv');
+            showToast('Schedule exported', 'success');
+        }
+
+        // ============================================
+        // SAVE/LOAD SESSION
+        // ============================================
+        function saveSession() {
+            const session = {
+                version: 1,
+                timestamp: new Date().toISOString(),
+                events,
+                courses,
+                instructorAway,
+                schedule,
+                shortlists,
+                changeLog
+            };
+
+            const json = JSON.stringify(session, null, 2);
+            downloadFile(json, `schedulepro_session_${new Date().toISOString().slice(0, 10)}.json`, 'application/json');
+            showToast('Session saved', 'success');
+        }
+
+        function loadSession(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const session = JSON.parse(e.target.result);
+                    
+                    events = session.events || [];
+                    courses = session.courses || [];
+                    instructorAway = session.instructorAway || [];
+                    schedule = session.schedule || {};
+                    shortlists = session.shortlists || {};
+                    changeLog = session.changeLog || [];
+
+                    updateTopicFilter();
+                    saveToLocalStorage();
+                    render();
+                    showToast('Session loaded', 'success');
+                    addLogEntry('load', null, null, `Loaded session from ${file.name}`);
+                } catch (err) {
+                    showToast('Error loading session: ' + err.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // ============================================
+        // LOCAL STORAGE
+        // ============================================
+        function saveToLocalStorage() {
+            try {
+                localStorage.setItem('schedulepro_events', JSON.stringify(events));
+                localStorage.setItem('schedulepro_courses', JSON.stringify(courses));
+                localStorage.setItem('schedulepro_away', JSON.stringify(instructorAway));
+                localStorage.setItem('schedulepro_schedule', JSON.stringify(schedule));
+                localStorage.setItem('schedulepro_shortlists', JSON.stringify(shortlists));
+                localStorage.setItem('schedulepro_changelog', JSON.stringify(changeLog));
+            } catch (err) {
+                console.error('Error saving to localStorage:', err);
+            }
+        }
+
+        function loadFromLocalStorage() {
+            try {
+                const savedEvents = localStorage.getItem('schedulepro_events');
+                const savedCourses = localStorage.getItem('schedulepro_courses');
+                const savedAway = localStorage.getItem('schedulepro_away');
+                const savedSchedule = localStorage.getItem('schedulepro_schedule');
+                const savedShortlists = localStorage.getItem('schedulepro_shortlists');
+                const savedChangelog = localStorage.getItem('schedulepro_changelog');
+
+                if (savedEvents) events = JSON.parse(savedEvents);
+                if (savedCourses) courses = JSON.parse(savedCourses);
+                if (savedAway) instructorAway = JSON.parse(savedAway);
+                if (savedSchedule) schedule = JSON.parse(savedSchedule);
+                if (savedShortlists) shortlists = JSON.parse(savedShortlists);
+                if (savedChangelog) changeLog = JSON.parse(savedChangelog);
+
+                updateTopicFilter();
+            } catch (err) {
+                console.error('Error loading from localStorage:', err);
+            }
+        }
+
+        // ============================================
+        // UI UTILITIES
+        // ============================================
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + type + ' show';
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function downloadFile(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Close modal on overlay click
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal-overlay')) {
+                e.target.classList.remove('active');
+            }
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+            }
+        });
+    </script>
+</body>
+</html>
