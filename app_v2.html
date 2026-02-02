@@ -95,11 +95,16 @@
             border-right: 1px solid #e5e7eb;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
+            position: relative;
+            z-index: 1;
         }
 
         .sidebar-header {
             padding: 16px;
             border-bottom: 1px solid #e5e7eb;
+            overflow: visible;
+            position: relative;
         }
 
         .sidebar-header h2 {
@@ -136,6 +141,9 @@
             border: 1px solid #e5e7eb;
             border-radius: 6px;
             font-size: 15px;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .course-list {
@@ -213,6 +221,8 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            position: relative;
+            z-index: 2;
         }
 
         /* ========== NAVIGATION TABS ========== */
@@ -263,6 +273,10 @@
             gap: 12px;
             margin-bottom: 20px;
             flex-wrap: wrap;
+        }
+
+        .event-selector:empty {
+            display: none;
         }
 
         .event-pill {
@@ -520,6 +534,14 @@
         .instructor-course-details, .course-event-details {
             font-size: 14px;
             color: #6b7280;
+        }
+
+        #scheduleViewInstructor, #scheduleViewCourse {
+            padding: 16px;
+            background: #f9fafb;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            min-height: 100px;
         }
 
         .schedule-table-wrapper {
@@ -875,6 +897,7 @@
             <button class="btn" onclick="exportSchedule()">📤 Export</button>
             <button class="btn" onclick="saveSession()">💾 Save</button>
             <button class="btn" onclick="document.getElementById('loadSessionInput').click()">📂 Load</button>
+            <button class="btn btn-danger" onclick="clearAllData()">🗑️ Clear All</button>
         </div>
         <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="loadExcelFile(event)">
         <input type="file" id="loadSessionInput" accept=".json" onchange="loadSession(event)">
@@ -965,16 +988,16 @@
                                         <button class="schedule-view-tab" onclick="switchScheduleView('instructor')" id="viewInstructorTab">By Instructor</button>
                                         <button class="schedule-view-tab" onclick="switchScheduleView('course')" id="viewCourseTab">By Course</button>
                                     </div>
-                                    <div class="schedule-table-wrapper">
-                                        <div id="scheduleViewRoom">
+                                    <div id="scheduleViewRoom">
+                                        <div class="schedule-table-wrapper">
                                             <table class="schedule-table" id="scheduleTable">
                                                 <thead id="scheduleHead"></thead>
                                                 <tbody id="scheduleBody"></tbody>
                                             </table>
                                         </div>
-                                        <div id="scheduleViewInstructor" style="display:none;"></div>
-                                        <div id="scheduleViewCourse" style="display:none;"></div>
                                     </div>
+                                    <div id="scheduleViewInstructor" style="display:none;"></div>
+                                    <div id="scheduleViewCourse" style="display:none;"></div>
                                 </div>
                             </div>
                         </div>
@@ -1257,17 +1280,10 @@
                 return dateA - dateB;
             });
 
-            container.innerHTML = sortedEvents.map(ev => `
-                <div class="event-pill ${selectedEventId === ev.Event_ID ? 'selected' : ''}" 
-                     onclick="selectEvent('${ev.Event_ID}')">
-                    <div class="event-pill-name">${ev.Event}</div>
-                    <div class="event-pill-dates">${ev.First_Event_Day} – ${ev.Last_Event_Day}</div>
-                </div>
-            `).join('') + `
-                <div class="event-pill" onclick="showAddEventModal()" style="border-style: dashed;">
-                    <div class="event-pill-name">+ Add Event</div>
-                </div>
-            `;
+            // Filter out any invalid events
+            const validEvents = sortedEvents.filter(ev => ev && ev.Event_ID && ev.Event);
+
+            container.innerHTML = validEvents.map(ev => `<div class="event-pill ${selectedEventId === ev.Event_ID ? 'selected' : ''}" onclick="selectEvent('${ev.Event_ID}')"><div class="event-pill-name">${ev.Event}</div><div class="event-pill-dates">${ev.First_Event_Day || ''} – ${ev.Last_Event_Day || ''}</div></div>`).join('') + `<div class="event-pill" onclick="showAddEventModal()" style="border-style: dashed;"><div class="event-pill-name">+ Add Event</div></div>`;
         }
 
         function renderCourseList() {
@@ -1454,12 +1470,21 @@
             document.getElementById('scheduleViewRoom').style.display = view === 'room' ? 'block' : 'none';
             document.getElementById('scheduleViewInstructor').style.display = view === 'instructor' ? 'block' : 'none';
             document.getElementById('scheduleViewCourse').style.display = view === 'course' ? 'block' : 'none';
+            
+            // Re-render the views to ensure content is up to date
+            if (view === 'instructor') renderInstructorSchedule();
+            if (view === 'course') renderCourseSchedule();
         }
 
         function renderInstructorSchedule() {
             const container = document.getElementById('scheduleViewInstructor');
+            if (!container) return;
+            
             const event = events.find(e => e.Event_ID === selectedEventId);
-            if (!event) return;
+            if (!event) {
+                container.innerHTML = '<div class="shortlist-empty">Select an event to view schedule</div>';
+                return;
+            }
 
             // Get all assignments for this event grouped by instructor
             const eventAssignments = assignments.filter(a => a.eventId === selectedEventId);
@@ -1504,8 +1529,13 @@
 
         function renderCourseSchedule() {
             const container = document.getElementById('scheduleViewCourse');
+            if (!container) return;
+            
             const event = events.find(e => e.Event_ID === selectedEventId);
-            if (!event) return;
+            if (!event) {
+                container.innerHTML = '<div class="shortlist-empty">Select an event to view schedule</div>';
+                return;
+            }
 
             // Get all assignments for this event grouped by course
             const eventAssignments = assignments.filter(a => a.eventId === selectedEventId);
@@ -2159,6 +2189,27 @@
                 changeLog = JSON.parse(localStorage.getItem('sp_log')) || [];
                 updateTopicFilter();
             } catch (err) {}
+        }
+
+        function clearAllData() {
+            if (!confirm('Clear all data and start fresh?')) return;
+            localStorage.removeItem('sp_events');
+            localStorage.removeItem('sp_courses');
+            localStorage.removeItem('sp_away');
+            localStorage.removeItem('sp_schedule');
+            localStorage.removeItem('sp_shortlists');
+            localStorage.removeItem('sp_log');
+            localStorage.removeItem('sp_assignments');
+            events = [];
+            courses = [];
+            instructorAway = [];
+            schedule = {};
+            shortlists = {};
+            assignments = [];
+            changeLog = [];
+            selectedEventId = null;
+            render();
+            showToast('All data cleared', 'success');
         }
 
         // ==================== UI ====================
