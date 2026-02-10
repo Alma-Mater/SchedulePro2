@@ -1898,9 +1898,36 @@
             const shortlist = shortlists[selectedEventId] || [];
             const course = courses.find(c => c.Course_ID === courseId);
             
-            if (shortlist.includes(courseId)) {
-                showAssignModal(courseId);
+            // Check if course is assigned to a room in this event
+            const eventSchedule = schedule[selectedEventId] || {};
+            let assignedRoom = null;
+            
+            for (const room in eventSchedule) {
+                const assignment = eventSchedule[room].find(a => a.courseId === courseId);
+                if (assignment) {
+                    assignedRoom = room;
+                    break;
+                }
+            }
+            
+            if (assignedRoom) {
+                // Course is assigned to a room - show confirmation dialog
+                if (confirm(`Remove "${course?.Course_Name || courseId}" from Room ${assignedRoom}?`)) {
+                    schedule[selectedEventId][assignedRoom] = schedule[selectedEventId][assignedRoom].filter(a => a.courseId !== courseId);
+                    addLogEntry('remove', selectedEventId, courseId, `Removed from Room ${assignedRoom}`, `Room ${assignedRoom}`, 'Unassigned');
+                    saveToLocalStorage();
+                    render();
+                    showToast('Course removed', 'success');
+                }
+            } else if (shortlist.includes(courseId)) {
+                // Course is in draft picks but not assigned - remove without dialog
+                shortlists[selectedEventId] = shortlist.filter(id => id !== courseId);
+                addLogEntry('remove', selectedEventId, courseId, `Removed from draft picks`);
+                saveToLocalStorage();
+                render();
+                showToast(`Removed "${course?.Course_Name}"`, 'success');
             } else {
+                // Course not in shortlist - add it
                 shortlists[selectedEventId] = [...shortlist, courseId];
                 addLogEntry('draft', selectedEventId, courseId, `Added to draft picks`);
                 saveToLocalStorage();
