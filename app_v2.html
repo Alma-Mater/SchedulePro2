@@ -2001,7 +2001,7 @@
                                     <td class="log-details-cell">${details}</td>
                                     <td>${entry.before || ''}</td>
                                     <td>${entry.after || ''}</td>
-                                    <td>${entry.notes || ''}</td>
+                                    <td class="editable-cell" onclick="editLogNote(${entry.timestampMs}, this)" title="Click to edit note">${entry.notes || ''}</td>
                                 </tr>
                             `;
                         }).join('')}
@@ -2045,6 +2045,51 @@
         function toggleShowDraftUndraft() {
             showDraftUndraftInLog = document.getElementById('showDraftUndraftCheckbox').checked;
             renderChangeLog();
+        }
+
+        function editLogNote(timestampMs, cell) {
+            if (cell.querySelector('textarea')) return;
+            
+            // Find the entry in changeLog by timestampMs
+            const entry = changeLog.find(e => e.timestampMs === timestampMs);
+            if (!entry) return;
+            
+            const val = entry.notes || '';
+            
+            const textarea = document.createElement('textarea');
+            textarea.value = val;
+            textarea.style.width = '100%';
+            textarea.style.minHeight = '60px';
+            textarea.style.padding = '8px';
+            textarea.style.border = '2px solid #7c3aed';
+            textarea.style.borderRadius = '4px';
+            textarea.style.fontSize = '14px';
+            textarea.style.fontFamily = 'inherit';
+            textarea.style.resize = 'vertical';
+            
+            const original = cell.innerHTML;
+            cell.innerHTML = '';
+            cell.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+
+            const save = () => {
+                const newVal = textarea.value.trim();
+                if (newVal !== val) {
+                    entry.notes = newVal;
+                    saveToLocalStorage();
+                    renderChangeLog();
+                    showToast('Note updated', 'success');
+                } else {
+                    cell.innerHTML = original;
+                }
+            };
+
+            textarea.addEventListener('blur', save);
+            textarea.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && e.ctrlKey) { save(); }
+                if (e.key === 'Escape') { cell.innerHTML = original; }
+            });
         }
 
         function getActionLabel(action) {
