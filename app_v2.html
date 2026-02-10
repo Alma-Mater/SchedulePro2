@@ -1363,7 +1363,8 @@
                         <div class="course-card-name">${c.Instructor} · ${c.Duration_Days}d</div>
                         <div class="course-card-meta">
                             ${c.Course_ID}
-                            ${isAssignedElsewhere ? '<span style="color:#f59e0b;">(✓ Other)</span>' : ''}
+                            ${isAssignedHere ? '<span style="color:#10b981; font-weight: 600;">(✓ This event)</span>' : ''}
+                            ${isAssignedElsewhere ? '<span style="color:#a78bfa;">(✓ Other)</span>' : ''}
                             ${hasConflict ? '<span class="conflict">⚠️ Away</span>' : ''}
                         </div>
                     </div>
