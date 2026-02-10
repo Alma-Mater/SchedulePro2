@@ -2299,7 +2299,7 @@
                 let bestRoom = null, bestFit = null;
 
                 for (let room = 1; room <= roomCount; room++) {
-                    const fit = tryFitCourses(roomAssignments[room], instructorCourses, totalDays);
+                    const fit = tryFitCourses(roomAssignments, room, instructorCourses, totalDays, instructor);
                     if (fit && fit.length === instructorCourses.length) {
                         bestRoom = room; bestFit = fit; break;
                     } else if (fit && fit.length > 0 && (!bestFit || fit.length > bestFit.length)) {
@@ -2336,19 +2336,40 @@
             showToast(`Assigned ${assigned} courses`, unassigned.length ? 'warning' : 'success');
         }
 
-        function tryFitCourses(existing, coursesToFit, totalDays) {
+        function tryFitCourses(allRoomAssignments, currentRoom, coursesToFit, totalDays, instructor) {
             const placements = [];
             
             function hasConflict(startDay, duration) {
                 const endDay = startDay + duration - 1;
+                
+                // Check conflicts in current room
+                const existing = allRoomAssignments[currentRoom] || [];
                 for (const a of existing) {
                     const aEnd = a.startDay + a.duration - 1;
                     if (!(endDay < a.startDay || startDay > aEnd)) return true;
                 }
+                
+                // Check conflicts with already placed courses in this attempt
                 for (const p of placements) {
                     const pEnd = p.startDay + Math.ceil(p.course.Duration_Days) - 1;
                     if (!(endDay < p.startDay || startDay > pEnd)) return true;
                 }
+                
+                // Check if instructor is already teaching in OTHER rooms during this time
+                for (const room in allRoomAssignments) {
+                    if (parseInt(room) === currentRoom) continue; // Skip current room, already checked above
+                    
+                    for (const a of allRoomAssignments[room]) {
+                        const course = courses.find(c => c.Course_ID === a.courseId);
+                        if (course && course.Instructor === instructor) {
+                            const aEnd = a.startDay + a.duration - 1;
+                            if (!(endDay < a.startDay || startDay > aEnd)) {
+                                return true; // Instructor conflict in another room
+                            }
+                        }
+                    }
+                }
+                
                 return false;
             }
 
