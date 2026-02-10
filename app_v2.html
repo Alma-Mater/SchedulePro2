@@ -2064,6 +2064,8 @@
                         });
                         assignedIds.add(p.course.Course_ID);
                         assigned++;
+                        // Log each assignment individually
+                        addLogEntry('assign', selectedEventId, p.course.Course_ID, `Room ${bestRoom}, Days ${p.startDay}-${p.startDay + Math.ceil(p.course.Duration_Days) - 1}`, 'Draft picks', `Room ${bestRoom}`);
                     }
                 }
             }
@@ -2077,7 +2079,6 @@
             }
 
             shortlists[selectedEventId] = unassigned;
-            addLogEntry('auto-fill', selectedEventId, null, `Assigned ${assigned}, ${unassigned.length} remaining`);
             saveToLocalStorage();
             render();
             showToast(`Assigned ${assigned} courses`, unassigned.length ? 'warning' : 'success');
