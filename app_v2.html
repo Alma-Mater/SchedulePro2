@@ -666,8 +666,8 @@
         }
 
         .schedule-table th.room-col {
-            width: 50px;
-            min-width: 50px;
+            width: 18px;
+            min-width: 18px;
             background: #f3f4f6;
         }
 
@@ -675,7 +675,7 @@
             padding: 10px;
             border-bottom: 1px solid #f3f4f6;
             vertical-align: top;
-            height: 80px;
+            height: 110px;
             width: 140px;
         }
 
@@ -700,7 +700,7 @@
             border: 2px solid #7c3aed;
             border-radius: 6px;
             padding: 8px 10px;
-            cursor: pointer;
+            cursor: move;
             transition: all 0.15s;
             height: 100%;
             display: flex;
@@ -740,7 +740,7 @@
         .course-block-name {
             font-weight: 600;
             font-size: 18px;
-            color: #374151;
+            color: #7c3aed;
             line-height: 1.3;
             margin-bottom: 4px;
         }
@@ -777,6 +777,14 @@
         .empty-slot:hover {
             border-color: #c4b5fd;
             background: #faf5ff;
+        }
+
+        .schedule-table td[ondragover] {
+            transition: background-color 0.15s;
+        }
+
+        .schedule-table td[ondragover]:hover {
+            background: #f3e8ff;
         }
 
         .slot-note-input {
@@ -982,6 +990,7 @@
         .log-action-cell.draft { color: #8b5cf6; }
         .log-action-cell.undraft { color: #f97316; }
         .log-action-cell.note { color: #a855f7; }
+        .log-action-cell.move { color: #06b6d4; }
 
         .log-timestamp {
             white-space: nowrap;
@@ -1783,8 +1792,11 @@
                         bodyHtml += `
                             <td colspan="${assignment.duration}">
                                 <div class="course-block ${hasConflict ? 'has-conflict' : ''}" 
+                                     draggable="true"
+                                     ondragstart="handleDragStart(event, '${selectedEventId}', ${room}, '${assignment.courseId}', ${assignment.startDay}, ${assignment.duration})"
+                                     ondragend="handleDragEnd(event)"
                                      onclick="showCourseBlockMenu(event, '${selectedEventId}', ${room}, '${assignment.courseId}')"
-                                     title="Click for options">
+                                     title="Drag to move or click for options">
                                     ${hasNote ? `<div class="course-block-note-indicator" onclick="event.stopPropagation(); addEditBlockNote('${selectedEventId}', ${room}, '${assignment.courseId}')">Note</div>` : ''}
                                     <div class="course-block-name">${course?.Course_Name || assignment.courseId}</div>
                                     <div class="course-block-instructor">${course?.Instructor || ''}</div>
@@ -1794,7 +1806,7 @@
                         day += assignment.duration;
                     } else if (!assignment) {
                         const slotNote = slotNotes[selectedEventId]?.[room]?.[day] || '';
-                        bodyHtml += `<td><div class="empty-slot" onclick="startEditingSlot(this, '${selectedEventId}', ${room}, ${day})">${slotNote ? `<div class="slot-note-display">${slotNote}</div>` : '<span class="slot-placeholder">Click to add note</span>'}</div></td>`;
+                        bodyHtml += `<td ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${selectedEventId}', ${room}, ${day})"><div class="empty-slot" onclick="startEditingSlot(this, '${selectedEventId}', ${room}, ${day})">${slotNote ? `<div class="slot-note-display">${slotNote}</div>` : '<span class="slot-placeholder">Click to add note</span>'}</div></td>`;
                         day++;
                     } else {
                         day++;
@@ -2323,10 +2335,10 @@
 
         function getActionLabel(action) {
             const labels = {
-                'draft': 'Drafted', 'add': 'Added', 'remove': 'Removed', 'assign': 'Assigned',
+                'draft': 'Drafted', 'add': 'Added', 'remove': 'Removed', 'assign': 'Added',
                 'clear': 'Cleared', 'edit': 'Edited', 'auto-fill': 'Auto-Filled',
                 'upload': 'Uploaded', 'load': 'Loaded', 'undraft': 'Undrafted',
-                'note': 'Note'
+                'note': 'Note', 'move': 'Moved'
             };
             return labels[action] || action;
         }
@@ -2481,6 +2493,99 @@
                 render();
                 showToast('Course removed', 'success');
             }
+        }
+
+        // ==================== DRAG AND DROP ====================
+        let draggedCourse = null;
+
+        function handleDragStart(event, eventId, room, courseId, startDay, duration) {
+            draggedCourse = { eventId, room, courseId, startDay, duration };
+            event.dataTransfer.effectAllowed = 'move';
+            event.target.style.opacity = '0.4';
+        }
+
+        function handleDragEnd(event) {
+            event.target.style.opacity = '1';
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+
+        function handleDrop(event, targetEventId, targetRoom, targetDay) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (!draggedCourse) return;
+
+            // Can't drop on different events (for now)
+            if (draggedCourse.eventId !== targetEventId) {
+                showToast('Cannot move courses between events', 'error');
+                draggedCourse = null;
+                render();
+                return;
+            }
+
+            const { eventId, room: sourceRoom, courseId, startDay: sourceDay, duration } = draggedCourse;
+
+            // Check if dropping in the same position
+            if (sourceRoom === targetRoom && sourceDay === targetDay) {
+                draggedCourse = null;
+                render();
+                return;
+            }
+
+            // Check if there's enough space at the target location
+            const targetSchedule = schedule[targetEventId][targetRoom] || [];
+            const canFit = checkCanFit(targetSchedule, targetDay, duration, courseId, sourceRoom === targetRoom);
+
+            if (!canFit) {
+                showToast('Not enough space at the target location', 'error');
+                draggedCourse = null;
+                render();
+                return;
+            }
+
+            // Find and preserve the original assignment before removing it
+            const originalAssignment = schedule[eventId][sourceRoom].find(a => a.courseId === courseId);
+            const note = originalAssignment?.note || '';
+
+            // Remove from source
+            schedule[eventId][sourceRoom] = schedule[eventId][sourceRoom].filter(a => a.courseId !== courseId);
+
+            // Add to target
+            if (!schedule[eventId][targetRoom]) schedule[eventId][targetRoom] = [];
+            schedule[eventId][targetRoom].push({ courseId, startDay: targetDay, duration, note });
+
+            // Log the move
+            const course = courses.find(c => c.Course_ID === courseId);
+            const fromDays = `Days ${sourceDay}-${sourceDay + duration - 1}`;
+            const toDays = `Days ${targetDay}-${targetDay + duration - 1}`;
+            
+            if (sourceRoom === targetRoom) {
+                addLogEntry('move', eventId, courseId, `Moved in Room ${targetRoom}`, fromDays, toDays);
+            } else {
+                addLogEntry('move', eventId, courseId, `Moved from Room ${sourceRoom} to Room ${targetRoom}`, `Room ${sourceRoom}, ${fromDays}`, `Room ${targetRoom}, ${toDays}`);
+            }
+
+            saveToLocalStorage();
+            draggedCourse = null;
+            render();
+            showToast(`Moved "${course?.Course_Name || courseId}"`, 'success');
+        }
+
+        function checkCanFit(roomSchedule, startDay, duration, movingCourseId = null, sameRoom = false) {
+            for (let d = startDay; d < startDay + duration; d++) {
+                const hasConflict = roomSchedule.some(a => {
+                    // If we're moving within the same room, ignore the course we're moving
+                    if (sameRoom && a.courseId === movingCourseId) return false;
+                    return d >= a.startDay && d < a.startDay + a.duration;
+                });
+                if (hasConflict) return false;
+            }
+            return true;
         }
 
         function showCourseBlockMenu(event, eventId, room, courseId) {
