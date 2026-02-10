@@ -1077,6 +1077,7 @@
         <div class="header-buttons">
             <button class="btn" onclick="document.getElementById('fileInput').click()">📁 Load Excel</button>
             <button class="btn" onclick="exportSchedule()">📤 Export</button>
+            <button class="btn" onclick="exportContracts()">📄 Export Contracts</button>
             <button class="btn" onclick="saveSession()">💾 Save</button>
             <button class="btn" onclick="document.getElementById('loadSessionInput').click()">📂 Load</button>
             <button class="btn btn-danger" onclick="clearAllData()">🗑️ Clear All</button>
@@ -2903,6 +2904,87 @@
             }
             downloadFile(csv, 'schedule.csv', 'text/csv');
             showToast('Exported', 'success');
+        }
+
+        function exportContracts() {
+            // Group all assignments by instructor
+            const byInstructor = {};
+            
+            for (const event of events) {
+                const eventDates = getEventDates(event);
+                const eventSchedule = schedule[event.Event_ID] || {};
+                
+                for (const room in eventSchedule) {
+                    for (const a of eventSchedule[room]) {
+                        const course = courses.find(c => c.Course_ID === a.courseId);
+                        if (!course) continue;
+                        
+                        const instructor = course.Instructor;
+                        if (!byInstructor[instructor]) {
+                            byInstructor[instructor] = [];
+                        }
+                        
+                        const startDate = eventDates[a.startDay - 1];
+                        const endDate = eventDates[a.startDay + a.duration - 2];
+                        
+                        // Extract month and determine modality
+                        const startDateObj = new Date(startDate);
+                        const monthName = startDateObj.toLocaleDateString('en-US', { month: 'long' });
+                        const location = event.Location || '';
+                        const isVirtual = location.toLowerCase().includes('virtual');
+                        const modality = isVirtual ? 'Virtual' : 'In Person';
+                        const monthLocation = isVirtual ? `${monthName} - Virtual` : `${monthName} - ${location}`;
+                        
+                        byInstructor[instructor].push({
+                            'Start Date': startDate,
+                            'End Date': endDate,
+                            'Month/Location': monthLocation,
+                            'Modality': modality,
+                            'Training Title': course.Course_Name,
+                            'Trainer(s)': instructor
+                        });
+                    }
+                }
+            }
+            
+            // Create workbook with one sheet per instructor
+            const wb = XLSX.utils.book_new();
+            const instructors = Object.keys(byInstructor).sort();
+            
+            if (instructors.length === 0) {
+                showToast('No assignments to export', 'warning');
+                return;
+            }
+            
+            for (const instructor of instructors) {
+                const assignments = byInstructor[instructor];
+                
+                // Sort by start date
+                assignments.sort((a, b) => new Date(a['Start Date']) - new Date(b['Start Date']));
+                
+                // Create worksheet
+                const ws = XLSX.utils.json_to_sheet(assignments);
+                
+                // Set column widths
+                ws['!cols'] = [
+                    { wch: 12 },  // Start Date
+                    { wch: 12 },  // End Date
+                    { wch: 25 },  // Month/Location
+                    { wch: 12 },  // Modality
+                    { wch: 45 },  // Training Title
+                    { wch: 25 }   // Trainer(s)
+                ];
+                
+                // Sanitize sheet name (Excel has restrictions)
+                let sheetName = instructor.substring(0, 31); // Max 31 chars
+                sheetName = sheetName.replace(/[:\\\/?\*\[\]]/g, '_'); // Replace invalid chars
+                
+                XLSX.utils.book_append_sheet(wb, ws, sheetName);
+            }
+            
+            // Write file
+            XLSX.writeFile(wb, `Contracts_${new Date().toISOString().slice(0,10)}.xlsx`);
+            showToast(`Exported contracts for ${instructors.length} instructor(s)`, 'success');
         }
 
         // ==================== SAVE/LOAD ====================
