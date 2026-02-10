@@ -316,6 +316,7 @@
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.15s;
+            position: relative;
         }
 
         .event-pill:hover {
@@ -339,6 +340,34 @@
             margin-top: 4px;
         }
 
+        .event-pill-edit {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 28px;
+            height: 28px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0;
+            transition: all 0.15s;
+            font-size: 14px;
+        }
+
+        .event-pill:hover .event-pill-edit {
+            opacity: 1;
+        }
+
+        .event-pill-edit:hover {
+            background: #7c3aed;
+            color: white;
+            border-color: #7c3aed;
+        }
+
         /* ========== SELECTED EVENT PANEL ========== */
         .event-panel {
             background: white;
@@ -351,12 +380,14 @@
             padding: 20px;
             background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
             color: white;
+            position: relative;
         }
 
         .event-panel-title {
             font-size: 26px;
             font-weight: 600;
             margin-bottom: 6px;
+            padding-right: 100px;
         }
 
         .event-panel-subtitle {
@@ -376,6 +407,28 @@
 
         .event-stat strong {
             font-weight: 600;
+        }
+
+        .event-edit-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.6);
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            backdrop-filter: blur(10px);
+        }
+
+        .event-edit-btn:hover {
+            background: white;
+            color: #7c3aed;
+            border-color: white;
         }
 
         .event-panel-body {
@@ -1026,6 +1079,7 @@
                     <div id="eventPanel" style="display: none;">
                         <div class="event-panel">
                             <div class="event-panel-header">
+                                <button class="event-edit-btn" onclick="showEditEventModal()">✏️ Edit Event</button>
                                 <div class="event-panel-title" id="eventTitle">Event Name</div>
                                 <div class="event-panel-subtitle" id="eventSubtitle">Location • Dates</div>
                                 <div class="event-panel-stats">
@@ -1037,7 +1091,6 @@
                             <div class="event-panel-body">
                                 <!-- Actions -->
                                 <div class="event-actions">
-                                    <button class="btn btn-sm" onclick="showEditEventModal()">✏️ Edit Event</button>
                                     <button class="btn btn-sm btn-primary" onclick="autoPopulateRooms()" id="autoFillBtn">🔄 Auto-Fill Shortlist</button>
                                     <button class="btn btn-sm btn-danger" onclick="clearEventSchedule()">🗑️ Clear All</button>
                                 </div>
@@ -1358,7 +1411,13 @@
             // Filter out any invalid events
             const validEvents = sortedEvents.filter(ev => ev && ev.Event_ID && ev.Event);
 
-            container.innerHTML = validEvents.map(ev => `<div class="event-pill ${selectedEventId === ev.Event_ID ? 'selected' : ''}" onclick="selectEvent('${ev.Event_ID}')"><div class="event-pill-name">${ev.Event}</div><div class="event-pill-dates">${ev.First_Event_Day || ''} – ${ev.Last_Event_Day || ''}</div></div>`).join('') + `<div class="event-pill" onclick="showAddEventModal()" style="border-style: dashed;"><div class="event-pill-name">+ Add Event</div></div>`;
+            container.innerHTML = validEvents.map(ev => `
+                <div class="event-pill ${selectedEventId === ev.Event_ID ? 'selected' : ''}" onclick="selectEvent('${ev.Event_ID}')">
+                    <div class="event-pill-edit" onclick="event.stopPropagation(); showEditEventModalForEvent('${ev.Event_ID}')">✏️</div>
+                    <div class="event-pill-name">${ev.Event}</div>
+                    <div class="event-pill-dates">${ev.First_Event_Day || ''} – ${ev.Last_Event_Day || ''}</div>
+                </div>
+            `).join('') + `<div class="event-pill" onclick="showAddEventModal()" style="border-style: dashed;"><div class="event-pill-name">+ Add Event</div></div>`;
         }
 
         function renderCourseList() {
@@ -2197,6 +2256,21 @@
 
             document.getElementById('eventModalTitle').textContent = 'Edit Event';
             document.getElementById('editEventId').value = selectedEventId;
+            document.getElementById('eventIdInput').value = event.Event_ID;
+            document.getElementById('eventNameInput').value = event.Event;
+            document.getElementById('eventLocationInput').value = event.Location;
+            document.getElementById('eventRoomCountInput').value = event.Room_Count;
+            document.getElementById('eventFirstDayInput').value = event.First_Event_Day;
+            document.getElementById('eventLastDayInput').value = event.Last_Event_Day;
+            document.getElementById('eventModal').classList.add('active');
+        }
+
+        function showEditEventModalForEvent(eventId) {
+            const event = events.find(e => e.Event_ID === eventId);
+            if (!event) return;
+
+            document.getElementById('eventModalTitle').textContent = 'Edit Event';
+            document.getElementById('editEventId').value = eventId;
             document.getElementById('eventIdInput').value = event.Event_ID;
             document.getElementById('eventNameInput').value = event.Event;
             document.getElementById('eventLocationInput').value = event.Location;
