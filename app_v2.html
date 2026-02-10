@@ -1063,6 +1063,7 @@
             <div class="nav-tabs">
                 <div class="nav-tab active" data-tab="schedule">Schedule</div>
                 <div class="nav-tab" data-tab="courses">All Courses</div>
+                <div class="nav-tab" data-tab="availability">Availability</div>
                 <div class="nav-tab" data-tab="log">Change Log</div>
             </div>
 
@@ -1149,6 +1150,17 @@
                         </thead>
                         <tbody id="coursesTableBody"></tbody>
                     </table>
+                </div>
+
+                <!-- AVAILABILITY TAB -->
+                <div class="tab-panel" id="tab-availability">
+                    <div style="margin-bottom: 16px;">
+                        <h2 style="margin-bottom: 12px; color: #374151;">Instructor Unavailability</h2>
+                        <button class="btn btn-primary btn-sm" onclick="addAvailabilityEntry()">+ Add Entry</button>
+                    </div>
+                    <div id="availabilityTableContainer">
+                        <div class="empty-state">No unavailability periods defined</div>
+                    </div>
                 </div>
 
                 <!-- CHANGE LOG TAB -->
@@ -1330,10 +1342,10 @@
                         })).filter(a => a.Instructor && a.Unavailable_Start);
                     }
 
+                    addLogEntry('upload', null, null, `Loaded: ${file.name}`);
                     saveToLocalStorage();
                     render();
                     showToast(`Loaded ${events.length} events, ${courses.length} courses`, 'success');
-                    addLogEntry('upload', null, null, `Loaded: ${file.name}`);
                 } catch (err) {
                     console.error(err);
                     showToast('Error loading file', 'error');
@@ -1396,6 +1408,7 @@
             renderCourseList();
             renderSelectedEvent();
             renderCoursesTable();
+            renderAvailabilityTable();
             renderChangeLog();
         }
 
@@ -1771,6 +1784,136 @@
             }).join('');
         }
 
+        function renderAvailabilityTable() {
+            const container = document.getElementById('availabilityTableContainer');
+            
+            if (instructorAway.length === 0) {
+                container.innerHTML = '<div class="empty-state">No unavailability periods defined. Click "Add Entry" to add instructor unavailability.</div>';
+                return;
+            }
+
+            const tableHtml = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Instructor(s)</th>
+                            <th>Unavailable Start</th>
+                            <th>Unavailable End</th>
+                            <th style="width: 80px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${instructorAway.map((entry, idx) => `
+                            <tr>
+                                <td class="editable-cell" onclick="editAvailabilityCell(${idx}, 'Instructor', this)">${entry.Instructor || ''}</td>
+                                <td class="editable-cell" onclick="editAvailabilityCell(${idx}, 'Unavailable_Start', this)">${entry.Unavailable_Start || ''}</td>
+                                <td class="editable-cell" onclick="editAvailabilityCell(${idx}, 'Unavailable_End', this)">${entry.Unavailable_End || ''}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteAvailabilityEntry(${idx})" style="padding: 6px 12px;">✕</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+            container.innerHTML = tableHtml;
+        }
+
+        function editAvailabilityCell(idx, field, cell) {
+            if (cell.querySelector('input')) return;
+            
+            const entry = instructorAway[idx];
+            let val = entry[field] || '';
+            
+            const input = document.createElement('input');
+            const isDateField = (field === 'Unavailable_Start' || field === 'Unavailable_End');
+            input.type = isDateField ? 'date' : 'text';
+            input.value = val;
+            
+            const original = cell.innerHTML;
+            cell.innerHTML = '';
+            cell.appendChild(input);
+            input.focus();
+            if (input.type === 'text') input.select();
+
+            let hasChanged = false;
+
+            const save = () => {
+                if (!hasChanged) {
+                    cell.innerHTML = original;
+                    return;
+                }
+                const newVal = isDateField ? input.value : input.value.trim();
+                if (newVal !== val) {
+                    instructorAway[idx][field] = newVal;
+                    const instructor = field === 'Instructor' ? newVal : entry.Instructor;
+                    addLogEntry('edit', null, null, `Updated instructor availability: ${field}`, val, newVal, '', instructor);
+                    saveToLocalStorage();
+                    renderAvailabilityTable();
+                    renderChangeLog();
+                    showToast('Updated', 'success');
+                } else {
+                    cell.innerHTML = original;
+                }
+            };
+
+            if (isDateField) {
+                // For date inputs, use change event instead of blur
+                input.addEventListener('change', () => {
+                    hasChanged = true;
+                    save();
+                });
+                input.addEventListener('blur', () => {
+                    // Delay to allow change event to fire first
+                    setTimeout(() => {
+                        if (!hasChanged) {
+                            cell.innerHTML = original;
+                        }
+                    }, 100);
+                });
+            } else {
+                // For text inputs, use blur
+                input.addEventListener('input', () => { hasChanged = true; });
+                input.addEventListener('blur', save);
+            }
+            
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { hasChanged = true; save(); }
+                if (e.key === 'Escape') { cell.innerHTML = original; }
+            });
+        }
+
+        function deleteAvailabilityEntry(idx) {
+            const entry = instructorAway[idx];
+            if (confirm(`Remove unavailability period for "${entry.Instructor}"?`)) {
+                instructorAway.splice(idx, 1);
+                addLogEntry('remove', null, null, `Removed instructor unavailability: ${entry.Instructor}`, '', '', '', entry.Instructor);
+                saveToLocalStorage();
+                render();
+                showToast('Entry removed', 'success');
+            }
+        }
+
+        function addAvailabilityEntry() {
+            instructorAway.push({
+                Instructor: '',
+                Unavailable_Start: '',
+                Unavailable_End: ''
+            });
+            saveToLocalStorage();
+            renderAvailabilityTable();
+            renderChangeLog();
+            showToast('Entry added - click to edit', 'success');
+            
+            // Auto-focus the first cell of the new row
+            setTimeout(() => {
+                const cells = document.querySelectorAll('#availabilityTableContainer .editable-cell');
+                const newRowFirstCell = cells[cells.length - 3]; // -3 because last row has 3 editable cells
+                if (newRowFirstCell) newRowFirstCell.click();
+            }, 100);
+        }
+
         function renderChangeLog() {
             const container = document.getElementById('logTableContainer');
             
@@ -1779,13 +1922,30 @@
                 return;
             }
 
-            // Filter out draft/undraft entries if toggle is off
-            let filteredLog = showDraftUndraftInLog 
-                ? changeLog.slice() 
-                : changeLog.filter(entry => entry.action !== 'draft' && entry.action !== 'undraft');
+            // Get current checkbox state directly to ensure sync
+            const checkbox = document.getElementById('showDraftUndraftCheckbox');
+            const showDraftUndraft = checkbox ? checkbox.checked : false;
+
+            // Filter: if showDraftUndraft is false, hide ONLY draft and undraft actions
+            // All other actions (edit, remove, assign, upload, load, etc.) should always be visible
+            let filteredLog = changeLog.filter(entry => {
+                // Safety check for malformed entries - show them when checkbox is checked
+                if (!entry || !entry.action) {
+                    return showDraftUndraft;
+                }
+                
+                if (showDraftUndraft) {
+                    return true; // Show everything when checked
+                }
+                // When unchecked, hide only draft and undraft (case-insensitive)
+                const action = String(entry.action).toLowerCase().trim();
+                return action !== 'draft' && action !== 'undraft';
+            });
             
             if (filteredLog.length === 0) {
-                container.innerHTML = '<div class="empty-state">No changes recorded yet (enable "Show Draft/Undraft" to see draft entries)</div>';
+                const totalEntries = changeLog.length;
+                const draftCount = changeLog.filter(e => e && e.action && (e.action.toLowerCase() === 'draft' || e.action.toLowerCase() === 'undraft')).length;
+                container.innerHTML = `<div class="empty-state">No changes recorded yet${totalEntries > 0 ? ` (${draftCount} draft/undraft entries hidden - enable "Show Draft/Undraft" to see them)` : ''}</div>`;
                 return;
             }
 
@@ -2383,7 +2543,7 @@
         let logSortAscending = true;
         let showDraftUndraftInLog = false;
 
-        function addLogEntry(action, eventId, courseId, description, before = '', after = '', notes = '') {
+        function addLogEntry(action, eventId, courseId, description, before = '', after = '', notes = '', instructorOverride = null) {
             const course = courseId ? courses.find(c => c.Course_ID === courseId) : null;
             const now = new Date();
             changeLog.push({
@@ -2393,7 +2553,7 @@
                 eventId,
                 courseId,
                 courseName: course?.Course_Name || '',
-                instructor: course?.Instructor || '',
+                instructor: instructorOverride || course?.Instructor || '',
                 description,
                 before,
                 after,
