@@ -441,7 +441,7 @@
             margin-bottom: 20px;
         }
 
-        /* ========== SHORTLIST SECTION ========== */
+        /* ========== DRAFT PICKS SECTION ========== */
         .shortlist-section {
             margin-bottom: 24px;
         }
@@ -851,6 +851,7 @@
         .log-action-cell.clear { color: #f59e0b; }
         .log-action-cell.upload { color: #6366f1; }
         .log-action-cell.auto-fill { color: #14b8a6; }
+        .log-action-cell.draft { color: #8b5cf6; }
 
         .log-timestamp {
             white-space: nowrap;
@@ -1091,14 +1092,14 @@
                             <div class="event-panel-body">
                                 <!-- Actions -->
                                 <div class="event-actions">
-                                    <button class="btn btn-sm btn-primary" onclick="autoPopulateRooms()" id="autoFillBtn">🔄 Auto-Fill Shortlist</button>
+                                    <button class="btn btn-sm btn-primary" onclick="autoPopulateRooms()" id="autoFillBtn">🔄 Auto-Fill Draft</button>
                                     <button class="btn btn-sm btn-danger" onclick="clearEventSchedule()">🗑️ Clear All</button>
                                 </div>
 
-                                <!-- Shortlist -->
+                                <!-- Draft Picks -->
                                 <div class="shortlist-section">
                                     <div class="section-title">
-                                        📋 Shortlist <span class="count" id="shortlistCount">0</span>
+                                        📋 Draft Picks <span class="count" id="shortlistCount">0</span>
                                     </div>
                                     <div id="shortlistContainer">
                                         <div class="shortlist-empty">
@@ -1794,6 +1795,7 @@
                             <th class="sortable ${logSortColumn === 'timestamp' ? (logSortAscending ? 'sorted-asc' : 'sorted-desc') : ''}" onclick="sortLogBy('timestamp')">Timestamp</th>
                             <th class="sortable ${logSortColumn === 'action' ? (logSortAscending ? 'sorted-asc' : 'sorted-desc') : ''}" onclick="sortLogBy('action')">Action</th>
                             <th class="sortable ${logSortColumn === 'event' ? (logSortAscending ? 'sorted-asc' : 'sorted-desc') : ''}" onclick="sortLogBy('event')">Event</th>
+                            <th class="sortable ${logSortColumn === 'instructor' ? (logSortAscending ? 'sorted-asc' : 'sorted-desc') : ''}" onclick="sortLogBy('instructor')">Instructor</th>
                             <th class="sortable ${logSortColumn === 'details' ? (logSortAscending ? 'sorted-asc' : 'sorted-desc') : ''}" onclick="sortLogBy('details')">Details</th>
                             <th class="sortable ${logSortColumn === 'before' ? (logSortAscending ? 'sorted-asc' : 'sorted-desc') : ''}" onclick="sortLogBy('before')">Before</th>
                             <th class="sortable ${logSortColumn === 'after' ? (logSortAscending ? 'sorted-asc' : 'sorted-desc') : ''}" onclick="sortLogBy('after')">After</th>
@@ -1820,6 +1822,7 @@
                                     <td class="log-timestamp">${entry.timestamp}</td>
                                     <td class="log-action-cell ${entry.action}">${getActionLabel(entry.action)}</td>
                                     <td>${eventName}</td>
+                                    <td>${entry.instructor || ''}</td>
                                     <td class="log-details-cell">${details}</td>
                                     <td>${entry.before || ''}</td>
                                     <td>${entry.after || ''}</td>
@@ -1843,6 +1846,7 @@
                     if (!entry.eventId) return '';
                     const event = events.find(e => e.Event_ID === entry.eventId);
                     return event?.Event || entry.eventId;
+                case 'instructor': return entry.instructor || '';
                 case 'before': return entry.before || '';
                 case 'after': return entry.after || '';
                 case 'notes': return entry.notes || '';
@@ -1857,14 +1861,15 @@
                 logSortAscending = !logSortAscending;
             } else {
                 logSortColumn = column;
-                logSortAscending = true;
+                // For timestamp, default to descending (newest first)
+                logSortAscending = column === 'timestamp' ? false : true;
             }
             renderChangeLog();
         }
 
         function getActionLabel(action) {
             const labels = {
-                'add': '➕ Added', 'remove': '➖ Removed', 'assign': '✅ Assigned',
+                'draft': '📝 Drafted', 'add': '➕ Added', 'remove': '➖ Removed', 'assign': '✅ Assigned',
                 'clear': '🗑️ Cleared', 'edit': '✏️ Edited', 'auto-fill': '🔄 Auto-Filled',
                 'upload': '📁 Uploaded', 'load': '📂 Loaded'
             };
@@ -1897,7 +1902,7 @@
                 showAssignModal(courseId);
             } else {
                 shortlists[selectedEventId] = [...shortlist, courseId];
-                addLogEntry('add', selectedEventId, courseId, `Added to shortlist`);
+                addLogEntry('draft', selectedEventId, courseId, `Added to draft picks`);
                 saveToLocalStorage();
                 render();
                 showToast(`Added "${course?.Course_Name}"`, 'success');
@@ -1907,7 +1912,7 @@
         function removeFromShortlist(courseId) {
             const course = courses.find(c => c.Course_ID === courseId);
             shortlists[selectedEventId] = (shortlists[selectedEventId] || []).filter(id => id !== courseId);
-            addLogEntry('remove', selectedEventId, courseId, `Removed from shortlist`);
+            addLogEntry('remove', selectedEventId, courseId, `Removed from draft picks`);
             saveToLocalStorage();
             render();
         }
@@ -2339,6 +2344,7 @@
                 eventId,
                 courseId,
                 courseName: course?.Course_Name || '',
+                instructor: course?.Instructor || '',
                 description,
                 before,
                 after,
@@ -2355,11 +2361,11 @@
         }
 
         function exportChangeLog() {
-            let csv = 'Timestamp,Action,Event,Details,Before,After,Notes\n';
+            let csv = 'Timestamp,Action,Event,Instructor,Details,Before,After,Notes\n';
             for (const e of changeLog) {
                 const eventName = e.eventId ? (events.find(ev => ev.Event_ID === e.eventId)?.Event || e.eventId) : '';
                 const details = `${e.courseName || e.courseId || ''} ${e.description || ''}`;
-                csv += `"${e.timestamp}","${getActionLabel(e.action)}","${eventName}","${details}","${e.before || ''}","${e.after || ''}","${e.notes || ''}"\n`;
+                csv += `"${e.timestamp}","${getActionLabel(e.action)}","${eventName}","${e.instructor || ''}","${details}","${e.before || ''}","${e.after || ''}","${e.notes || ''}"\n`;
             }
             downloadFile(csv, 'change_log.csv', 'text/csv');
         }
