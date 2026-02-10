@@ -689,6 +689,7 @@
             display: flex;
             flex-direction: column;
             justify-content: center;
+            position: relative;
         }
 
         .course-block:hover {
@@ -699,6 +700,24 @@
         .course-block.has-conflict {
             border-color: #f59e0b;
             background: #fffbeb;
+        }
+
+        .course-block-note-indicator {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: #7c3aed;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        .course-block-note-indicator:hover {
+            background: #6d28d9;
         }
 
         .course-block-name {
@@ -1602,12 +1621,14 @@
                     if (assignment && assignment.startDay === day) {
                         const course = courses.find(c => c.Course_ID === assignment.courseId);
                         const hasConflict = course && checkInstructorConflict(course.Instructor, selectedEventId);
+                        const hasNote = assignment.note && assignment.note.trim().length > 0;
                         
                         bodyHtml += `
                             <td colspan="${assignment.duration}">
                                 <div class="course-block ${hasConflict ? 'has-conflict' : ''}" 
-                                     onclick="confirmRemoveCourse('${selectedEventId}', ${room}, '${assignment.courseId}')"
-                                     title="Click to remove">
+                                     onclick="showCourseBlockMenu(event, '${selectedEventId}', ${room}, '${assignment.courseId}')"
+                                     title="Click for options">
+                                    ${hasNote ? `<div class="course-block-note-indicator" onclick="event.stopPropagation(); viewBlockNote('${selectedEventId}', ${room}, '${assignment.courseId}')">Note</div>` : ''}
                                     <div class="course-block-name">${course?.Course_Name || assignment.courseId}</div>
                                     <div class="course-block-instructor">${course?.Instructor || ''}</div>
                                 </div>
@@ -2236,7 +2257,7 @@
             if (!schedule[selectedEventId]) schedule[selectedEventId] = {};
             if (!schedule[selectedEventId][room]) schedule[selectedEventId][room] = [];
 
-            schedule[selectedEventId][room].push({ courseId, startDay, duration });
+            schedule[selectedEventId][room].push({ courseId, startDay, duration, note: '' });
             shortlists[selectedEventId] = (shortlists[selectedEventId] || []).filter(id => id !== courseId);
 
             addLogEntry('assign', selectedEventId, courseId, `Room ${room}, Days ${startDay}-${startDay + duration - 1}`, 'Unassigned', `Room ${room}`);
@@ -2254,6 +2275,84 @@
                 saveToLocalStorage();
                 render();
                 showToast('Course removed', 'success');
+            }
+        }
+
+        function showCourseBlockMenu(event, eventId, room, courseId) {
+            event.stopPropagation();
+            
+            const course = courses.find(c => c.Course_ID === courseId);
+            const assignment = schedule[eventId][room].find(a => a.courseId === courseId);
+            const hasNote = assignment && assignment.note && assignment.note.trim().length > 0;
+            
+            const menu = `
+                <div style="background: white; border: 2px solid #7c3aed; border-radius: 8px; padding: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); min-width: 180px;">
+                    <div style="padding: 8px; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb; margin-bottom: 4px;">
+                        ${course?.Course_Name || courseId}
+                    </div>
+                    <button class="btn btn-sm" onclick="addEditBlockNote('${eventId}', ${room}, '${courseId}'); closeBlockMenu();" style="width: 100%; margin-bottom: 4px; text-align: left;">
+                        ${hasNote ? '✏️ Edit Note' : '📝 Add Note'}
+                    </button>
+                    ${hasNote ? `<button class="btn btn-sm" onclick="viewBlockNote('${eventId}', ${room}, '${courseId}'); closeBlockMenu();" style="width: 100%; margin-bottom: 4px; text-align: left;">👁️ View Note</button>` : ''}
+                    <button class="btn btn-sm btn-danger" onclick="confirmRemoveCourse('${eventId}', ${room}, '${courseId}'); closeBlockMenu();" style="width: 100%; text-align: left;">
+                        ✕ Remove
+                    </button>
+                </div>
+            `;
+            
+            // Remove any existing menu
+            closeBlockMenu();
+            
+            // Create and position menu
+            const menuDiv = document.createElement('div');
+            menuDiv.id = 'courseBlockMenu';
+            menuDiv.style.position = 'fixed';
+            menuDiv.style.left = event.clientX + 'px';
+            menuDiv.style.top = event.clientY + 'px';
+            menuDiv.style.zIndex = '10000';
+            menuDiv.innerHTML = menu;
+            document.body.appendChild(menuDiv);
+            
+            // Close on outside click
+            setTimeout(() => {
+                document.addEventListener('click', closeBlockMenu, { once: true });
+            }, 0);
+        }
+
+        function closeBlockMenu() {
+            const menu = document.getElementById('courseBlockMenu');
+            if (menu) menu.remove();
+        }
+
+        function addEditBlockNote(eventId, room, courseId) {
+            const course = courses.find(c => c.Course_ID === courseId);
+            const assignment = schedule[eventId][room].find(a => a.courseId === courseId);
+            if (!assignment) return;
+            
+            const currentNote = assignment.note || '';
+            const newNote = prompt(`Note for "${course?.Course_Name || courseId}":`, currentNote);
+            
+            if (newNote !== null) { // null means cancelled
+                const trimmedNote = newNote.trim();
+                const oldNote = assignment.note || '';
+                assignment.note = trimmedNote;
+                
+                if (trimmedNote !== oldNote) {
+                    const action = trimmedNote.length > 0 ? (oldNote.length > 0 ? 'edited' : 'added') : 'removed';
+                    addLogEntry('edit', eventId, courseId, `Note ${action} for Room ${room}`, oldNote, trimmedNote, '', course?.Instructor);
+                    saveToLocalStorage();
+                    render();
+                    showToast(`Note ${action}`, 'success');
+                }
+            }
+        }
+
+        function viewBlockNote(eventId, room, courseId) {
+            const course = courses.find(c => c.Course_ID === courseId);
+            const assignment = schedule[eventId][room].find(a => a.courseId === courseId);
+            
+            if (assignment && assignment.note) {
+                alert(`Note for "${course?.Course_Name || courseId}":\n\n${assignment.note}`);
             }
         }
 
@@ -2321,7 +2420,8 @@
                         roomAssignments[bestRoom].push({
                             courseId: p.course.Course_ID,
                             startDay: p.startDay,
-                            duration: Math.ceil(p.course.Duration_Days)
+                            duration: Math.ceil(p.course.Duration_Days),
+                            note: ''
                         });
                         assignedIds.add(p.course.Course_ID);
                         assigned++;
@@ -2656,14 +2756,15 @@
 
         // ==================== EXPORT ====================
         function exportSchedule() {
-            let csv = 'Event,Room,Course_ID,Course_Name,Instructor,Duration,Start_Day,End_Day\n';
+            let csv = 'Event,Room,Course_ID,Course_Name,Instructor,Duration,Start_Day,End_Day,Note\n';
             for (const event of events) {
                 const eventDates = getEventDates(event);
                 const eventSchedule = schedule[event.Event_ID] || {};
                 for (const room in eventSchedule) {
                     for (const a of eventSchedule[room]) {
                         const course = courses.find(c => c.Course_ID === a.courseId);
-                        csv += `"${event.Event}",${room},"${a.courseId}","${course?.Course_Name || ''}","${course?.Instructor || ''}",${a.duration},"${eventDates[a.startDay-1] || ''}","${eventDates[a.startDay + a.duration - 2] || ''}"\n`;
+                        const note = (a.note || '').replace(/"/g, '""'); // Escape quotes in notes
+                        csv += `"${event.Event}",${room},"${a.courseId}","${course?.Course_Name || ''}","${course?.Instructor || ''}",${a.duration},"${eventDates[a.startDay-1] || ''}","${eventDates[a.startDay + a.duration - 2] || ''}","${note}"\n`;
                     }
                 }
             }
