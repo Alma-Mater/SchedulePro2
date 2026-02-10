@@ -1538,20 +1538,23 @@
             }
 
             // Get all assignments for this event grouped by instructor
-            const eventAssignments = assignments.filter(a => a.eventId === selectedEventId);
             const byInstructor = {};
+            const eventSchedule = schedule[selectedEventId] || {};
 
-            eventAssignments.forEach(a => {
-                const course = courses.find(c => c.Course_ID === a.courseId);
-                if (!course) return;
-                const instructor = course.Instructor;
-                if (!byInstructor[instructor]) byInstructor[instructor] = [];
-                byInstructor[instructor].push({
-                    ...a,
-                    courseName: course.Course_Name,
-                    duration: course.Duration_Days
-                });
-            });
+            for (const room in eventSchedule) {
+                for (const assignment of eventSchedule[room]) {
+                    const course = courses.find(c => c.Course_ID === assignment.courseId);
+                    if (!course) continue;
+                    const instructor = course.Instructor;
+                    if (!byInstructor[instructor]) byInstructor[instructor] = [];
+                    byInstructor[instructor].push({
+                        room: room,
+                        startDay: assignment.startDay,
+                        courseName: course.Course_Name,
+                        duration: course.Duration_Days
+                    });
+                }
+            }
 
             const instructorNames = Object.keys(byInstructor).sort();
 
@@ -1589,25 +1592,27 @@
             }
 
             // Get all assignments for this event grouped by course
-            const eventAssignments = assignments.filter(a => a.eventId === selectedEventId);
             const byCourse = {};
+            const eventSchedule = schedule[selectedEventId] || {};
 
-            eventAssignments.forEach(a => {
-                const course = courses.find(c => c.Course_ID === a.courseId);
-                if (!course) return;
-                if (!byCourse[a.courseId]) {
-                    byCourse[a.courseId] = {
-                        name: course.Course_Name,
-                        instructor: course.Instructor,
-                        instances: []
-                    };
+            for (const room in eventSchedule) {
+                for (const assignment of eventSchedule[room]) {
+                    const course = courses.find(c => c.Course_ID === assignment.courseId);
+                    if (!course) continue;
+                    if (!byCourse[assignment.courseId]) {
+                        byCourse[assignment.courseId] = {
+                            name: course.Course_Name,
+                            instructor: course.Instructor,
+                            instances: []
+                        };
+                    }
+                    byCourse[assignment.courseId].instances.push({
+                        room: room,
+                        startDay: assignment.startDay,
+                        duration: course.Duration_Days
+                    });
                 }
-                byCourse[a.courseId].instances.push({
-                    room: a.room,
-                    startDay: a.startDay,
-                    duration: course.Duration_Days
-                });
-            });
+            }
 
             const courseIds = Object.keys(byCourse).sort((a, b) => 
                 byCourse[a].name.localeCompare(byCourse[b].name)
