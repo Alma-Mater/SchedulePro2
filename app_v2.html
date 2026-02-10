@@ -90,7 +90,7 @@
 
         /* ========== SIDEBAR ========== */
         .sidebar {
-            width: 300px;
+            width: 420px;
             background: white;
             border-right: 1px solid #e5e7eb;
             display: flex;
@@ -144,6 +144,36 @@
             max-width: 100%;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+
+        .duration-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .duration-filter-btn {
+            padding: 8px 14px;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            color: #6b7280;
+        }
+
+        .duration-filter-btn:hover {
+            border-color: #c4b5fd;
+            background: #faf5ff;
+        }
+
+        .duration-filter-btn.active {
+            background: #7c3aed;
+            border-color: #7c3aed;
+            color: white;
         }
 
         .course-list {
@@ -914,14 +944,13 @@
                     <select id="topicFilter" onchange="renderCourseList()">
                         <option value="">All Topics</option>
                     </select>
-                    <select id="durationFilter" onchange="renderCourseList()">
-                        <option value="">All Days</option>
-                        <option value="0.5">½ Day</option>
-                        <option value="1">1 Day</option>
-                        <option value="2">2 Days</option>
-                        <option value="3">3 Days</option>
-                        <option value="4">4 Days</option>
-                    </select>
+                </div>
+                <div class="duration-filters">
+                    <button class="duration-filter-btn" data-duration="0.5" onclick="toggleDurationFilter(0.5)">0.5 Day</button>
+                    <button class="duration-filter-btn" data-duration="1" onclick="toggleDurationFilter(1)">1 Day</button>
+                    <button class="duration-filter-btn" data-duration="2" onclick="toggleDurationFilter(2)">2 Days</button>
+                    <button class="duration-filter-btn" data-duration="3" onclick="toggleDurationFilter(3)">3 Days</button>
+                    <button class="duration-filter-btn" data-duration="4" onclick="toggleDurationFilter(4)">4 Days</button>
                 </div>
             </div>
             <div class="course-list" id="courseList">
@@ -1123,6 +1152,7 @@
         let shortlists = {};
         let changeLog = [];
         let selectedEventId = null;
+        let selectedDurations = [];
 
         // ==================== INIT ====================
         document.addEventListener('DOMContentLoaded', () => {
@@ -1296,7 +1326,6 @@
 
             const search = document.getElementById('courseSearch').value.toLowerCase();
             const topicFilter = document.getElementById('topicFilter').value;
-            const durationFilter = document.getElementById('durationFilter').value;
 
             const shortlist = shortlists[selectedEventId] || [];
             const assignedHere = getAssignedCoursesForEvent(selectedEventId);
@@ -1308,7 +1337,7 @@
                     c.Course_Name.toLowerCase().includes(search) ||
                     c.Instructor.toLowerCase().includes(search);
                 const matchTopic = !topicFilter || c.Topic === topicFilter;
-                const matchDuration = !durationFilter || c.Duration_Days == parseFloat(durationFilter);
+                const matchDuration = selectedDurations.length === 0 || selectedDurations.includes(parseFloat(c.Duration_Days));
                 return matchSearch && matchTopic && matchDuration;
             });
 
@@ -1340,6 +1369,27 @@
                     </div>
                 `;
             }).join('');
+        }
+
+        function toggleDurationFilter(duration) {
+            const index = selectedDurations.indexOf(duration);
+            if (index === -1) {
+                selectedDurations.push(duration);
+            } else {
+                selectedDurations.splice(index, 1);
+            }
+
+            // Update button states
+            document.querySelectorAll('.duration-filter-btn').forEach(btn => {
+                const btnDuration = parseFloat(btn.getAttribute('data-duration'));
+                if (selectedDurations.includes(btnDuration)) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            renderCourseList();
         }
 
         function renderSelectedEvent() {
