@@ -294,6 +294,14 @@
             border-bottom-color: #7c3aed;
         }
 
+        .nav-tab[data-tab="schedule"] {
+            background: #ede9fe;
+        }
+
+        .nav-tab[data-tab="schedule"].active {
+            background: #7c3aed;
+        }
+
         /* ========== TAB PANELS ========== */
         .tab-panels {
             flex: 1;
@@ -1181,8 +1189,8 @@
             <div class="nav-tabs">
                 <div class="nav-tab active" data-tab="schedule">Schedule</div>
                 <div class="nav-tab" data-tab="events">Events</div>
-                <div class="nav-tab" data-tab="courses">All Courses</div>
-                <div class="nav-tab" data-tab="availability">Availability</div>
+                <div class="nav-tab" data-tab="courses">Courses</div>
+                <div class="nav-tab" data-tab="availability">Instructors</div>
                 <div class="nav-tab" data-tab="log">Change Log</div>
             </div>
 
@@ -2981,7 +2989,7 @@
                 if (input) {
                     currentEditingCell.saveData();
                     // Restore the cell's display
-                    currentEditingCell.cell.innerHTML = currentEditingCell.displayValue;
+                    currentEditingCell.cell.textContent = currentEditingCell.displayValue;
                 }
             }
             
@@ -3025,9 +3033,8 @@
                 val = event[field] || '';
             }
             
-            const isDateField = field.includes('Date');
             const input = document.createElement('input');
-            input.type = isDateField ? 'date' : 'text';
+            input.type = 'text';
             input.value = val;
             input.style.width = '100%';
             input.style.boxSizing = 'border-box';
@@ -3036,11 +3043,16 @@
             input.style.fontSize = 'inherit';
             input.style.fontFamily = 'inherit';
             
+            // Add placeholder for date fields
+            if (field.includes('Date')) {
+                input.placeholder = 'YYYY-MM-DD';
+            }
+            
             const original = cell.innerHTML;
             cell.innerHTML = '';
             cell.appendChild(input);
             input.focus();
-            if (!isDateField) input.select();
+            input.select();
 
             const saveData = () => {
                 let newVal = input.value.trim();
@@ -3057,6 +3069,36 @@
                     }
                 } else {
                     event[field] = newVal;
+                    
+                    // Auto-populate subsequent days if editing Mon_Date
+                    if (field === 'Mon_Date' && newVal) {
+                        // Validate YYYY-MM-DD format
+                        const dateMatch = newVal.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                        if (dateMatch) {
+                            const date = new Date(newVal);
+                            if (!isNaN(date.getTime())) {
+                                // Calculate next 3 days
+                                const tues = new Date(date);
+                                tues.setDate(date.getDate() + 1);
+                                const wed = new Date(date);
+                                wed.setDate(date.getDate() + 2);
+                                const thurs = new Date(date);
+                                thurs.setDate(date.getDate() + 3);
+                                
+                                // Format as YYYY-MM-DD
+                                const formatDate = (d) => {
+                                    const year = d.getFullYear();
+                                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                                    const day = String(d.getDate()).padStart(2, '0');
+                                    return `${year}-${month}-${day}`;
+                                };
+                                
+                                event.Tues_Date = formatDate(tues);
+                                event.Wed_Date = formatDate(wed);
+                                event.Thurs_Date = formatDate(thurs);
+                            }
+                        }
+                    }
                 }
                 
                 saveToLocalStorage();
