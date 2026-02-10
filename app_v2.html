@@ -872,6 +872,7 @@
         .log-action-cell.auto-fill { color: #14b8a6; }
         .log-action-cell.draft { color: #8b5cf6; }
         .log-action-cell.undraft { color: #f97316; }
+        .log-action-cell.note { color: #a855f7; }
 
         .log-timestamp {
             white-space: nowrap;
@@ -2117,7 +2118,8 @@
             const labels = {
                 'draft': '📝 Drafted', 'add': '➕ Added', 'remove': '➖ Removed', 'assign': '✅ Assigned',
                 'clear': '🗑️ Cleared', 'edit': '✏️ Edited', 'auto-fill': '🔄 Auto-Filled',
-                'upload': '📁 Uploaded', 'load': '📂 Loaded', 'undraft': '📤 Undrafted'
+                'upload': '📁 Uploaded', 'load': '📂 Loaded', 'undraft': '📤 Undrafted',
+                'note': '📝 Note'
             };
             return labels[action] || action;
         }
@@ -2126,7 +2128,8 @@
             const labels = {
                 'draft': 'Drafted', 'add': 'Added', 'remove': 'Removed', 'assign': 'Assigned',
                 'clear': 'Cleared', 'edit': 'Edited', 'auto-fill': 'Auto-Filled',
-                'upload': 'Uploaded', 'load': 'Loaded', 'undraft': 'Undrafted'
+                'upload': 'Uploaded', 'load': 'Loaded', 'undraft': 'Undrafted',
+                'note': 'Note'
             };
             return labels[action] || action;
         }
@@ -2338,11 +2341,11 @@
                 assignment.note = trimmedNote;
                 
                 if (trimmedNote !== oldNote) {
-                    const action = trimmedNote.length > 0 ? (oldNote.length > 0 ? 'edited' : 'added') : 'removed';
-                    addLogEntry('edit', eventId, courseId, `Note ${action} for Room ${room}`, oldNote, trimmedNote, '', course?.Instructor);
+                    const description = trimmedNote ? `Room ${room}` : `Removed note from Room ${room}`;
+                    addLogEntry('note', eventId, courseId, description, '', '', trimmedNote, course?.Instructor);
                     saveToLocalStorage();
                     render();
-                    showToast(`Note ${action}`, 'success');
+                    showToast(trimmedNote ? 'Note saved' : 'Note removed', 'success');
                 }
             }
         }
