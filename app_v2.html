@@ -222,7 +222,7 @@
         }
 
         .course-card-name {
-            font-size: 16px;
+            font-size: 18px;
             color: #374151;
             font-weight: 500;
             margin-bottom: 4px;
@@ -1363,8 +1363,8 @@
                         <div class="course-card-name">${c.Instructor} · ${c.Duration_Days}d</div>
                         <div class="course-card-meta">
                             ${c.Course_ID}
-                            ${isAssignedHere ? '<span style="color:#10b981; font-weight: 600;">(✓ This event)</span>' : ''}
-                            ${isAssignedElsewhere ? '<span style="color:#a78bfa;">(✓ Other)</span>' : ''}
+                            ${isAssignedHere ? '<span style="color:#10b981; font-weight: 600; font-size: 18px;">(✓ This event)</span>' : ''}
+                            ${isAssignedElsewhere ? '<span style="color:#a78bfa; font-size: 18px;">(✓ Other)</span>' : ''}
                             ${hasConflict ? '<span class="conflict">⚠️ Away</span>' : ''}
                         </div>
                     </div>
