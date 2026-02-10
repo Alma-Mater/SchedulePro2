@@ -2116,22 +2116,17 @@
 
         function getActionLabel(action) {
             const labels = {
-                'draft': '📝 Drafted', 'add': '➕ Added', 'remove': '➖ Removed', 'assign': '✅ Assigned',
-                'clear': '🗑️ Cleared', 'edit': '✏️ Edited', 'auto-fill': '🔄 Auto-Filled',
-                'upload': '📁 Uploaded', 'load': '📂 Loaded', 'undraft': '📤 Undrafted',
-                'note': '📝 Note'
-            };
-            return labels[action] || action;
-        }
-
-        function getActionLabelPlain(action) {
-            const labels = {
                 'draft': 'Drafted', 'add': 'Added', 'remove': 'Removed', 'assign': 'Assigned',
                 'clear': 'Cleared', 'edit': 'Edited', 'auto-fill': 'Auto-Filled',
                 'upload': 'Uploaded', 'load': 'Loaded', 'undraft': 'Undrafted',
                 'note': 'Note'
             };
             return labels[action] || action;
+        }
+
+        function getActionLabelPlain(action) {
+            // Same as getActionLabel now, kept for compatibility
+            return getActionLabel(action);
         }
 
         function updateTopicFilter() {
@@ -2294,11 +2289,11 @@
                         ${course?.Course_Name || courseId}
                     </div>
                     <button class="btn btn-sm" onclick="addEditBlockNote('${eventId}', ${room}, '${courseId}'); closeBlockMenu();" style="width: 100%; margin-bottom: 4px; text-align: left;">
-                        ${hasNote ? '✏️ Edit Note' : '📝 Add Note'}
+                        ${hasNote ? 'Edit Note' : 'Add Note'}
                     </button>
-                    ${hasNote ? `<button class="btn btn-sm" onclick="viewBlockNote('${eventId}', ${room}, '${courseId}'); closeBlockMenu();" style="width: 100%; margin-bottom: 4px; text-align: left;">👁️ View Note</button>` : ''}
+                    ${hasNote ? `<button class="btn btn-sm" onclick="viewBlockNote('${eventId}', ${room}, '${courseId}'); closeBlockMenu();" style="width: 100%; margin-bottom: 4px; text-align: left;">View Note</button>` : ''}
                     <button class="btn btn-sm btn-danger" onclick="confirmRemoveCourse('${eventId}', ${room}, '${courseId}'); closeBlockMenu();" style="width: 100%; text-align: left;">
-                        ✕ Remove
+                        Remove
                     </button>
                 </div>
             `;
