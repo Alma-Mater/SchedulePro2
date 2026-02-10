@@ -210,8 +210,8 @@
         }
 
         .course-card.assigned-elsewhere {
-            background: #fef3c7;
-            border-left-color: #f59e0b;
+            background: #ede9fe;
+            border-left-color: #7c3aed;
         }
 
         .course-card-title {
@@ -852,6 +852,7 @@
         .log-action-cell.upload { color: #6366f1; }
         .log-action-cell.auto-fill { color: #14b8a6; }
         .log-action-cell.draft { color: #8b5cf6; }
+        .log-action-cell.undraft { color: #f97316; }
 
         .log-timestamp {
             white-space: nowrap;
@@ -1871,7 +1872,7 @@
             const labels = {
                 'draft': '📝 Drafted', 'add': '➕ Added', 'remove': '➖ Removed', 'assign': '✅ Assigned',
                 'clear': '🗑️ Cleared', 'edit': '✏️ Edited', 'auto-fill': '🔄 Auto-Filled',
-                'upload': '📁 Uploaded', 'load': '📂 Loaded'
+                'upload': '📁 Uploaded', 'load': '📂 Loaded', 'undraft': '📤 Undrafted'
             };
             return labels[action] || action;
         }
@@ -1922,7 +1923,7 @@
             } else if (shortlist.includes(courseId)) {
                 // Course is in draft picks but not assigned - remove without dialog
                 shortlists[selectedEventId] = shortlist.filter(id => id !== courseId);
-                addLogEntry('remove', selectedEventId, courseId, `Removed from draft picks`);
+                addLogEntry('undraft', selectedEventId, courseId, `Removed from draft picks`);
                 saveToLocalStorage();
                 render();
                 showToast(`Removed "${course?.Course_Name}"`, 'success');
@@ -1939,7 +1940,7 @@
         function removeFromShortlist(courseId) {
             const course = courses.find(c => c.Course_ID === courseId);
             shortlists[selectedEventId] = (shortlists[selectedEventId] || []).filter(id => id !== courseId);
-            addLogEntry('remove', selectedEventId, courseId, `Removed from draft picks`);
+            addLogEntry('undraft', selectedEventId, courseId, `Removed from draft picks`);
             saveToLocalStorage();
             render();
         }
