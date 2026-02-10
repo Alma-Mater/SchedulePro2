@@ -1153,9 +1153,13 @@
 
                 <!-- CHANGE LOG TAB -->
                 <div class="tab-panel" id="tab-log">
-                    <div style="margin-bottom: 16px; display: flex; gap: 8px;">
+                    <div style="margin-bottom: 16px; display: flex; gap: 8px; align-items: center;">
                         <button class="btn btn-sm btn-danger" onclick="clearChangeLog()">Clear Log</button>
                         <button class="btn btn-sm" onclick="exportChangeLog()">Export Log</button>
+                        <label style="margin-left: auto; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                            <input type="checkbox" id="showDraftUndraftCheckbox" onchange="toggleShowDraftUndraft()" style="cursor: pointer;">
+                            <span>Show Draft/Undraft</span>
+                        </label>
                     </div>
                     <div class="log-table-container" id="logTableContainer">
                         <div class="empty-state">No changes recorded yet</div>
@@ -1775,8 +1779,18 @@
                 return;
             }
 
+            // Filter out draft/undraft entries if toggle is off
+            let filteredLog = showDraftUndraftInLog 
+                ? changeLog.slice() 
+                : changeLog.filter(entry => entry.action !== 'draft' && entry.action !== 'undraft');
+            
+            if (filteredLog.length === 0) {
+                container.innerHTML = '<div class="empty-state">No changes recorded yet (enable "Show Draft/Undraft" to see draft entries)</div>';
+                return;
+            }
+
             // Sort if a column is selected
-            let sortedLog = changeLog.slice();
+            let sortedLog = filteredLog;
             if (logSortColumn) {
                 sortedLog.sort((a, b) => {
                     let aVal = getSortValue(a, logSortColumn);
@@ -1865,6 +1879,11 @@
                 // For timestamp, default to descending (newest first)
                 logSortAscending = column === 'timestamp' ? false : true;
             }
+            renderChangeLog();
+        }
+
+        function toggleShowDraftUndraft() {
+            showDraftUndraftInLog = document.getElementById('showDraftUndraftCheckbox').checked;
             renderChangeLog();
         }
 
@@ -2362,6 +2381,7 @@
         // ==================== CHANGE LOG ====================
         let logSortColumn = null;
         let logSortAscending = true;
+        let showDraftUndraftInLog = false;
 
         function addLogEntry(action, eventId, courseId, description, before = '', after = '', notes = '') {
             const course = courseId ? courses.find(c => c.Course_ID === courseId) : null;
