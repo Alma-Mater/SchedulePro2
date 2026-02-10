@@ -2101,6 +2101,15 @@
             return labels[action] || action;
         }
 
+        function getActionLabelPlain(action) {
+            const labels = {
+                'draft': 'Drafted', 'add': 'Added', 'remove': 'Removed', 'assign': 'Assigned',
+                'clear': 'Cleared', 'edit': 'Edited', 'auto-fill': 'Auto-Filled',
+                'upload': 'Uploaded', 'load': 'Loaded', 'undraft': 'Undrafted'
+            };
+            return labels[action] || action;
+        }
+
         function updateTopicFilter() {
             const topics = [...new Set(courses.map(c => c.Topic).filter(t => t))];
             document.getElementById('topicFilter').innerHTML = '<option value="">All Topics</option>' + 
@@ -2640,7 +2649,7 @@
             for (const e of changeLog) {
                 const eventName = e.eventId ? (events.find(ev => ev.Event_ID === e.eventId)?.Event || e.eventId) : '';
                 const details = `${e.courseName || e.courseId || ''} ${e.description || ''}`;
-                csv += `"${e.timestamp}","${getActionLabel(e.action)}","${eventName}","${e.instructor || ''}","${details}","${e.before || ''}","${e.after || ''}","${e.notes || ''}"\n`;
+                csv += `"${e.timestamp}","${getActionLabelPlain(e.action)}","${eventName}","${e.instructor || ''}","${details}","${e.before || ''}","${e.after || ''}","${e.notes || ''}"\n`;
             }
             downloadFile(csv, 'change_log.csv', 'text/csv');
         }
