@@ -819,6 +819,20 @@
             border-bottom: 1px solid #e5e7eb;
         }
 
+        .data-table th[onclick] {
+            transition: background 0.15s;
+        }
+
+        .data-table th[onclick]:hover {
+            background: #f3f4f6;
+        }
+
+        .sort-indicator {
+            color: #7c3aed;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
         .data-table td {
             padding: 14px 18px;
             font-size: 16px;
@@ -1204,15 +1218,15 @@
 
                 <!-- ALL COURSES TAB -->
                 <div class="tab-panel" id="tab-courses">
-                    <p style="margin-bottom: 16px; color: #6b7280;">Click any cell to edit. Changes save automatically.</p>
+                    <p style="margin-bottom: 16px; color: #6b7280;">Click any cell to edit. Changes save automatically. Click column headers to sort.</p>
                     <table class="data-table" id="coursesTable">
                         <thead>
                             <tr>
-                                <th>Course ID</th>
-                                <th>Course Name</th>
-                                <th>Instructor</th>
-                                <th>Duration</th>
-                                <th>Topic</th>
+                                <th onclick="sortCoursesTable('Course_ID')" style="cursor: pointer; user-select: none;" id="header-Course_ID">Course ID <span class="sort-indicator"></span></th>
+                                <th onclick="sortCoursesTable('Course_Name')" style="cursor: pointer; user-select: none;" id="header-Course_Name">Course Name <span class="sort-indicator"></span></th>
+                                <th onclick="sortCoursesTable('Instructor')" style="cursor: pointer; user-select: none;" id="header-Instructor">Instructor <span class="sort-indicator"></span></th>
+                                <th onclick="sortCoursesTable('Duration_Days')" style="cursor: pointer; user-select: none;" id="header-Duration_Days">Duration <span class="sort-indicator"></span></th>
+                                <th onclick="sortCoursesTable('Topic')" style="cursor: pointer; user-select: none;" id="header-Topic">Topic <span class="sort-indicator"></span></th>
                                 <th>Assigned To</th>
                             </tr>
                         </thead>
@@ -1340,6 +1354,8 @@
         let changeLog = [];
         let selectedEventId = null;
         let selectedDurations = [];
+        let coursesSortColumn = null;
+        let coursesSortDirection = 'asc';
 
         // ==================== INIT ====================
         document.addEventListener('DOMContentLoaded', () => {
@@ -1847,19 +1863,69 @@
             }).join('') + '</div>';
         }
 
+        function sortCoursesTable(column) {
+            if (coursesSortColumn === column) {
+                // Toggle direction
+                coursesSortDirection = coursesSortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                // New column, default to ascending
+                coursesSortColumn = column;
+                coursesSortDirection = 'asc';
+            }
+            renderCoursesTable();
+        }
+
         function renderCoursesTable() {
             const tbody = document.getElementById('coursesTableBody');
             const assignedMap = buildAssignmentMap();
 
-            tbody.innerHTML = courses.map((c, idx) => {
+            // Create a copy of courses array with their original indices
+            let sortedCourses = courses.map((c, idx) => ({ ...c, originalIdx: idx }));
+
+            // Sort if a column is selected
+            if (coursesSortColumn) {
+                sortedCourses.sort((a, b) => {
+                    let valA = a[coursesSortColumn];
+                    let valB = b[coursesSortColumn];
+                    
+                    // Handle empty values
+                    if (!valA) valA = '';
+                    if (!valB) valB = '';
+                    
+                    // Numeric comparison for Duration_Days
+                    if (coursesSortColumn === 'Duration_Days') {
+                        valA = parseFloat(valA) || 0;
+                        valB = parseFloat(valB) || 0;
+                    } else {
+                        // String comparison (case insensitive)
+                        valA = String(valA).toLowerCase();
+                        valB = String(valB).toLowerCase();
+                    }
+                    
+                    if (valA < valB) return coursesSortDirection === 'asc' ? -1 : 1;
+                    if (valA > valB) return coursesSortDirection === 'asc' ? 1 : -1;
+                    return 0;
+                });
+            }
+
+            // Update sort indicators
+            document.querySelectorAll('.sort-indicator').forEach(el => el.textContent = '');
+            if (coursesSortColumn) {
+                const indicator = document.querySelector(`#header-${coursesSortColumn} .sort-indicator`);
+                if (indicator) {
+                    indicator.textContent = coursesSortDirection === 'asc' ? ' ↑' : ' ↓';
+                }
+            }
+
+            tbody.innerHTML = sortedCourses.map(c => {
                 const assignments = assignedMap[c.Course_ID] || [];
                 return `
                     <tr>
-                        <td class="editable-cell" onclick="editCell(${idx}, 'Course_ID', this)">${c.Course_ID}</td>
-                        <td class="editable-cell" onclick="editCell(${idx}, 'Course_Name', this)">${c.Course_Name}</td>
-                        <td class="editable-cell" onclick="editCell(${idx}, 'Instructor', this)">${c.Instructor}</td>
-                        <td class="editable-cell" onclick="editCell(${idx}, 'Duration_Days', this)">${c.Duration_Days} day${c.Duration_Days !== 1 ? 's' : ''}</td>
-                        <td class="editable-cell" onclick="editCell(${idx}, 'Topic', this)">${c.Topic || '—'}</td>
+                        <td class="editable-cell" onclick="editCell(${c.originalIdx}, 'Course_ID', this)">${c.Course_ID}</td>
+                        <td class="editable-cell" onclick="editCell(${c.originalIdx}, 'Course_Name', this)">${c.Course_Name}</td>
+                        <td class="editable-cell" onclick="editCell(${c.originalIdx}, 'Instructor', this)">${c.Instructor}</td>
+                        <td class="editable-cell" onclick="editCell(${c.originalIdx}, 'Duration_Days', this)">${c.Duration_Days} day${c.Duration_Days !== 1 ? 's' : ''}</td>
+                        <td class="editable-cell" onclick="editCell(${c.originalIdx}, 'Topic', this)">${c.Topic || '—'}</td>
                         <td>${assignments.length ? assignments.join(', ') : '—'}</td>
                     </tr>
                 `;
