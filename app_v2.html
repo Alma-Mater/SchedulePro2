@@ -746,10 +746,50 @@
             border: 2px dashed #e5e7eb;
             border-radius: 6px;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            color: #d1d5db;
+            color: #9ca3af;
             font-size: 14px;
+            cursor: text;
+            transition: all 0.15s;
+            position: relative;
+            padding: 8px;
+        }
+
+        .empty-slot:hover {
+            border-color: #c4b5fd;
+            background: #faf5ff;
+        }
+
+        .slot-note-input {
+            width: 100%;
+            height: 100%;
+            min-height: 60px;
+            border: none;
+            background: transparent;
+            font-size: 13px;
+            color: #374151;
+            text-align: center;
+            resize: none;
+            font-family: inherit;
+            padding: 4px;
+            outline: none;
+        }
+
+        .slot-note-display {
+            color: #374151;
+            font-size: 13px;
+            text-align: center;
+            white-space: pre-wrap;
+            width: 100%;
+            padding: 4px;
+        }
+
+        .slot-placeholder {
+            color: #d1d5db;
+            font-size: 12px;
+            font-style: italic;
         }
 
         /* ========== ALL COURSES TAB ========== */
@@ -1286,6 +1326,8 @@
         let instructorAway = [];
         let schedule = {};
         let shortlists = {};
+        let slotNotes = {}; // Notes for empty slots: {eventId: {room: {day: 'note'}}}
+        let shortlistNotes = {}; // Notes for shortlist items: {eventId: {courseId: 'note'}}
         let changeLog = [];
         let selectedEventId = null;
         let selectedDurations = [];
@@ -1578,16 +1620,19 @@
                 const course = courses.find(c => c.Course_ID === courseId);
                 if (!course) return '';
                 const hasConflict = checkInstructorConflict(course.Instructor, selectedEventId);
+                const hasNote = shortlistNotes[selectedEventId]?.[courseId]?.trim().length > 0;
                 
                 return `
                     <div class="shortlist-item ${hasConflict ? 'has-conflict' : ''}">
                         <div class="shortlist-item-info">
                             <div class="shortlist-item-title">${course.Course_Name}</div>
                             <div class="shortlist-item-meta">${course.Instructor} · ${course.Duration_Days}d ${hasConflict ? '⚠️' : ''}</div>
+                            ${hasNote ? `<div class="shortlist-note-preview" style="font-size: 13px; color: #6b7280; margin-top: 4px; font-style: italic; cursor: pointer;" onclick="addEditShortlistNote('${selectedEventId}', '${courseId}')" title="Click to edit note">${shortlistNotes[selectedEventId][courseId].substring(0, 50)}${shortlistNotes[selectedEventId][courseId].length > 50 ? '...' : ''}</div>` : ''}
                         </div>
                         <div class="shortlist-item-actions">
-                            <button class="shortlist-item-btn" onclick="showAssignModal('${courseId}')">Assign</button>
-                            <button class="shortlist-item-btn remove" onclick="removeFromShortlist('${courseId}')">✕</button>
+                            <button class="shortlist-item-btn" onclick="event.stopPropagation(); addEditShortlistNote('${selectedEventId}', '${courseId}')" style="background: #7c3aed; color: white;" title="Add/edit note">Note</button>
+                            <button class="shortlist-item-btn" onclick="event.stopPropagation(); showAssignModal('${courseId}')">Assign</button>
+                            <button class="shortlist-item-btn remove" onclick="event.stopPropagation(); removeFromShortlist('${courseId}')">✕</button>
                         </div>
                     </div>
                 `;
@@ -1629,7 +1674,7 @@
                                 <div class="course-block ${hasConflict ? 'has-conflict' : ''}" 
                                      onclick="showCourseBlockMenu(event, '${selectedEventId}', ${room}, '${assignment.courseId}')"
                                      title="Click for options">
-                                    ${hasNote ? `<div class="course-block-note-indicator" onclick="event.stopPropagation(); viewBlockNote('${selectedEventId}', ${room}, '${assignment.courseId}')">Note</div>` : ''}
+                                    ${hasNote ? `<div class="course-block-note-indicator" onclick="event.stopPropagation(); addEditBlockNote('${selectedEventId}', ${room}, '${assignment.courseId}')">Note</div>` : ''}
                                     <div class="course-block-name">${course?.Course_Name || assignment.courseId}</div>
                                     <div class="course-block-instructor">${course?.Instructor || ''}</div>
                                 </div>
@@ -1637,7 +1682,8 @@
                         `;
                         day += assignment.duration;
                     } else if (!assignment) {
-                        bodyHtml += '<td><div class="empty-slot"></div></td>';
+                        const slotNote = slotNotes[selectedEventId]?.[room]?.[day] || '';
+                        bodyHtml += `<td><div class="empty-slot" onclick="startEditingSlot(this, '${selectedEventId}', ${room}, ${day})">${slotNote ? `<div class="slot-note-display">${slotNote}</div>` : '<span class="slot-placeholder">Click to add note</span>'}</div></td>`;
                         day++;
                     } else {
                         day++;
@@ -2354,6 +2400,75 @@
             }
         }
 
+        function startEditingSlot(element, eventId, room, day) {
+            if (element.querySelector('textarea')) return; // Already editing
+            
+            const currentNote = slotNotes[eventId]?.[room]?.[day] || '';
+            element.innerHTML = `<textarea class="slot-note-input" placeholder="Type note here...">${currentNote}</textarea>`;
+            
+            const textarea = element.querySelector('textarea');
+            textarea.focus();
+            textarea.select();
+            
+            const saveNote = () => {
+                const newNote = textarea.value.trim();
+                
+                if (newNote !== currentNote) {
+                    if (!slotNotes[eventId]) slotNotes[eventId] = {};
+                    if (!slotNotes[eventId][room]) slotNotes[eventId][room] = {};
+                    
+                    if (newNote) {
+                        slotNotes[eventId][room][day] = newNote;
+                    } else {
+                        delete slotNotes[eventId][room][day];
+                    }
+                    
+                    const description = newNote ? `Room ${room}, Day ${day}` : `Removed note from Room ${room}, Day ${day}`;
+                    addLogEntry('note', eventId, null, description, '', '', newNote, '');
+                    saveToLocalStorage();
+                    render();
+                    showToast(newNote ? 'Note saved' : 'Note removed', 'success');
+                } else {
+                    render();
+                }
+            };
+            
+            textarea.addEventListener('blur', saveNote);
+            textarea.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    render();
+                } else if (e.key === 'Enter' && e.ctrlKey) {
+                    saveNote();
+                }
+            });
+        }
+
+        function addEditShortlistNote(eventId, courseId) {
+            if (!shortlistNotes[eventId]) shortlistNotes[eventId] = {};
+            
+            const course = courses.find(c => c.Course_ID === courseId);
+            const currentNote = shortlistNotes[eventId][courseId] || '';
+            const newNote = prompt(`Note for "${course?.Course_Name || courseId}" (Draft Picks):`, currentNote);
+            
+            if (newNote !== null) { // null means cancelled
+                const trimmedNote = newNote.trim();
+                
+                if (trimmedNote !== currentNote) {
+                    if (trimmedNote) {
+                        shortlistNotes[eventId][courseId] = trimmedNote;
+                    } else {
+                        delete shortlistNotes[eventId][courseId];
+                    }
+                    
+                    const description = trimmedNote ? 'Draft picks' : 'Removed note from draft picks';
+                    addLogEntry('note', eventId, courseId, description, '', '', trimmedNote, course?.Instructor);
+                    saveToLocalStorage();
+                    render();
+                    showToast(trimmedNote ? 'Note saved' : 'Note removed', 'success');
+                }
+            }
+        }
+
         function clearEventSchedule() {
             const event = events.find(e => e.Event_ID === selectedEventId);
             if (!confirm(`Clear all assignments for "${event?.Event}"?`)) return;
@@ -2812,6 +2927,8 @@
                 localStorage.setItem('sp_schedule', JSON.stringify(schedule));
                 localStorage.setItem('sp_shortlists', JSON.stringify(shortlists));
                 localStorage.setItem('sp_log', JSON.stringify(changeLog));
+                localStorage.setItem('sp_slotNotes', JSON.stringify(slotNotes));
+                localStorage.setItem('sp_shortlistNotes', JSON.stringify(shortlistNotes));
             } catch (err) {}
         }
 
@@ -2823,6 +2940,8 @@
                 schedule = JSON.parse(localStorage.getItem('sp_schedule')) || {};
                 shortlists = JSON.parse(localStorage.getItem('sp_shortlists')) || {};
                 changeLog = JSON.parse(localStorage.getItem('sp_log')) || [];
+                slotNotes = JSON.parse(localStorage.getItem('sp_slotNotes')) || {};
+                shortlistNotes = JSON.parse(localStorage.getItem('sp_shortlistNotes')) || {};
                 updateTopicFilter();
             } catch (err) {}
         }
