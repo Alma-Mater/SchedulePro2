@@ -1815,7 +1815,7 @@
                                 eventName = event?.Event || entry.eventId;
                             }
 
-                            const details = `${courseName ? `<strong>${entry.courseId}</strong>: ${courseName}` : ''} ${entry.description ? `— ${entry.description}` : ''}`;
+                            const details = `${courseName ? `${courseName} <strong>(${entry.courseId})</strong>` : ''} ${entry.description ? `— ${entry.description}` : ''}`;
 
                             return `
                                 <tr>
