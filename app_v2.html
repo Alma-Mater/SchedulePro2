@@ -839,6 +839,44 @@
             border-bottom: 1px solid #f3f4f6;
         }
 
+        #eventsTable td,
+        #eventsTable th {
+            border: 1px solid #ddd;
+        }
+
+        #eventsTable td {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #eventsTable td:nth-child(1) { width: 100px; min-width: 100px; max-width: 100px; }
+        #eventsTable td:nth-child(2) { width: 250px; min-width: 250px; max-width: 250px; }
+        #eventsTable td:nth-child(3),
+        #eventsTable td:nth-child(4),
+        #eventsTable td:nth-child(5),
+        #eventsTable td:nth-child(6) { width: 120px; min-width: 120px; max-width: 120px; }
+        #eventsTable td:nth-child(7) { width: 200px; min-width: 200px; max-width: 200px; }
+        #eventsTable td:nth-child(8),
+        #eventsTable td:nth-child(9) { width: 150px; min-width: 150px; max-width: 150px; }
+        #eventsTable td:nth-child(10) { width: 80px; min-width: 80px; max-width: 80px; }
+
+        #eventsTable th:nth-child(1) { width: 100px; min-width: 100px; max-width: 100px; }
+        #eventsTable th:nth-child(2) { width: 250px; min-width: 250px; max-width: 250px; }
+        #eventsTable th:nth-child(3),
+        #eventsTable th:nth-child(4),
+        #eventsTable th:nth-child(5),
+        #eventsTable th:nth-child(6) { width: 120px; min-width: 120px; max-width: 120px; }
+        #eventsTable th:nth-child(7) { width: 200px; min-width: 200px; max-width: 200px; }
+        #eventsTable th:nth-child(8),
+        #eventsTable th:nth-child(9) { width: 150px; min-width: 150px; max-width: 150px; }
+        #eventsTable th:nth-child(10) { width: 80px; min-width: 80px; max-width: 80px; }
+
+        #eventsTable input {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
         .data-table tr:hover td {
             background: #faf5ff;
         }
@@ -1142,6 +1180,7 @@
         <div class="main-content">
             <div class="nav-tabs">
                 <div class="nav-tab active" data-tab="schedule">Schedule</div>
+                <div class="nav-tab" data-tab="events">Events</div>
                 <div class="nav-tab" data-tab="courses">All Courses</div>
                 <div class="nav-tab" data-tab="availability">Availability</div>
                 <div class="nav-tab" data-tab="log">Change Log</div>
@@ -1214,6 +1253,28 @@
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- EVENTS TAB -->
+                <div class="tab-panel" id="tab-events">
+                    <p style="margin-bottom: 16px; color: #6b7280;">Click any cell to edit. Changes save automatically when you click away or press Enter.</p>
+                    <table class="data-table" id="eventsTable">
+                        <thead>
+                            <tr>
+                                <th style="background: #c084fc; color: white;">Event #</th>
+                                <th style="background: #c084fc; color: white;">EVENT LOCATION</th>
+                                <th style="background: #c084fc; color: white;">Mon</th>
+                                <th style="background: #c084fc; color: white;">Tues</th>
+                                <th style="background: #c084fc; color: white;">Wed</th>
+                                <th style="background: #c084fc; color: white;">Thurs</th>
+                                <th style="background: #c084fc; color: white;">HOTEL - Location</th>
+                                <th style="background: #facc15; color: black;">Early bird start</th>
+                                <th style="background: #facc15; color: black;">Early End date</th>
+                                <th style="width: 80px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="eventsTableBody"></tbody>
+                    </table>
                 </div>
 
                 <!-- ALL COURSES TAB -->
@@ -1356,6 +1417,7 @@
         let selectedDurations = [];
         let coursesSortColumn = null;
         let coursesSortDirection = 'asc';
+        let currentEditingCell = null;
 
         // ==================== INIT ====================
         document.addEventListener('DOMContentLoaded', () => {
@@ -1391,10 +1453,18 @@
                         const rawData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
                         events = rawData.map(row => ({
                             Event_ID: String(row.Event_ID || '').trim(),
+                            Event_Number: String(row.Event_Number || '').trim(),
                             Event: String(row.Event || '').trim(),
                             First_Event_Day: formatDateForStorage(row.First_Event_Day),
                             Last_Event_Day: formatDateForStorage(row.Last_Event_Day),
+                            Mon_Date: formatDateForStorage(row.Mon_Date || row.Mon),
+                            Tues_Date: formatDateForStorage(row.Tues_Date || row.Tues),
+                            Wed_Date: formatDateForStorage(row.Wed_Date || row.Wed),
+                            Thurs_Date: formatDateForStorage(row.Thurs_Date || row.Thurs),
                             Location: String(row.Location || '').trim(),
+                            Hotel: String(row.Hotel || row['HOTEL - Location'] || '').trim(),
+                            Early_Bird_Start: String(row.Early_Bird_Start || row['Early bird start'] || '').trim(),
+                            Early_End_Date: formatDateForStorage(row.Early_End_Date || row['Early End date']),
                             Room_Count: parseInt(row.Room_Count) || 10,
                             Total_Days: parseInt(row.Total_Days) || 0
                         })).filter(e => e.Event_ID);
@@ -1494,6 +1564,7 @@
             renderEventSelector();
             renderCourseList();
             renderSelectedEvent();
+            renderEventsTable();
             renderCoursesTable();
             renderAvailabilityTable();
             renderChangeLog();
@@ -2845,6 +2916,200 @@
             });
         }
 
+        function renderEventsTable() {
+            const tbody = document.getElementById('eventsTableBody');
+            if (!tbody) return;
+
+            let html = '';
+            
+            // Render existing events
+            events.forEach((ev, idx) => {
+                // Build event location display: "EventName - Location"
+                let eventLocation = '';
+                if (ev.Event) eventLocation += ev.Event;
+                if (ev.Location) {
+                    if (eventLocation) eventLocation += ' - ';
+                    eventLocation += ev.Location;
+                }
+                
+                html += `
+                    <tr>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Event_Number', this)">${ev.Event_Number || ''}</td>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Event_Location', this)" style="font-weight: 600;">${eventLocation || ''}</td>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Mon_Date', this)">${ev.Mon_Date || ''}</td>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Tues_Date', this)">${ev.Tues_Date || ''}</td>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Wed_Date', this)">${ev.Wed_Date || ''}</td>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Thurs_Date', this)">${ev.Thurs_Date || ''}</td>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Hotel', this)">${ev.Hotel || ''}</td>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Early_Bird_Start', this)">${ev.Early_Bird_Start || ''}</td>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Early_End_Date', this)">${ev.Early_End_Date || ''}</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteEventRow(${idx})" style="padding: 6px 12px;">✕</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            // Add 3 blank rows at the bottom
+            for (let i = 0; i < 3; i++) {
+                const blankIdx = events.length + i;
+                html += `
+                    <tr style="background: white;">
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Event_Number', this, true)"></td>
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Event_Location', this, true)"></td>
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Mon_Date', this, true)"></td>
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Tues_Date', this, true)"></td>
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Wed_Date', this, true)"></td>
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Thurs_Date', this, true)"></td>
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Hotel', this, true)"></td>
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Early_Bird_Start', this, true)"></td>
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Early_End_Date', this, true)"></td>
+                        <td></td>
+                    </tr>
+                `;
+            }
+            
+            tbody.innerHTML = html;
+        }
+
+        function editEventCell(idx, field, cell, isBlankRow = false) {
+            if (cell.querySelector('input')) return;
+            
+            // Save any currently editing cell first (without rendering)
+            if (currentEditingCell && currentEditingCell.cell !== cell) {
+                const input = currentEditingCell.cell.querySelector('input');
+                if (input) {
+                    currentEditingCell.saveData();
+                    // Restore the cell's display
+                    currentEditingCell.cell.innerHTML = currentEditingCell.displayValue;
+                }
+            }
+            
+            // Create new event if editing a blank row
+            if (isBlankRow && idx >= events.length) {
+                const newEventId = `EV${String(events.length + 1).padStart(3, '0')}`;
+                events.push({
+                    Event_ID: newEventId,
+                    Event_Number: '',
+                    Event: '',
+                    First_Event_Day: '',
+                    Last_Event_Day: '',
+                    Mon_Date: '',
+                    Tues_Date: '',
+                    Wed_Date: '',
+                    Thurs_Date: '',
+                    Location: '',
+                    Hotel: '',
+                    Early_Bird_Start: '',
+                    Early_End_Date: '',
+                    Room_Count: 10,
+                    Total_Days: 4
+                });
+                schedule[newEventId] = {};
+                shortlists[newEventId] = [];
+            }
+            
+            const event = events[idx];
+            if (!event) return;
+            
+            let val = '';
+            
+            // Handle composite Event_Location field
+            if (field === 'Event_Location') {
+                val = `${event.Event || ''}`;
+                if (event.Location) {
+                    if (val) val += ' - ';
+                    val += event.Location;
+                }
+            } else {
+                val = event[field] || '';
+            }
+            
+            const isDateField = field.includes('Date');
+            const input = document.createElement('input');
+            input.type = isDateField ? 'date' : 'text';
+            input.value = val;
+            input.style.width = '100%';
+            input.style.boxSizing = 'border-box';
+            input.style.border = 'none';
+            input.style.padding = '0';
+            input.style.fontSize = 'inherit';
+            input.style.fontFamily = 'inherit';
+            
+            const original = cell.innerHTML;
+            cell.innerHTML = '';
+            cell.appendChild(input);
+            input.focus();
+            if (!isDateField) input.select();
+
+            const saveData = () => {
+                let newVal = input.value.trim();
+                
+                if (field === 'Event_Location') {
+                    // Parse the event location back into components
+                    const match = newVal.match(/^(.+?)\s+-\s+(.+)$/);
+                    if (match) {
+                        event.Event = match[1].trim();
+                        event.Location = match[2].trim();
+                    } else {
+                        event.Event = newVal;
+                        event.Location = '';
+                    }
+                } else {
+                    event[field] = newVal;
+                }
+                
+                saveToLocalStorage();
+            };
+            
+            const save = () => {
+                saveData();
+                currentEditingCell = null;
+                render();
+            };
+            
+            // Store current editing cell with data
+            currentEditingCell = { 
+                cell, 
+                save, 
+                saveData,
+                displayValue: val
+            };
+
+            input.addEventListener('blur', () => {
+                // Small delay to allow other click events to register first
+                setTimeout(() => {
+                    if (currentEditingCell && currentEditingCell.cell === cell) {
+                        save();
+                    }
+                }, 150);
+            });
+            
+            input.addEventListener('keydown', e => {
+                if (e.key === 'Enter') {
+                    save();
+                } else if (e.key === 'Escape') {
+                    currentEditingCell = null;
+                    cell.innerHTML = original;
+                }
+            });
+        }
+
+        function deleteEventRow(idx) {
+            const event = events[idx];
+            if (!confirm(`Delete event "${event.Event || event.Event_ID}"?`)) return;
+            
+            // Remove from all data structures
+            delete schedule[event.Event_ID];
+            delete shortlists[event.Event_ID];
+            delete eventNotes[event.Event_ID];
+            events.splice(idx, 1);
+            
+            saveToLocalStorage();
+            render();
+            showToast('Event deleted', 'success');
+        }
+
         // ==================== EVENT MODALS ====================
         function showAddEventModal() {
             document.getElementById('eventModalTitle').textContent = 'Add Event';
@@ -3125,6 +3390,26 @@
                 slotNotes = JSON.parse(localStorage.getItem('sp_slotNotes')) || {};
                 shortlistNotes = JSON.parse(localStorage.getItem('sp_shortlistNotes')) || {};
                 eventNotes = JSON.parse(localStorage.getItem('sp_eventNotes')) || {};
+                
+                // Add default values for new event fields
+                events = events.map(ev => ({
+                    Event_ID: ev.Event_ID || '',
+                    Event_Number: ev.Event_Number || '',
+                    Event: ev.Event || '',
+                    First_Event_Day: ev.First_Event_Day || '',
+                    Last_Event_Day: ev.Last_Event_Day || '',
+                    Mon_Date: ev.Mon_Date || '',
+                    Tues_Date: ev.Tues_Date || '',
+                    Wed_Date: ev.Wed_Date || '',
+                    Thurs_Date: ev.Thurs_Date || '',
+                    Location: ev.Location || '',
+                    Hotel: ev.Hotel || '',
+                    Early_Bird_Start: ev.Early_Bird_Start || '',
+                    Early_End_Date: ev.Early_End_Date || '',
+                    Room_Count: ev.Room_Count || 10,
+                    Total_Days: ev.Total_Days || 0
+                }));
+                
                 updateTopicFilter();
             } catch (err) {}
         }
