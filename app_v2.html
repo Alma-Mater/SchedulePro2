@@ -727,41 +727,86 @@
         }
 
         /* ========== CHANGE LOG ========== */
-        .log-list {
+        .log-table-container {
             background: white;
             border-radius: 8px;
             border: 1px solid #e5e7eb;
+            overflow-x: auto;
         }
 
-        .log-item {
-            padding: 16px;
+        .log-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 15px;
+        }
+
+        .log-table th {
+            background: #f9fafb;
+            padding: 12px 16px;
+            font-weight: 600;
+            font-size: 15px;
+            color: #374151;
+            border-bottom: 2px solid #e5e7eb;
+            text-align: left;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+
+        .log-table th:hover {
+            background: #f3f4f6;
+        }
+
+        .log-table th.sortable::after {
+            content: ' ⇅';
+            color: #d1d5db;
+            font-size: 12px;
+        }
+
+        .log-table th.sorted-asc::after {
+            content: ' ▲';
+            color: #7c3aed;
+        }
+
+        .log-table th.sorted-desc::after {
+            content: ' ▼';
+            color: #7c3aed;
+        }
+
+        .log-table td {
+            padding: 12px 16px;
             border-bottom: 1px solid #f3f4f6;
+            vertical-align: top;
         }
 
-        .log-item:last-child {
+        .log-table tr:hover {
+            background: #fafafa;
+        }
+
+        .log-table tr:last-child td {
             border-bottom: none;
         }
 
-        .log-time {
-            font-size: 14px;
-            color: #9ca3af;
-            margin-bottom: 4px;
-        }
-
-        .log-action {
+        .log-action-cell {
             font-weight: 600;
-            font-size: 17px;
-            margin-bottom: 4px;
         }
 
-        .log-action.assign { color: #10b981; }
-        .log-action.remove { color: #ef4444; }
-        .log-action.add { color: #7c3aed; }
-        .log-action.edit { color: #3b82f6; }
+        .log-action-cell.assign { color: #10b981; }
+        .log-action-cell.remove { color: #ef4444; }
+        .log-action-cell.add { color: #7c3aed; }
+        .log-action-cell.edit { color: #3b82f6; }
+        .log-action-cell.clear { color: #f59e0b; }
+        .log-action-cell.upload { color: #6366f1; }
+        .log-action-cell.auto-fill { color: #14b8a6; }
 
-        .log-details {
-            font-size: 16px;
+        .log-timestamp {
+            white-space: nowrap;
             color: #6b7280;
+            font-size: 14px;
+        }
+
+        .log-details-cell {
+            color: #374151;
         }
 
         /* ========== MODAL ========== */
@@ -1057,7 +1102,7 @@
                         <button class="btn btn-sm btn-danger" onclick="clearChangeLog()">Clear Log</button>
                         <button class="btn btn-sm" onclick="exportChangeLog()">Export Log</button>
                     </div>
-                    <div class="log-list" id="logList">
+                    <div class="log-table-container" id="logTableContainer">
                         <div class="empty-state">No changes recorded yet</div>
                     </div>
                 </div>
@@ -1662,37 +1707,93 @@
         }
 
         function renderChangeLog() {
-            const container = document.getElementById('logList');
+            const container = document.getElementById('logTableContainer');
             
             if (changeLog.length === 0) {
                 container.innerHTML = '<div class="empty-state">No changes recorded yet</div>';
                 return;
             }
 
-            container.innerHTML = changeLog.slice().reverse().map(entry => {
-                let courseName = entry.courseName;
-                if (!courseName && entry.courseId) {
-                    const course = courses.find(c => c.Course_ID === entry.courseId);
-                    courseName = course?.Course_Name || '';
-                }
-                let eventName = '';
-                if (entry.eventId) {
-                    const event = events.find(e => e.Event_ID === entry.eventId);
-                    eventName = event?.Event || entry.eventId;
-                }
+            // Sort if a column is selected
+            let sortedLog = changeLog.slice();
+            if (logSortColumn) {
+                sortedLog.sort((a, b) => {
+                    let aVal = getSortValue(a, logSortColumn);
+                    let bVal = getSortValue(b, logSortColumn);
+                    if (aVal < bVal) return logSortAscending ? -1 : 1;
+                    if (aVal > bVal) return logSortAscending ? 1 : -1;
+                    return 0;
+                });
+            } else {
+                sortedLog.reverse(); // Default: newest first
+            }
 
-                return `
-                    <div class="log-item">
-                        <div class="log-time">${entry.timestamp}</div>
-                        <div class="log-action ${entry.action}">${getActionLabel(entry.action)}</div>
-                        <div class="log-details">
-                            ${courseName ? `<strong>${entry.courseId}</strong>: ${courseName}` : ''}
-                            ${eventName ? `@ ${eventName}` : ''}
-                            ${entry.description ? `— ${entry.description}` : ''}
-                        </div>
-                    </div>
-                `;
-            }).join('');
+            const tableHtml = `
+                <table class="log-table">
+                    <thead>
+                        <tr>
+                            <th class="sortable ${logSortColumn === 'timestamp' ? (logSortAscending ? 'sorted-asc' : 'sorted-desc') : ''}" onclick="sortLogBy('timestamp')">Timestamp</th>
+                            <th class="sortable ${logSortColumn === 'action' ? (logSortAscending ? 'sorted-asc' : 'sorted-desc') : ''}" onclick="sortLogBy('action')">Action</th>
+                            <th class="sortable ${logSortColumn === 'details' ? (logSortAscending ? 'sorted-asc' : 'sorted-desc') : ''}" onclick="sortLogBy('details')">Details</th>
+                            <th class="sortable ${logSortColumn === 'before' ? (logSortAscending ? 'sorted-asc' : 'sorted-desc') : ''}" onclick="sortLogBy('before')">Before</th>
+                            <th class="sortable ${logSortColumn === 'after' ? (logSortAscending ? 'sorted-asc' : 'sorted-desc') : ''}" onclick="sortLogBy('after')">After</th>
+                            <th class="sortable ${logSortColumn === 'notes' ? (logSortAscending ? 'sorted-asc' : 'sorted-desc') : ''}" onclick="sortLogBy('notes')">Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${sortedLog.map(entry => {
+                            let courseName = entry.courseName;
+                            if (!courseName && entry.courseId) {
+                                const course = courses.find(c => c.Course_ID === entry.courseId);
+                                courseName = course?.Course_Name || '';
+                            }
+                            let eventName = '';
+                            if (entry.eventId) {
+                                const event = events.find(e => e.Event_ID === entry.eventId);
+                                eventName = event?.Event || entry.eventId;
+                            }
+
+                            const details = `${courseName ? `<strong>${entry.courseId}</strong>: ${courseName}` : ''} ${eventName ? `@ ${eventName}` : ''} ${entry.description ? `— ${entry.description}` : ''}`;
+
+                            return `
+                                <tr>
+                                    <td class="log-timestamp">${entry.timestamp}</td>
+                                    <td class="log-action-cell ${entry.action}">${getActionLabel(entry.action)}</td>
+                                    <td class="log-details-cell">${details}</td>
+                                    <td>${entry.before || ''}</td>
+                                    <td>${entry.after || ''}</td>
+                                    <td>${entry.notes || ''}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+            container.innerHTML = tableHtml;
+        }
+
+        function getSortValue(entry, column) {
+            switch(column) {
+                case 'timestamp': return new Date(entry.timestamp).getTime();
+                case 'action': return entry.action;
+                case 'before': return entry.before || '';
+                case 'after': return entry.after || '';
+                case 'notes': return entry.notes || '';
+                case 'details': 
+                    return (entry.courseName || entry.courseId || '') + (entry.description || '');
+                default: return '';
+            }
+        }
+
+        function sortLogBy(column) {
+            if (logSortColumn === column) {
+                logSortAscending = !logSortAscending;
+            } else {
+                logSortColumn = column;
+                logSortAscending = true;
+            }
+            renderChangeLog();
         }
 
         function getActionLabel(action) {
@@ -1806,7 +1907,7 @@
             schedule[selectedEventId][room].push({ courseId, startDay, duration });
             shortlists[selectedEventId] = (shortlists[selectedEventId] || []).filter(id => id !== courseId);
 
-            addLogEntry('assign', selectedEventId, courseId, `Room ${room}, Days ${startDay}-${startDay + duration - 1}`);
+            addLogEntry('assign', selectedEventId, courseId, `Room ${room}, Days ${startDay}-${startDay + duration - 1}`, 'Unassigned', `Room ${room}`);
             closeModal('assignModal');
             saveToLocalStorage();
             render();
@@ -1817,7 +1918,7 @@
             const course = courses.find(c => c.Course_ID === courseId);
             if (confirm(`Remove "${course?.Course_Name || courseId}" from Room ${room}?`)) {
                 schedule[eventId][room] = schedule[eventId][room].filter(a => a.courseId !== courseId);
-                addLogEntry('remove', eventId, courseId, `Removed from Room ${room}`);
+                addLogEntry('remove', eventId, courseId, `Removed from Room ${room}`, `Room ${room}`, 'Unassigned');
                 saveToLocalStorage();
                 render();
                 showToast('Course removed', 'success');
@@ -2063,7 +2164,7 @@
                 
                 if (newVal !== val) {
                     course[field] = newVal;
-                    addLogEntry('edit', null, course.Course_ID, `Changed ${field}`);
+                    addLogEntry('edit', null, course.Course_ID, `Changed ${field}`, String(val), String(newVal));
                     saveToLocalStorage();
                     updateTopicFilter();
                 }
@@ -2144,7 +2245,10 @@
         }
 
         // ==================== CHANGE LOG ====================
-        function addLogEntry(action, eventId, courseId, description) {
+        let logSortColumn = null;
+        let logSortAscending = true;
+
+        function addLogEntry(action, eventId, courseId, description, before = '', after = '', notes = '') {
             const course = courseId ? courses.find(c => c.Course_ID === courseId) : null;
             changeLog.push({
                 timestamp: new Date().toLocaleString(),
@@ -2152,7 +2256,10 @@
                 eventId,
                 courseId,
                 courseName: course?.Course_Name || '',
-                description
+                description,
+                before,
+                after,
+                notes
             });
             saveToLocalStorage();
         }
@@ -2165,10 +2272,11 @@
         }
 
         function exportChangeLog() {
-            let csv = 'Timestamp,Action,Event,Course,Description\n';
+            let csv = 'Timestamp,Action,Details,Before,After,Notes\n';
             for (const e of changeLog) {
                 const eventName = e.eventId ? (events.find(ev => ev.Event_ID === e.eventId)?.Event || e.eventId) : '';
-                csv += `"${e.timestamp}","${e.action}","${eventName}","${e.courseName || e.courseId || ''}","${e.description || ''}"\n`;
+                const details = `${e.courseName || e.courseId || ''} ${eventName ? '@ ' + eventName : ''} ${e.description || ''}`;
+                csv += `"${e.timestamp}","${getActionLabel(e.action)}","${details}","${e.before || ''}","${e.after || ''}","${e.notes || ''}"\n`;
             }
             downloadFile(csv, 'change_log.csv', 'text/csv');
         }
