@@ -456,14 +456,6 @@
             gap: 10px;
         }
 
-        .section-title .count {
-            background: #7c3aed;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 15px;
-        }
-
         .shortlist-empty {
             padding: 24px;
             text-align: center;
@@ -1160,19 +1152,21 @@
 
                                 <!-- Draft Picks -->
                                 <div class="shortlist-section">
-                                    <div class="section-title">
-                                        📋 Draft Picks <span class="count" id="shortlistCount">0</span>
-                                    </div>
+                                    <div class="section-title">Draft Picks</div>
                                     <div id="shortlistContainer">
                                         <div class="shortlist-empty">
                                             Click courses from the sidebar to add them here
                                         </div>
                                     </div>
+                                    <div style="margin-top: 12px;">
+                                        <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 6px;">Notes</div>
+                                        <textarea id="eventNotesTextarea" placeholder="Add general notes for this event..." style="width: 100%; min-height: 80px; padding: 10px; border: 2px solid #e5e7eb; border-radius: 6px; font-size: 14px; font-family: inherit; resize: vertical;" onblur="saveEventNote()" onkeydown="if(event.ctrlKey && event.key === 'Enter') saveEventNote();"></textarea>
+                                    </div>
                                 </div>
 
                                 <!-- Schedule Table -->
                                 <div class="schedule-section">
-                                    <div class="section-title">📊 Room Schedule</div>
+                                    <div class="section-title">Room Schedule</div>
                                     <div class="schedule-view-tabs">
                                         <button class="schedule-view-tab active" onclick="switchScheduleView('room')" id="viewRoomTab">By Room</button>
                                         <button class="schedule-view-tab" onclick="switchScheduleView('instructor')" id="viewInstructorTab">By Instructor</button>
@@ -1328,6 +1322,7 @@
         let shortlists = {};
         let slotNotes = {}; // Notes for empty slots: {eventId: {room: {day: 'note'}}}
         let shortlistNotes = {}; // Notes for shortlist items: {eventId: {courseId: 'note'}}
+        let eventNotes = {}; // General notes for each event: {eventId: 'note'}
         let changeLog = [];
         let selectedEventId = null;
         let selectedDurations = [];
@@ -1608,8 +1603,13 @@
             const container = document.getElementById('shortlistContainer');
             const shortlist = shortlists[selectedEventId] || [];
             
-            document.getElementById('shortlistCount').textContent = shortlist.length;
             document.getElementById('autoFillBtn').disabled = shortlist.length === 0;
+            
+            // Load event notes
+            const notesTextarea = document.getElementById('eventNotesTextarea');
+            if (notesTextarea) {
+                notesTextarea.value = eventNotes[selectedEventId] || '';
+            }
 
             if (shortlist.length === 0) {
                 container.innerHTML = '<div class="shortlist-empty">Click courses from the sidebar to add them here</div>';
@@ -2443,6 +2443,26 @@
             });
         }
 
+        function saveEventNote() {
+            if (!selectedEventId) return;
+            
+            const textarea = document.getElementById('eventNotesTextarea');
+            if (!textarea) return;
+            
+            const newNote = textarea.value.trim();
+            const oldNote = eventNotes[selectedEventId] || '';
+            
+            if (newNote !== oldNote) {
+                if (newNote) {
+                    eventNotes[selectedEventId] = newNote;
+                } else {
+                    delete eventNotes[selectedEventId];
+                }
+                saveToLocalStorage();
+                showToast(newNote ? 'Event note saved' : 'Event note cleared', 'success');
+            }
+        }
+
         function addEditShortlistNote(eventId, courseId) {
             if (!shortlistNotes[eventId]) shortlistNotes[eventId] = {};
             
@@ -2929,6 +2949,7 @@
                 localStorage.setItem('sp_log', JSON.stringify(changeLog));
                 localStorage.setItem('sp_slotNotes', JSON.stringify(slotNotes));
                 localStorage.setItem('sp_shortlistNotes', JSON.stringify(shortlistNotes));
+                localStorage.setItem('sp_eventNotes', JSON.stringify(eventNotes));
             } catch (err) {}
         }
 
@@ -2942,6 +2963,7 @@
                 changeLog = JSON.parse(localStorage.getItem('sp_log')) || [];
                 slotNotes = JSON.parse(localStorage.getItem('sp_slotNotes')) || {};
                 shortlistNotes = JSON.parse(localStorage.getItem('sp_shortlistNotes')) || {};
+                eventNotes = JSON.parse(localStorage.getItem('sp_eventNotes')) || {};
                 updateTopicFilter();
             } catch (err) {}
         }
