@@ -1793,6 +1793,7 @@
                         <tr>
                             <th class="sortable ${logSortColumn === 'timestamp' ? (logSortAscending ? 'sorted-asc' : 'sorted-desc') : ''}" onclick="sortLogBy('timestamp')">Timestamp</th>
                             <th class="sortable ${logSortColumn === 'action' ? (logSortAscending ? 'sorted-asc' : 'sorted-desc') : ''}" onclick="sortLogBy('action')">Action</th>
+                            <th class="sortable ${logSortColumn === 'event' ? (logSortAscending ? 'sorted-asc' : 'sorted-desc') : ''}" onclick="sortLogBy('event')">Event</th>
                             <th class="sortable ${logSortColumn === 'details' ? (logSortAscending ? 'sorted-asc' : 'sorted-desc') : ''}" onclick="sortLogBy('details')">Details</th>
                             <th class="sortable ${logSortColumn === 'before' ? (logSortAscending ? 'sorted-asc' : 'sorted-desc') : ''}" onclick="sortLogBy('before')">Before</th>
                             <th class="sortable ${logSortColumn === 'after' ? (logSortAscending ? 'sorted-asc' : 'sorted-desc') : ''}" onclick="sortLogBy('after')">After</th>
@@ -1812,12 +1813,13 @@
                                 eventName = event?.Event || entry.eventId;
                             }
 
-                            const details = `${courseName ? `<strong>${entry.courseId}</strong>: ${courseName}` : ''} ${eventName ? `@ ${eventName}` : ''} ${entry.description ? `— ${entry.description}` : ''}`;
+                            const details = `${courseName ? `<strong>${entry.courseId}</strong>: ${courseName}` : ''} ${entry.description ? `— ${entry.description}` : ''}`;
 
                             return `
                                 <tr>
                                     <td class="log-timestamp">${entry.timestamp}</td>
                                     <td class="log-action-cell ${entry.action}">${getActionLabel(entry.action)}</td>
+                                    <td>${eventName}</td>
                                     <td class="log-details-cell">${details}</td>
                                     <td>${entry.before || ''}</td>
                                     <td>${entry.after || ''}</td>
@@ -1834,8 +1836,13 @@
 
         function getSortValue(entry, column) {
             switch(column) {
-                case 'timestamp': return new Date(entry.timestamp).getTime();
+                case 'timestamp': 
+                    return entry.timestampMs || new Date(entry.timestamp).getTime() || 0;
                 case 'action': return entry.action;
+                case 'event': 
+                    if (!entry.eventId) return '';
+                    const event = events.find(e => e.Event_ID === entry.eventId);
+                    return event?.Event || entry.eventId;
                 case 'before': return entry.before || '';
                 case 'after': return entry.after || '';
                 case 'notes': return entry.notes || '';
@@ -2324,8 +2331,10 @@
 
         function addLogEntry(action, eventId, courseId, description, before = '', after = '', notes = '') {
             const course = courseId ? courses.find(c => c.Course_ID === courseId) : null;
+            const now = new Date();
             changeLog.push({
-                timestamp: new Date().toLocaleString(),
+                timestamp: now.toLocaleString(),
+                timestampMs: now.getTime(),
                 action,
                 eventId,
                 courseId,
@@ -2346,11 +2355,11 @@
         }
 
         function exportChangeLog() {
-            let csv = 'Timestamp,Action,Details,Before,After,Notes\n';
+            let csv = 'Timestamp,Action,Event,Details,Before,After,Notes\n';
             for (const e of changeLog) {
                 const eventName = e.eventId ? (events.find(ev => ev.Event_ID === e.eventId)?.Event || e.eventId) : '';
-                const details = `${e.courseName || e.courseId || ''} ${eventName ? '@ ' + eventName : ''} ${e.description || ''}`;
-                csv += `"${e.timestamp}","${getActionLabel(e.action)}","${details}","${e.before || ''}","${e.after || ''}","${e.notes || ''}"\n`;
+                const details = `${e.courseName || e.courseId || ''} ${e.description || ''}`;
+                csv += `"${e.timestamp}","${getActionLabel(e.action)}","${eventName}","${details}","${e.before || ''}","${e.after || ''}","${e.notes || ''}"\n`;
             }
             downloadFile(csv, 'change_log.csv', 'text/csv');
         }
