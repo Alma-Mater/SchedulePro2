@@ -2129,10 +2129,10 @@
             const entry = instructorAway[idx];
             if (confirm(`Remove unavailability period for "${entry.Instructor}"?`)) {
                 instructorAway.splice(idx, 1);
-                addLogEntry('remove', null, null, `Removed instructor unavailability: ${entry.Instructor}`, '', '', '', entry.Instructor);
+                addLogEntry('remove', null, null, `Retired instructor unavailability: ${entry.Instructor}`, '', '', '', entry.Instructor);
                 saveToLocalStorage();
                 render();
-                showToast('Entry removed', 'success');
+                showToast('Entry retired', 'success');
             }
         }
 
@@ -2335,7 +2335,7 @@
 
         function getActionLabel(action) {
             const labels = {
-                'draft': 'Drafted', 'add': 'Added', 'remove': 'Removed', 'assign': 'Added',
+                'draft': 'Drafted', 'add': 'Added', 'remove': 'Retired', 'assign': 'Added',
                 'clear': 'Cleared', 'edit': 'Edited', 'auto-fill': 'Auto-Filled',
                 'upload': 'Uploaded', 'load': 'Loaded', 'undraft': 'Undrafted',
                 'note': 'Note', 'move': 'Moved'
@@ -2386,18 +2386,18 @@
                 // Course is assigned to a room - show confirmation dialog
                 if (confirm(`Remove "${course?.Course_Name || courseId}" from Room ${assignedRoom}?`)) {
                     schedule[selectedEventId][assignedRoom] = schedule[selectedEventId][assignedRoom].filter(a => a.courseId !== courseId);
-                    addLogEntry('remove', selectedEventId, courseId, `Removed from Room ${assignedRoom}`, `Room ${assignedRoom}`, 'Unassigned');
+                    addLogEntry('remove', selectedEventId, courseId, `Retired from Room ${assignedRoom}`, `Room ${assignedRoom}`, 'Unassigned');
                     saveToLocalStorage();
                     render();
-                    showToast('Course removed', 'success');
+                    showToast('Course retired', 'success');
                 }
             } else if (shortlist.includes(courseId)) {
                 // Course is in draft picks but not assigned - remove without dialog
                 shortlists[selectedEventId] = shortlist.filter(id => id !== courseId);
-                addLogEntry('undraft', selectedEventId, courseId, `Removed from draft picks`);
+                addLogEntry('undraft', selectedEventId, courseId, `Retired from draft picks`);
                 saveToLocalStorage();
                 render();
-                showToast(`Removed "${course?.Course_Name}"`, 'success');
+                showToast(`Retired "${course?.Course_Name}"`, 'success');
             } else {
                 // Course not in shortlist - add it
                 shortlists[selectedEventId] = [...shortlist, courseId];
@@ -2411,7 +2411,7 @@
         function removeFromShortlist(courseId) {
             const course = courses.find(c => c.Course_ID === courseId);
             shortlists[selectedEventId] = (shortlists[selectedEventId] || []).filter(id => id !== courseId);
-            addLogEntry('undraft', selectedEventId, courseId, `Removed from draft picks`);
+            addLogEntry('undraft', selectedEventId, courseId, `Retired from draft picks`);
             saveToLocalStorage();
             render();
         }
@@ -2488,10 +2488,10 @@
             const course = courses.find(c => c.Course_ID === courseId);
             if (confirm(`Remove "${course?.Course_Name || courseId}" from Room ${room}?`)) {
                 schedule[eventId][room] = schedule[eventId][room].filter(a => a.courseId !== courseId);
-                addLogEntry('remove', eventId, courseId, `Removed from Room ${room}`, `Room ${room}`, 'Unassigned');
+                addLogEntry('remove', eventId, courseId, `Retired from Room ${room}`, `Room ${room}`, 'Unassigned');
                 saveToLocalStorage();
                 render();
-                showToast('Course removed', 'success');
+                showToast('Course retired', 'success');
             }
         }
 
