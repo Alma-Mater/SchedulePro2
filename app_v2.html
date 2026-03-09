@@ -384,7 +384,7 @@
             align-items: center;
             gap: 5px;
             margin-top: 4px;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
             color: #16a34a;
         }
@@ -397,7 +397,7 @@
             flex-shrink: 0;
         }
         .availability-dot.full {
-            background: #ef4444;
+            background: #d1d5db;
         }
         .event-list-item-edit {
             position: absolute;
@@ -2040,7 +2040,7 @@
                     if (avail.openSlots > 0) {
                         availHtml = `<div class="event-list-item-availability"><span class="availability-dot"></span>${avail.openSlots} room-day${avail.openSlots !== 1 ? 's' : ''} open</div>`;
                     } else {
-                        availHtml = `<div class="event-list-item-availability" style="color:#ef4444;"><span class="availability-dot full"></span>Full</div>`;
+                        availHtml = `<div class="event-list-item-availability" style="color:#9ca3af;"><span class="availability-dot full"></span>Full</div>`;
                     }
                 }
                 return `
