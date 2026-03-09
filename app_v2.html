@@ -1707,36 +1707,56 @@
                         return;
                     }
 
-                    // --- Auto-create events from the data ---
-                    const eventDateMap = {}; // {eventId: {minDate, maxDate, maxRoom}}
+                    // --- Build date map per CSV event ID ---
+                    const eventDateMap = {}; // {csvEventId: {minDate, maxDate, maxRoom}}
                     for (const row of rows) {
-                        const eventId = String(row.Event_ID || '').trim();
-                        if (!eventId) continue;
+                        const csvId = String(row.Event_ID || '').trim();
+                        if (!csvId) continue;
                         let fd = row.First_Day instanceof Date ? row.First_Day : parseDate(formatDateForStorage(String(row.First_Day || '')));
                         let ld = row.Last_Day instanceof Date ? row.Last_Day : parseDate(formatDateForStorage(String(row.Last_Day || '')));
                         const rm = parseInt(row.Room_Number) || 0;
-                        if (!eventDateMap[eventId]) eventDateMap[eventId] = { minDate: null, maxDate: null, maxRoom: 0 };
-                        if (fd && (!eventDateMap[eventId].minDate || fd < eventDateMap[eventId].minDate)) eventDateMap[eventId].minDate = fd;
-                        if (ld && (!eventDateMap[eventId].maxDate || ld > eventDateMap[eventId].maxDate)) eventDateMap[eventId].maxDate = ld;
-                        if (rm > eventDateMap[eventId].maxRoom) eventDateMap[eventId].maxRoom = rm;
+                        if (!eventDateMap[csvId]) eventDateMap[csvId] = { minDate: null, maxDate: null, maxRoom: 0 };
+                        if (fd && (!eventDateMap[csvId].minDate || fd < eventDateMap[csvId].minDate)) eventDateMap[csvId].minDate = fd;
+                        if (ld && (!eventDateMap[csvId].maxDate || ld > eventDateMap[csvId].maxDate)) eventDateMap[csvId].maxDate = ld;
+                        if (rm > eventDateMap[csvId].maxRoom) eventDateMap[csvId].maxRoom = rm;
                     }
+
+                    // --- Map CSV event IDs → existing events (by exact ID, then by date overlap) ---
+                    const eventIdRemap = {}; // csvId → real Event_ID in events[]
                     let eventsCreated = 0;
-                    for (const [eventId, info] of Object.entries(eventDateMap)) {
-                        if (!events.find(ev => ev.Event_ID === eventId)) {
-                            const firstDay = info.minDate ? formatDateForStorage(info.minDate) : '';
-                            const lastDay = info.maxDate ? formatDateForStorage(info.maxDate) : '';
-                            events.push({
-                                Event_ID: eventId,
-                                Event: eventId, Location: '', Hotel_Location: '',
-                                Room_Count: Math.max(info.maxRoom, 10),
-                                First_Event_Day: firstDay, Last_Event_Day: lastDay,
-                                EarlyBird_Start_Date: '', EarlyBird_End_Date: '', Notes: '',
-                                Total_Days: calculateDays(firstDay, lastDay)
+                    for (const [csvId, info] of Object.entries(eventDateMap)) {
+                        // 1. Exact match
+                        if (events.find(ev => ev.Event_ID === csvId)) {
+                            eventIdRemap[csvId] = csvId;
+                        } else if (info.minDate) {
+                            // 2. Date-overlap match — find event whose range overlaps the CSV rows
+                            const match = events.find(ev => {
+                                const evStart = parseDate(ev.First_Event_Day);
+                                const evEnd   = parseDate(ev.Last_Event_Day);
+                                return evStart && evEnd && info.minDate <= evEnd && info.maxDate >= evStart;
                             });
-                            eventsCreated++;
+                            if (match) {
+                                eventIdRemap[csvId] = match.Event_ID;
+                            } else {
+                                // 3. No match — create a new event stub
+                                const firstDay = formatDateForStorage(info.minDate);
+                                const lastDay  = formatDateForStorage(info.maxDate);
+                                events.push({
+                                    Event_ID: csvId, Event: csvId, Location: '', Hotel_Location: '',
+                                    Room_Count: Math.max(info.maxRoom, 10),
+                                    First_Event_Day: firstDay, Last_Event_Day: lastDay,
+                                    EarlyBird_Start_Date: '', EarlyBird_End_Date: '', Notes: '',
+                                    Total_Days: calculateDays(firstDay, lastDay)
+                                });
+                                eventIdRemap[csvId] = csvId;
+                                eventsCreated++;
+                            }
+                        } else {
+                            eventIdRemap[csvId] = csvId;
                         }
-                        if (!schedule[eventId]) schedule[eventId] = {};
-                        if (!shortlists[eventId]) shortlists[eventId] = [];
+                        const realId = eventIdRemap[csvId];
+                        if (!schedule[realId])   schedule[realId]   = {};
+                        if (!shortlists[realId]) shortlists[realId] = [];
                     }
 
                     // --- Auto-create course stubs if missing ---
@@ -1759,7 +1779,8 @@
 
                     for (const row of rows) {
                         const courseId = String(row.Course_ID || '').trim();
-                        const eventId = String(row.Event_ID || '').trim();
+                        const csvEventId = String(row.Event_ID || '').trim();
+                        const eventId = eventIdRemap[csvEventId] || csvEventId; // use remapped real ID
                         const duration = Math.ceil(parseFloat(row.Duration_Days) || 1);
                         const roomNum = parseInt(row.Room_Number);
                         let firstDay = '';
