@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SchedulePro</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * {
             margin: 0;
@@ -1161,6 +1162,11 @@
     <header>
         <h1>📅 SchedulePro</h1>
         <div class="header-buttons">
+            <span id="syncStatus" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:#6b7280;margin-right:8px;">
+                <span id="syncDot" style="width:10px;height:10px;border-radius:50%;background:#9ca3af;display:inline-block;"></span>
+                <span id="syncText">Connecting...</span>
+            </span>
+            <button class="btn btn-sm" onclick="pushToCloud()" title="Push local data to cloud">☁️ Push to Cloud</button>
             <button class="btn" onclick="document.getElementById('fileInput').click()">📁 Load Excel</button>
             <button class="btn" onclick="exportSchedule()">📤 Export</button>
             <button class="btn" onclick="exportContracts()">📄 Export Contracts</button>
@@ -1438,11 +1444,22 @@
         let coursesSortDirection = 'asc';
         let currentEditingCell = null;
 
+        // ==================== SUPABASE CONFIG ====================
+        const SUPABASE_URL = 'https://lwwdhcdidukglsdqhnqp.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx3d2RoY2RpZHVrZ2xzZHFobnFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMzcwMzcsImV4cCI6MjA4ODYxMzAzN30.oMUx4EbCmqueJbdxYq3Zc37SQltaLP6K523rkhQqvJg';
+        const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let supabaseConnected = false;
+        let supabaseSaveTimer = null;
+        let isApplyingRemoteUpdate = false;
+
         // ==================== INIT ====================
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             setupTabs();
             loadFromLocalStorage();
+            await loadFromSupabase();
+            setupRealtimeSubscription();
             render();
+            updateSyncStatus();
         });
 
         function setupTabs() {
@@ -3534,6 +3551,9 @@
                 localStorage.setItem('sp_shortlistNotes', JSON.stringify(shortlistNotes));
                 localStorage.setItem('sp_eventNotes', JSON.stringify(eventNotes));
             } catch (err) {}
+            if (!isApplyingRemoteUpdate) {
+                debouncedSupabaseSave();
+            }
         }
 
         function loadFromLocalStorage() {
@@ -3621,6 +3641,157 @@
         document.addEventListener('keydown', e => {
             if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
         });
+
+        // ==================== SUPABASE SYNC ====================
+        async function loadFromSupabase() {
+            try {
+                const { data, error } = await sb.from('schedulepro_state').select('key, value');
+                if (error) throw error;
+
+                if (data && data.length > 0) {
+                    const stateMap = {};
+                    for (const row of data) stateMap[row.key] = row.value;
+
+                    if (stateMap.events) events = stateMap.events;
+                    if (stateMap.courses) courses = stateMap.courses;
+                    if (stateMap.instructor_away) instructorAway = stateMap.instructor_away;
+                    if (stateMap.schedule) schedule = stateMap.schedule;
+                    if (stateMap.shortlists) shortlists = stateMap.shortlists;
+                    if (stateMap.change_log) changeLog = stateMap.change_log;
+                    if (stateMap.slot_notes) slotNotes = stateMap.slot_notes;
+                    if (stateMap.shortlist_notes) shortlistNotes = stateMap.shortlist_notes;
+                    if (stateMap.event_notes) eventNotes = stateMap.event_notes;
+
+                    // Normalize events with default fields
+                    events = events.map(ev => ({
+                        Event_ID: ev.Event_ID || '', Event_Number: ev.Event_Number || '',
+                        Event: ev.Event || '', First_Event_Day: ev.First_Event_Day || '',
+                        Last_Event_Day: ev.Last_Event_Day || '', Mon_Date: ev.Mon_Date || '',
+                        Tues_Date: ev.Tues_Date || '', Wed_Date: ev.Wed_Date || '',
+                        Thurs_Date: ev.Thurs_Date || '', Location: ev.Location || '',
+                        Hotel: ev.Hotel || '', Early_Bird_Start: ev.Early_Bird_Start || '',
+                        Early_End_Date: ev.Early_End_Date || '', Room_Count: ev.Room_Count || 10,
+                        Total_Days: ev.Total_Days || 0
+                    }));
+
+                    updateTopicFilter();
+                }
+
+                supabaseConnected = true;
+            } catch (err) {
+                console.warn('Supabase unavailable, using localStorage:', err.message);
+                supabaseConnected = false;
+            }
+        }
+
+        async function saveToSupabase() {
+            if (!supabaseConnected) return;
+            try {
+                const now = new Date().toISOString();
+                const { error } = await sb.from('schedulepro_state').upsert([
+                    { key: 'events', value: events, updated_at: now },
+                    { key: 'courses', value: courses, updated_at: now },
+                    { key: 'instructor_away', value: instructorAway, updated_at: now },
+                    { key: 'schedule', value: schedule, updated_at: now },
+                    { key: 'shortlists', value: shortlists, updated_at: now },
+                    { key: 'change_log', value: changeLog, updated_at: now },
+                    { key: 'slot_notes', value: slotNotes, updated_at: now },
+                    { key: 'shortlist_notes', value: shortlistNotes, updated_at: now },
+                    { key: 'event_notes', value: eventNotes, updated_at: now }
+                ]);
+                if (error) throw error;
+                updateSyncStatus('saved');
+            } catch (err) {
+                console.warn('Supabase save failed:', err.message);
+                updateSyncStatus('error');
+            }
+        }
+
+        function debouncedSupabaseSave() {
+            clearTimeout(supabaseSaveTimer);
+            updateSyncStatus('saving');
+            supabaseSaveTimer = setTimeout(saveToSupabase, 500);
+        }
+
+        function setupRealtimeSubscription() {
+            sb.channel('schedulepro-sync')
+                .on('postgres_changes', {
+                    event: '*',
+                    schema: 'public',
+                    table: 'schedulepro_state'
+                }, (payload) => {
+                    if (payload.new && !isApplyingRemoteUpdate) {
+                        isApplyingRemoteUpdate = true;
+                        const key = payload.new.key;
+                        const value = payload.new.value;
+                        switch (key) {
+                            case 'events': events = value || []; events = events.map(ev => ({ Event_ID: ev.Event_ID || '', Event_Number: ev.Event_Number || '', Event: ev.Event || '', First_Event_Day: ev.First_Event_Day || '', Last_Event_Day: ev.Last_Event_Day || '', Mon_Date: ev.Mon_Date || '', Tues_Date: ev.Tues_Date || '', Wed_Date: ev.Wed_Date || '', Thurs_Date: ev.Thurs_Date || '', Location: ev.Location || '', Hotel: ev.Hotel || '', Early_Bird_Start: ev.Early_Bird_Start || '', Early_End_Date: ev.Early_End_Date || '', Room_Count: ev.Room_Count || 10, Total_Days: ev.Total_Days || 0 })); break;
+                            case 'courses': courses = value || []; updateTopicFilter(); break;
+                            case 'instructor_away': instructorAway = value || []; break;
+                            case 'schedule': schedule = value || {}; break;
+                            case 'shortlists': shortlists = value || {}; break;
+                            case 'change_log': changeLog = value || []; break;
+                            case 'slot_notes': slotNotes = value || {}; break;
+                            case 'shortlist_notes': shortlistNotes = value || {}; break;
+                            case 'event_notes': eventNotes = value || {}; break;
+                        }
+                        saveToLocalStorage();
+                        render();
+                        isApplyingRemoteUpdate = false;
+                    }
+                })
+                .subscribe((status) => {
+                    supabaseConnected = (status === 'SUBSCRIBED');
+                    updateSyncStatus();
+                });
+        }
+
+        function updateSyncStatus(state) {
+            const dot = document.getElementById('syncDot');
+            const text = document.getElementById('syncText');
+            if (!dot || !text) return;
+            if (state === 'saving') {
+                dot.style.background = '#f59e0b';
+                text.textContent = 'Saving...';
+            } else if (state === 'saved') {
+                dot.style.background = '#10b981';
+                text.textContent = 'Synced';
+            } else if (state === 'error') {
+                dot.style.background = '#ef4444';
+                text.textContent = 'Sync error';
+            } else if (supabaseConnected) {
+                dot.style.background = '#10b981';
+                text.textContent = 'Connected';
+            } else {
+                dot.style.background = '#9ca3af';
+                text.textContent = 'Offline';
+            }
+        }
+
+        async function pushToCloud() {
+            if (!confirm('Push current local data to cloud? This will overwrite cloud data.')) return;
+            try {
+                const now = new Date().toISOString();
+                const { error } = await sb.from('schedulepro_state').upsert([
+                    { key: 'events', value: events, updated_at: now },
+                    { key: 'courses', value: courses, updated_at: now },
+                    { key: 'instructor_away', value: instructorAway, updated_at: now },
+                    { key: 'schedule', value: schedule, updated_at: now },
+                    { key: 'shortlists', value: shortlists, updated_at: now },
+                    { key: 'change_log', value: changeLog, updated_at: now },
+                    { key: 'slot_notes', value: slotNotes, updated_at: now },
+                    { key: 'shortlist_notes', value: shortlistNotes, updated_at: now },
+                    { key: 'event_notes', value: eventNotes, updated_at: now }
+                ]);
+                if (error) throw error;
+                supabaseConnected = true;
+                updateSyncStatus('saved');
+                showToast('Data pushed to cloud', 'success');
+            } catch (err) {
+                console.error('Push to cloud failed:', err);
+                showToast('Failed to push to cloud: ' + err.message, 'error');
+            }
+        }
     </script>
 </body>
 </html>
