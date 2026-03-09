@@ -1597,6 +1597,54 @@
                         return;
                     }
 
+                    // --- Auto-create events from the data ---
+                    const eventDateMap = {}; // {eventId: {minDate, maxDate, maxRoom}}
+                    for (const row of rows) {
+                        const eventId = String(row.Event_ID || '').trim();
+                        if (!eventId) continue;
+                        let fd = row.First_Day instanceof Date ? row.First_Day : parseDate(formatDateForStorage(String(row.First_Day || '')));
+                        let ld = row.Last_Day instanceof Date ? row.Last_Day : parseDate(formatDateForStorage(String(row.Last_Day || '')));
+                        const rm = parseInt(row.Room_Number) || 0;
+                        if (!eventDateMap[eventId]) eventDateMap[eventId] = { minDate: null, maxDate: null, maxRoom: 0 };
+                        if (fd && (!eventDateMap[eventId].minDate || fd < eventDateMap[eventId].minDate)) eventDateMap[eventId].minDate = fd;
+                        if (ld && (!eventDateMap[eventId].maxDate || ld > eventDateMap[eventId].maxDate)) eventDateMap[eventId].maxDate = ld;
+                        if (rm > eventDateMap[eventId].maxRoom) eventDateMap[eventId].maxRoom = rm;
+                    }
+                    let eventsCreated = 0;
+                    for (const [eventId, info] of Object.entries(eventDateMap)) {
+                        if (!events.find(ev => ev.Event_ID === eventId)) {
+                            const firstDay = info.minDate ? formatDateForStorage(info.minDate) : '';
+                            const lastDay = info.maxDate ? formatDateForStorage(info.maxDate) : '';
+                            events.push({
+                                Event_ID: eventId, Event_Number: eventId.replace(/\D/g, ''),
+                                Event: eventId, First_Event_Day: firstDay, Last_Event_Day: lastDay,
+                                Mon_Date: '', Tues_Date: '', Wed_Date: '', Thurs_Date: '',
+                                Location: '', Hotel: '', Early_Bird_Start: '', Early_End_Date: '',
+                                Room_Count: Math.max(info.maxRoom, 10),
+                                Total_Days: calculateDays(firstDay, lastDay)
+                            });
+                            eventsCreated++;
+                        }
+                        if (!schedule[eventId]) schedule[eventId] = {};
+                        if (!shortlists[eventId]) shortlists[eventId] = [];
+                    }
+
+                    // --- Auto-create course stubs if missing ---
+                    let coursesCreated = 0;
+                    const existingCourseIds = new Set(courses.map(c => c.Course_ID));
+                    for (const row of rows) {
+                        const courseId = String(row.Course_ID || '').trim();
+                        if (!courseId || existingCourseIds.has(courseId)) continue;
+                        courses.push({
+                            Course_ID: courseId, Instructor: '', Course_Name: courseId,
+                            Duration_Days: parseFloat(row.Duration_Days) || 1, Topic: ''
+                        });
+                        existingCourseIds.add(courseId);
+                        coursesCreated++;
+                    }
+                    if (coursesCreated) updateTopicFilter();
+
+                    // --- Place courses into rooms / draft picks ---
                     let assigned = 0, drafted = 0, skipped = 0;
 
                     for (const row of rows) {
@@ -1613,10 +1661,6 @@
 
                         if (!courseId || !eventId) { skipped++; continue; }
 
-                        // Ensure event schedule structures exist
-                        if (!schedule[eventId]) schedule[eventId] = {};
-                        if (!shortlists[eventId]) shortlists[eventId] = [];
-
                         // Calculate startDay from First_Day relative to event's First_Event_Day
                         const ev = events.find(e => e.Event_ID === eventId);
                         let startDay = 1;
@@ -1632,14 +1676,13 @@
                         if (roomNum && roomNum > 0) {
                             // Assign to room
                             if (!schedule[eventId][roomNum]) schedule[eventId][roomNum] = [];
-                            // Skip if already assigned there
                             const already = schedule[eventId][roomNum].some(a => a.courseId === courseId);
                             if (!already) {
                                 schedule[eventId][roomNum].push({ courseId, startDay, duration, note: '' });
                                 assigned++;
                             }
                         } else {
-                            // No room — add to draft picks if not already there or assigned
+                            // No room — add to draft picks
                             const alreadyDrafted = (shortlists[eventId] || []).includes(courseId);
                             const alreadyAssigned = Object.values(schedule[eventId] || {}).some(room => room.some(a => a.courseId === courseId));
                             if (!alreadyDrafted && !alreadyAssigned) {
@@ -1649,10 +1692,14 @@
                         }
                     }
 
-                    addLogEntry('upload', null, null, `Imported schedule: ${file.name} (${assigned} assigned, ${drafted} drafted, ${skipped} skipped)`);
+                    addLogEntry('upload', null, null, `Imported schedule: ${file.name} (${eventsCreated} events, ${coursesCreated} courses, ${assigned} assigned, ${drafted} drafted)`);
                     saveToLocalStorage();
                     render();
-                    showToast(`Imported: ${assigned} assigned, ${drafted} to draft picks`, 'success');
+                    let msg = '';
+                    if (eventsCreated) msg += `${eventsCreated} events, `;
+                    if (coursesCreated) msg += `${coursesCreated} courses, `;
+                    msg += `${assigned} assigned, ${drafted} to draft picks`;
+                    showToast(msg, 'success');
                 } catch (err) {
                     console.error(err);
                     showToast('Error importing schedule file', 'error');
