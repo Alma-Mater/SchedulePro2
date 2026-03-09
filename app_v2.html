@@ -1853,12 +1853,24 @@
                                 assigned++;
                             }
                         } else {
-                            // No room number — assign to Room 1 (imported data, not user draft)
-                            if (!schedule[eventId][1]) schedule[eventId][1] = [];
-                            const already = schedule[eventId][1].some(a => a.courseId === courseId);
+                            // No room number — virtual events get 1 room per course, others go to Room 1
+                            const isVirtualEvent = (ev && (ev.Location || '').toLowerCase().includes('virtual'));
+                            let targetRoom = 1;
+                            if (isVirtualEvent) {
+                                // Find next available room number for this event
+                                const usedRooms = Object.keys(schedule[eventId]).map(Number).filter(n => n > 0);
+                                targetRoom = usedRooms.length > 0 ? Math.max(...usedRooms) + 1 : 1;
+                            }
+                            if (!schedule[eventId][targetRoom]) schedule[eventId][targetRoom] = [];
+                            const already = schedule[eventId][targetRoom].some(a => a.courseId === courseId);
                             if (!already) {
-                                schedule[eventId][1].push({ courseId, startDay, duration, note: '' });
+                                schedule[eventId][targetRoom].push({ courseId, startDay, duration, note: '' });
                                 assigned++;
+                            }
+                            // Update Room_Count on the event to match
+                            if (isVirtualEvent && ev) {
+                                const maxRoom = Math.max(...Object.keys(schedule[eventId]).map(Number).filter(n => n > 0));
+                                if (maxRoom > (parseInt(ev.Room_Count) || 0)) ev.Room_Count = maxRoom;
                             }
                         }
                     }
@@ -2144,19 +2156,19 @@
             const availInfoEl = document.getElementById('eventAvailInfo');
             if (availInfoEl) {
                 if (isVirtual) {
-                    availInfoEl.innerHTML = '<span style="color:#9ca3af;">Virtual event – no room availability</span>';
+                    availInfoEl.innerHTML = '<span style="color:rgba(255,255,255,0.7);">Virtual event – no room availability</span>';
                 } else {
                     const avail = getEventAvailability(event);
                     if (avail.totalSlots === 0) {
                         availInfoEl.innerHTML = '';
                     } else if (avail.openSlots === 0) {
-                        availInfoEl.innerHTML = '<span style="color:#ef4444;font-weight:600;">All room-days filled</span>';
+                        availInfoEl.innerHTML = '<span style="color:#fca5a5;font-weight:600;">All room-days filled</span>';
                     } else {
-                        let html = `<span style="color:#16a34a;font-weight:600;">${avail.openSlots} of ${avail.totalSlots} room-day${avail.totalSlots !== 1 ? 's' : ''} available</span>`;
+                        let html = `<span style="color:#bbf7d0;font-weight:600;">${avail.openSlots} of ${avail.totalSlots} room-day${avail.totalSlots !== 1 ? 's' : ''} available</span>`;
                         html += '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:8px;">';
                         avail.roomDetail.forEach(rd => {
                             const dayRanges = compactDayRanges(rd.openDays);
-                            html += `<span style="background:#f0fdf4;color:#15803d;padding:3px 8px;border-radius:4px;font-size:13px;">R${rd.room}: Day ${dayRanges}</span>`;
+                            html += `<span style="background:rgba(255,255,255,0.15);color:white;padding:3px 8px;border-radius:4px;font-size:13px;">Room ${rd.room}: Day ${dayRanges}</span>`;
                         });
                         html += '</div>';
                         availInfoEl.innerHTML = html;
