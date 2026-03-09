@@ -318,76 +318,86 @@
             display: block;
         }
 
-        /* ========== EVENTS VIEW ========== */
-        .event-selector {
+        /* ========== EVENTS VIEW — VERTICAL LIST ========== */
+        .schedule-tab-layout {
             display: flex;
-            gap: 12px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
+            gap: 16px;
+            align-items: flex-start;
         }
-
-        .event-selector:empty {
-            display: none;
-        }
-
-        .event-pill {
-            padding: 10px 20px;
-            background: white;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.15s;
-            position: relative;
-        }
-
-        .event-pill:hover {
-            border-color: #c4b5fd;
-        }
-
-        .event-pill.selected {
-            border-color: #7c3aed;
-            background: #faf5ff;
-        }
-
-        .event-pill-name {
-            font-weight: 600;
-            font-size: 17px;
-            color: #374151;
-        }
-
-        .event-pill-dates {
-            font-size: 15px;
-            color: #6b7280;
-            margin-top: 4px;
-        }
-
-        .event-pill-edit {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 28px;
-            height: 28px;
+        .event-list-panel {
+            width: 200px;
+            flex-shrink: 0;
             background: white;
             border: 1px solid #e5e7eb;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            opacity: 0;
-            transition: all 0.15s;
-            font-size: 14px;
+            border-radius: 10px;
+            overflow: hidden;
         }
-
-        .event-pill:hover .event-pill-edit {
-            opacity: 1;
-        }
-
-        .event-pill-edit:hover {
+        .event-list-header {
+            padding: 10px 14px;
             background: #7c3aed;
             color: white;
-            border-color: #7c3aed;
+            font-weight: 700;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
+        .event-list-add {
+            background: rgba(255,255,255,0.25);
+            border: none;
+            color: white;
+            border-radius: 4px;
+            padding: 2px 8px;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+        }
+        .event-list-add:hover { background: rgba(255,255,255,0.4); }
+        .event-list-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid #f3f4f6;
+            transition: background 0.12s;
+            position: relative;
+        }
+        .event-list-item:last-child { border-bottom: none; }
+        .event-list-item:hover { background: #faf5ff; }
+        .event-list-item.selected {
+            background: #f5f3ff;
+            border-left: 3px solid #7c3aed;
+            padding-left: 11px;
+        }
+        .event-list-item-name {
+            font-weight: 600;
+            font-size: 13px;
+            color: #374151;
+            line-height: 1.3;
+        }
+        .event-list-item.selected .event-list-item-name { color: #7c3aed; }
+        .event-list-item-dates {
+            font-size: 11px;
+            color: #9ca3af;
+            margin-top: 2px;
+        }
+        .event-list-item-edit {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            padding: 2px 4px;
+            transition: opacity 0.12s;
+        }
+        .event-list-item:hover .event-list-item-edit { opacity: 1; }
+        .event-panel-wrap {
+            flex: 1;
+            min-width: 0;
+        }
+        .event-selector { display: none; }
 
         /* ========== SELECTED EVENT PANEL ========== */
         .event-panel {
@@ -1317,67 +1327,76 @@
             <div class="tab-panels">
                 <!-- SCHEDULE TAB -->
                 <div class="tab-panel active" id="tab-schedule">
-                    <!-- Event Selector -->
-                    <div class="event-selector" id="eventSelector">
-                        <div class="empty-state">
-                            <h3>No events loaded</h3>
-                            <p>Load an Excel file to get started</p>
+                    <div class="schedule-tab-layout">
+                        <!-- Vertical Event List -->
+                        <div class="event-list-panel" id="eventListPanel">
+                            <div class="event-list-header">
+                                Events
+                                <button class="event-list-add" onclick="showAddEventModal()" title="Add event">+</button>
+                            </div>
+                            <div id="eventSelector"></div>
                         </div>
-                    </div>
 
-                    <!-- Selected Event Panel -->
-                    <div id="eventPanel" style="display: none;">
-                        <div class="event-panel">
-                            <div class="event-panel-header">
-                                <button class="event-edit-btn" onclick="showEditEventModal()">✏️ Edit Event</button>
-                                <div class="event-panel-title" id="eventTitle">Event Name</div>
-                                <div class="event-panel-subtitle" id="eventSubtitle">Location • Dates</div>
-                                <div class="event-panel-stats">
-                                    <div class="event-stat"><strong id="eventRooms">0</strong> Rooms</div>
-                                    <div class="event-stat"><strong id="eventDays">0</strong> Days</div>
-                                    <div class="event-stat"><strong id="eventAssigned">0</strong> Assigned</div>
+                        <!-- Event detail panel -->
+                        <div class="event-panel-wrap">
+                            <div id="eventPanel" style="display: none;">
+                                <div class="event-panel">
+                                    <div class="event-panel-header">
+                                        <button class="event-edit-btn" onclick="showEditEventModal()">✏️ Edit Event</button>
+                                        <div class="event-panel-title" id="eventTitle">Event Name</div>
+                                        <div class="event-panel-subtitle" id="eventSubtitle">Location • Dates</div>
+                                        <div class="event-panel-stats">
+                                            <div class="event-stat"><strong id="eventRooms">0</strong> Rooms</div>
+                                            <div class="event-stat"><strong id="eventDays">0</strong> Days</div>
+                                            <div class="event-stat"><strong id="eventAssigned">0</strong> Assigned</div>
+                                        </div>
+                                    </div>
+                                    <div class="event-panel-body">
+                                        <!-- Actions -->
+                                        <div class="event-actions">
+                                            <button class="btn btn-sm btn-primary" onclick="autoPopulateRooms()" id="autoFillBtn">🔄 Auto-Fill Draft</button>
+                                            <button class="btn btn-sm btn-danger" onclick="clearDraftPicks()">🗑️ Clear Draft</button>
+                                            <button class="btn btn-sm btn-danger" onclick="clearEventSchedule()">🗑️ Clear All Assigned</button>
+                                        </div>
+
+                                        <!-- Draft Picks -->
+                                        <div class="shortlist-section">
+                                            <div class="section-title">Draft Picks</div>
+                                            <div id="shortlistContainer">
+                                                <div class="shortlist-empty">
+                                                    Click courses from the sidebar to add them here
+                                                </div>
+                                            </div>
+                                            <div style="margin-top: 12px;">
+                                                <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 6px;">Notes</div>
+                                                <textarea id="eventNotesTextarea" placeholder="Add general notes for this event..." style="width: 100%; min-height: 80px; padding: 10px; border: 2px solid #e5e7eb; border-radius: 6px; font-size: 18px; font-family: inherit; resize: vertical;" onblur="saveEventNote()" onkeydown="if(event.ctrlKey && event.key === 'Enter') saveEventNote();"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Schedule Table -->
+                                        <div class="schedule-section">
+                                            <div class="section-title">Room Schedule</div>
+                                            <div class="schedule-view-tabs">
+                                                <button class="schedule-view-tab active" onclick="switchScheduleView('room')" id="viewRoomTab">By Room</button>
+                                                <button class="schedule-view-tab" onclick="switchScheduleView('instructor')" id="viewInstructorTab">By Instructor</button>
+                                                <button class="schedule-view-tab" onclick="switchScheduleView('course')" id="viewCourseTab">By Course</button>
+                                            </div>
+                                            <div id="scheduleViewRoom">
+                                                <div class="schedule-table-wrapper">
+                                                    <table class="schedule-table" id="scheduleTable">
+                                                        <thead id="scheduleHead"></thead>
+                                                        <tbody id="scheduleBody"></tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                            <div id="scheduleViewInstructor" style="display:none;"></div>
+                                            <div id="scheduleViewCourse" style="display:none;"></div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="event-panel-body">
-                                <!-- Actions -->
-                                <div class="event-actions">
-                                    <button class="btn btn-sm btn-primary" onclick="autoPopulateRooms()" id="autoFillBtn">🔄 Auto-Fill Draft</button>
-                                    <button class="btn btn-sm btn-danger" onclick="clearEventSchedule()">🗑️ Clear All</button>
-                                </div>
-
-                                <!-- Draft Picks -->
-                                <div class="shortlist-section">
-                                    <div class="section-title">Draft Picks</div>
-                                    <div id="shortlistContainer">
-                                        <div class="shortlist-empty">
-                                            Click courses from the sidebar to add them here
-                                        </div>
-                                    </div>
-                                    <div style="margin-top: 12px;">
-                                        <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 6px;">Notes</div>
-                                        <textarea id="eventNotesTextarea" placeholder="Add general notes for this event..." style="width: 100%; min-height: 80px; padding: 10px; border: 2px solid #e5e7eb; border-radius: 6px; font-size: 18px; font-family: inherit; resize: vertical;" onblur="saveEventNote()" onkeydown="if(event.ctrlKey && event.key === 'Enter') saveEventNote();"></textarea>
-                                    </div>
-                                </div>
-
-                                <!-- Schedule Table -->
-                                <div class="schedule-section">
-                                    <div class="section-title">Room Schedule</div>
-                                    <div class="schedule-view-tabs">
-                                        <button class="schedule-view-tab active" onclick="switchScheduleView('room')" id="viewRoomTab">By Room</button>
-                                        <button class="schedule-view-tab" onclick="switchScheduleView('instructor')" id="viewInstructorTab">By Instructor</button>
-                                        <button class="schedule-view-tab" onclick="switchScheduleView('course')" id="viewCourseTab">By Course</button>
-                                    </div>
-                                    <div id="scheduleViewRoom">
-                                        <div class="schedule-table-wrapper">
-                                            <table class="schedule-table" id="scheduleTable">
-                                                <thead id="scheduleHead"></thead>
-                                                <tbody id="scheduleBody"></tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                    <div id="scheduleViewInstructor" style="display:none;"></div>
-                                    <div id="scheduleViewCourse" style="display:none;"></div>
-                                </div>
+                            <div id="eventPanelEmpty" style="color:#9ca3af; padding:40px 20px; text-align:center;">
+                                <p style="font-size:15px;">← Select an event to view its schedule</p>
                             </div>
                         </div>
                     </div>
@@ -1805,7 +1824,7 @@
                         }
 
                         if (roomNum && roomNum > 0) {
-                            // Assign to room
+                            // Assign to specified room
                             if (!schedule[eventId][roomNum]) schedule[eventId][roomNum] = [];
                             const already = schedule[eventId][roomNum].some(a => a.courseId === courseId);
                             if (!already) {
@@ -1813,12 +1832,12 @@
                                 assigned++;
                             }
                         } else {
-                            // No room — add to draft picks
-                            const alreadyDrafted = (shortlists[eventId] || []).includes(courseId);
-                            const alreadyAssigned = Object.values(schedule[eventId] || {}).some(room => room.some(a => a.courseId === courseId));
-                            if (!alreadyDrafted && !alreadyAssigned) {
-                                shortlists[eventId].push(courseId);
-                                drafted++;
+                            // No room number — assign to Room 1 (imported data, not user draft)
+                            if (!schedule[eventId][1]) schedule[eventId][1] = [];
+                            const already = schedule[eventId][1].some(a => a.courseId === courseId);
+                            if (!already) {
+                                schedule[eventId][1].push({ courseId, startDay, duration, note: '' });
+                                assigned++;
                             }
                         }
                     }
@@ -1963,29 +1982,30 @@
 
         function renderEventSelector() {
             const container = document.getElementById('eventSelector');
-            
+            const emptyEl   = document.getElementById('eventPanelEmpty');
+            const panelEl   = document.getElementById('eventPanel');
+
             if (events.length === 0) {
-                container.innerHTML = `<div class="empty-state"><h3>No events yet for ${activeYear}</h3><p><strong>Step 1:</strong> Go to the Events tab to add your events &amp; dates.<br><strong>Step 2:</strong> Set the room count for each event.<br>Then come back here for Step 3.</p><button class="btn btn-primary btn-sm" onclick="goToStep(1)" style="margin-top:12px;">→ Go to Events Tab</button></div>`;
+                container.innerHTML = `<div style="padding:12px;font-size:12px;color:#9ca3af;text-align:center;">No events yet.<br>Go to the Events tab to add some.</div>`;
+                if (panelEl) panelEl.style.display = 'none';
+                if (emptyEl) emptyEl.style.display = 'block';
                 return;
             }
 
-            // Sort events chronologically by first event day
             const sortedEvents = [...events].sort((a, b) => {
                 const dateA = parseDate(a.First_Event_Day);
                 const dateB = parseDate(b.First_Event_Day);
                 return dateA - dateB;
             });
-
-            // Filter out any invalid events
             const validEvents = sortedEvents.filter(ev => ev && ev.Event_ID && ev.Event);
 
             container.innerHTML = validEvents.map(ev => `
-                <div class="event-pill ${selectedEventId === ev.Event_ID ? 'selected' : ''}" onclick="selectEvent('${ev.Event_ID}')">
-                    <div class="event-pill-edit" onclick="event.stopPropagation(); showEditEventModalForEvent('${ev.Event_ID}')">✏️</div>
-                    <div class="event-pill-name">${ev.Event}</div>
-                    <div class="event-pill-dates">${ev.First_Event_Day || ''} – ${ev.Last_Event_Day || ''}</div>
+                <div class="event-list-item ${selectedEventId === ev.Event_ID ? 'selected' : ''}" onclick="selectEvent('${ev.Event_ID}')">
+                    <button class="event-list-item-edit" onclick="event.stopPropagation(); showEditEventModalForEvent('${ev.Event_ID}')">✏️</button>
+                    <div class="event-list-item-name">${ev.Event}</div>
+                    <div class="event-list-item-dates">${ev.First_Event_Day || ''} – ${ev.Last_Event_Day || ''}</div>
                 </div>
-            `).join('') + `<div class="event-pill" onclick="showAddEventModal()" style="border-style: dashed;"><div class="event-pill-name">+ Add Event</div></div>`;
+            `).join('');
         }
 
         function renderCourseList() {
@@ -2066,20 +2086,18 @@
         }
 
         function renderSelectedEvent() {
-            const panel = document.getElementById('eventPanel');
-            
-            if (!selectedEventId) {
-                panel.style.display = 'none';
-                return;
-            }
+            const panel   = document.getElementById('eventPanel');
+            const emptyEl = document.getElementById('eventPanelEmpty');
+
+            const hide = () => { if (panel) panel.style.display = 'none'; if (emptyEl) emptyEl.style.display = 'block'; };
+            const show = () => { if (panel) panel.style.display = 'block'; if (emptyEl) emptyEl.style.display = 'none'; };
+
+            if (!selectedEventId) { hide(); return; }
 
             const event = events.find(e => e.Event_ID === selectedEventId);
-            if (!event) {
-                panel.style.display = 'none';
-                return;
-            }
+            if (!event) { hide(); return; }
 
-            panel.style.display = 'block';
+            show();
 
             document.getElementById('eventTitle').textContent = event.Event;
             document.getElementById('eventSubtitle').textContent = `${event.Location} · ${event.First_Event_Day} – ${event.Last_Event_Day}`;
@@ -3125,6 +3143,17 @@
                     showToast(trimmedNote ? 'Note saved' : 'Note removed', 'success');
                 }
             }
+        }
+
+        function clearDraftPicks() {
+            const ev = events.find(e => e.Event_ID === selectedEventId);
+            if (!ev) return;
+            if (!confirm(`Clear all draft picks for "${ev.Event}"?`)) return;
+            shortlists[selectedEventId] = [];
+            addLogEntry('clear', selectedEventId, null, 'Cleared draft picks');
+            saveToLocalStorage();
+            render();
+            showToast('Draft picks cleared', 'success');
         }
 
         function clearEventSchedule() {
