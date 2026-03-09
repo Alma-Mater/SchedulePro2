@@ -1162,11 +1162,11 @@
     <header>
         <h1>📅 SchedulePro</h1>
         <div class="header-buttons">
+            <select id="yearSelect" onchange="switchYear(this.value)" style="padding:8px 12px;border:2px solid #7c3aed;border-radius:6px;font-size:16px;font-weight:600;color:#7c3aed;background:white;cursor:pointer;margin-right:8px;"></select>
             <span id="syncStatus" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:#6b7280;margin-right:8px;">
                 <span id="syncDot" style="width:10px;height:10px;border-radius:50%;background:#9ca3af;display:inline-block;"></span>
                 <span id="syncText">Connecting...</span>
             </span>
-            <button class="btn btn-sm" onclick="pushToCloud()" title="Push local data to cloud">☁️ Push to Cloud</button>
             <button class="btn" onclick="document.getElementById('fileInput').click()">📁 Load Excel</button>
             <button class="btn" onclick="exportSchedule()">📤 Export</button>
             <button class="btn" onclick="exportContracts()">📄 Export Contracts</button>
@@ -1444,6 +1444,12 @@
         let coursesSortDirection = 'asc';
         let currentEditingCell = null;
 
+        // ==================== YEAR / SEASON ====================
+        const AVAILABLE_YEARS = [2026, 2027];
+        let activeYear = 2026;
+
+        function yearKey(base) { return activeYear + '_' + base; }
+
         // ==================== SUPABASE CONFIG ====================
         const SUPABASE_URL = 'https://lwwdhcdidukglsdqhnqp.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx3d2RoY2RpZHVrZ2xzZHFobnFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMzcwMzcsImV4cCI6MjA4ODYxMzAzN30.oMUx4EbCmqueJbdxYq3Zc37SQltaLP6K523rkhQqvJg';
@@ -1451,16 +1457,39 @@
         let supabaseConnected = false;
         let supabaseSaveTimer = null;
         let isApplyingRemoteUpdate = false;
+        let realtimeChannel = null;
 
         // ==================== INIT ====================
         document.addEventListener('DOMContentLoaded', async () => {
             setupTabs();
+            populateYearSelector();
             loadFromLocalStorage();
             await loadFromSupabase();
             setupRealtimeSubscription();
             render();
             updateSyncStatus();
         });
+
+        function populateYearSelector() {
+            const sel = document.getElementById('yearSelect');
+            sel.innerHTML = AVAILABLE_YEARS.map(y =>
+                `<option value="${y}" ${y === activeYear ? 'selected' : ''}>${y}</option>`
+            ).join('');
+        }
+
+        async function switchYear(year) {
+            year = parseInt(year);
+            if (year === activeYear) return;
+            activeYear = year;
+            selectedEventId = null;
+            loadFromLocalStorage();
+            await loadFromSupabase();
+            if (realtimeChannel) { sb.removeChannel(realtimeChannel); }
+            setupRealtimeSubscription();
+            render();
+            updateSyncStatus();
+            showToast(`Switched to ${year}`, 'success');
+        }
 
         function setupTabs() {
             document.querySelectorAll('.nav-tab').forEach(tab => {
@@ -3539,17 +3568,36 @@
         }
 
         // ==================== LOCAL STORAGE ====================
+
+        // One-time: migrate old un-prefixed localStorage keys to 2026_
+        (function migrateLocalStorage() {
+            const OLD_KEYS = {
+                'sp_events': '2026_sp_events', 'sp_courses': '2026_sp_courses',
+                'sp_away': '2026_sp_away', 'sp_schedule': '2026_sp_schedule',
+                'sp_shortlists': '2026_sp_shortlists', 'sp_log': '2026_sp_log',
+                'sp_slotNotes': '2026_sp_slotNotes', 'sp_shortlistNotes': '2026_sp_shortlistNotes',
+                'sp_eventNotes': '2026_sp_eventNotes'
+            };
+            for (const [old, nw] of Object.entries(OLD_KEYS)) {
+                const val = localStorage.getItem(old);
+                if (val !== null && localStorage.getItem(nw) === null) {
+                    localStorage.setItem(nw, val);
+                    localStorage.removeItem(old);
+                }
+            }
+        })();
+
         function saveToLocalStorage() {
             try {
-                localStorage.setItem('sp_events', JSON.stringify(events));
-                localStorage.setItem('sp_courses', JSON.stringify(courses));
-                localStorage.setItem('sp_away', JSON.stringify(instructorAway));
-                localStorage.setItem('sp_schedule', JSON.stringify(schedule));
-                localStorage.setItem('sp_shortlists', JSON.stringify(shortlists));
-                localStorage.setItem('sp_log', JSON.stringify(changeLog));
-                localStorage.setItem('sp_slotNotes', JSON.stringify(slotNotes));
-                localStorage.setItem('sp_shortlistNotes', JSON.stringify(shortlistNotes));
-                localStorage.setItem('sp_eventNotes', JSON.stringify(eventNotes));
+                localStorage.setItem(yearKey('sp_events'), JSON.stringify(events));
+                localStorage.setItem(yearKey('sp_courses'), JSON.stringify(courses));
+                localStorage.setItem(yearKey('sp_away'), JSON.stringify(instructorAway));
+                localStorage.setItem(yearKey('sp_schedule'), JSON.stringify(schedule));
+                localStorage.setItem(yearKey('sp_shortlists'), JSON.stringify(shortlists));
+                localStorage.setItem(yearKey('sp_log'), JSON.stringify(changeLog));
+                localStorage.setItem(yearKey('sp_slotNotes'), JSON.stringify(slotNotes));
+                localStorage.setItem(yearKey('sp_shortlistNotes'), JSON.stringify(shortlistNotes));
+                localStorage.setItem(yearKey('sp_eventNotes'), JSON.stringify(eventNotes));
             } catch (err) {}
             if (!isApplyingRemoteUpdate) {
                 debouncedSupabaseSave();
@@ -3558,15 +3606,15 @@
 
         function loadFromLocalStorage() {
             try {
-                events = JSON.parse(localStorage.getItem('sp_events')) || [];
-                courses = JSON.parse(localStorage.getItem('sp_courses')) || [];
-                instructorAway = JSON.parse(localStorage.getItem('sp_away')) || [];
-                schedule = JSON.parse(localStorage.getItem('sp_schedule')) || {};
-                shortlists = JSON.parse(localStorage.getItem('sp_shortlists')) || {};
-                changeLog = JSON.parse(localStorage.getItem('sp_log')) || [];
-                slotNotes = JSON.parse(localStorage.getItem('sp_slotNotes')) || {};
-                shortlistNotes = JSON.parse(localStorage.getItem('sp_shortlistNotes')) || {};
-                eventNotes = JSON.parse(localStorage.getItem('sp_eventNotes')) || {};
+                events = JSON.parse(localStorage.getItem(yearKey('sp_events'))) || [];
+                courses = JSON.parse(localStorage.getItem(yearKey('sp_courses'))) || [];
+                instructorAway = JSON.parse(localStorage.getItem(yearKey('sp_away'))) || [];
+                schedule = JSON.parse(localStorage.getItem(yearKey('sp_schedule'))) || {};
+                shortlists = JSON.parse(localStorage.getItem(yearKey('sp_shortlists'))) || {};
+                changeLog = JSON.parse(localStorage.getItem(yearKey('sp_log'))) || [];
+                slotNotes = JSON.parse(localStorage.getItem(yearKey('sp_slotNotes'))) || {};
+                shortlistNotes = JSON.parse(localStorage.getItem(yearKey('sp_shortlistNotes'))) || {};
+                eventNotes = JSON.parse(localStorage.getItem(yearKey('sp_eventNotes'))) || [];
                 
                 // Add default values for new event fields
                 events = events.map(ev => ({
@@ -3592,14 +3640,14 @@
         }
 
         function clearAllData() {
-            if (!confirm('Clear all data and start fresh?')) return;
-            localStorage.removeItem('sp_events');
-            localStorage.removeItem('sp_courses');
-            localStorage.removeItem('sp_away');
-            localStorage.removeItem('sp_schedule');
-            localStorage.removeItem('sp_shortlists');
-            localStorage.removeItem('sp_log');
-            localStorage.removeItem('sp_assignments');
+            if (!confirm(`Clear all ${activeYear} data and start fresh?`)) return;
+            localStorage.removeItem(yearKey('sp_events'));
+            localStorage.removeItem(yearKey('sp_courses'));
+            localStorage.removeItem(yearKey('sp_away'));
+            localStorage.removeItem(yearKey('sp_schedule'));
+            localStorage.removeItem(yearKey('sp_shortlists'));
+            localStorage.removeItem(yearKey('sp_log'));
+            localStorage.removeItem(yearKey('sp_assignments'));
             events = [];
             courses = [];
             instructorAway = [];
@@ -3643,24 +3691,44 @@
         });
 
         // ==================== SUPABASE SYNC ====================
+
+        // One-time migration: move old un-prefixed keys to 2026_ prefix
+        async function migrateOldKeys() {
+            try {
+                const OLD_KEYS = ['events','courses','instructor_away','schedule','shortlists','change_log','slot_notes','shortlist_notes','event_notes'];
+                const { data } = await sb.from('schedulepro_state').select('key, value').in('key', OLD_KEYS);
+                if (!data || data.length === 0) return;
+                const now = new Date().toISOString();
+                const inserts = data.map(row => ({ key: '2026_' + row.key, value: row.value, updated_at: now }));
+                await sb.from('schedulepro_state').upsert(inserts);
+                // Delete old un-prefixed rows
+                await sb.from('schedulepro_state').delete().in('key', OLD_KEYS);
+                console.log('Migrated old keys to 2026_ prefix');
+            } catch (err) {
+                console.warn('Migration check skipped:', err.message);
+            }
+        }
+
         async function loadFromSupabase() {
             try {
-                const { data, error } = await sb.from('schedulepro_state').select('key, value');
+                await migrateOldKeys();
+                const prefix = activeYear + '_%';
+                const { data, error } = await sb.from('schedulepro_state').select('key, value').like('key', prefix);
                 if (error) throw error;
 
                 if (data && data.length > 0) {
                     const stateMap = {};
                     for (const row of data) stateMap[row.key] = row.value;
 
-                    if (stateMap.events) events = stateMap.events;
-                    if (stateMap.courses) courses = stateMap.courses;
-                    if (stateMap.instructor_away) instructorAway = stateMap.instructor_away;
-                    if (stateMap.schedule) schedule = stateMap.schedule;
-                    if (stateMap.shortlists) shortlists = stateMap.shortlists;
-                    if (stateMap.change_log) changeLog = stateMap.change_log;
-                    if (stateMap.slot_notes) slotNotes = stateMap.slot_notes;
-                    if (stateMap.shortlist_notes) shortlistNotes = stateMap.shortlist_notes;
-                    if (stateMap.event_notes) eventNotes = stateMap.event_notes;
+                    if (stateMap[yearKey('events')]) events = stateMap[yearKey('events')];
+                    if (stateMap[yearKey('courses')]) courses = stateMap[yearKey('courses')];
+                    if (stateMap[yearKey('instructor_away')]) instructorAway = stateMap[yearKey('instructor_away')];
+                    if (stateMap[yearKey('schedule')]) schedule = stateMap[yearKey('schedule')];
+                    if (stateMap[yearKey('shortlists')]) shortlists = stateMap[yearKey('shortlists')];
+                    if (stateMap[yearKey('change_log')]) changeLog = stateMap[yearKey('change_log')];
+                    if (stateMap[yearKey('slot_notes')]) slotNotes = stateMap[yearKey('slot_notes')];
+                    if (stateMap[yearKey('shortlist_notes')]) shortlistNotes = stateMap[yearKey('shortlist_notes')];
+                    if (stateMap[yearKey('event_notes')]) eventNotes = stateMap[yearKey('event_notes')];
 
                     // Normalize events with default fields
                     events = events.map(ev => ({
@@ -3689,15 +3757,15 @@
             try {
                 const now = new Date().toISOString();
                 const { error } = await sb.from('schedulepro_state').upsert([
-                    { key: 'events', value: events, updated_at: now },
-                    { key: 'courses', value: courses, updated_at: now },
-                    { key: 'instructor_away', value: instructorAway, updated_at: now },
-                    { key: 'schedule', value: schedule, updated_at: now },
-                    { key: 'shortlists', value: shortlists, updated_at: now },
-                    { key: 'change_log', value: changeLog, updated_at: now },
-                    { key: 'slot_notes', value: slotNotes, updated_at: now },
-                    { key: 'shortlist_notes', value: shortlistNotes, updated_at: now },
-                    { key: 'event_notes', value: eventNotes, updated_at: now }
+                    { key: yearKey('events'), value: events, updated_at: now },
+                    { key: yearKey('courses'), value: courses, updated_at: now },
+                    { key: yearKey('instructor_away'), value: instructorAway, updated_at: now },
+                    { key: yearKey('schedule'), value: schedule, updated_at: now },
+                    { key: yearKey('shortlists'), value: shortlists, updated_at: now },
+                    { key: yearKey('change_log'), value: changeLog, updated_at: now },
+                    { key: yearKey('slot_notes'), value: slotNotes, updated_at: now },
+                    { key: yearKey('shortlist_notes'), value: shortlistNotes, updated_at: now },
+                    { key: yearKey('event_notes'), value: eventNotes, updated_at: now }
                 ]);
                 if (error) throw error;
                 updateSyncStatus('saved');
@@ -3714,17 +3782,20 @@
         }
 
         function setupRealtimeSubscription() {
-            sb.channel('schedulepro-sync')
+            realtimeChannel = sb.channel('schedulepro-sync-' + activeYear)
                 .on('postgres_changes', {
                     event: '*',
                     schema: 'public',
                     table: 'schedulepro_state'
                 }, (payload) => {
                     if (payload.new && !isApplyingRemoteUpdate) {
-                        isApplyingRemoteUpdate = true;
                         const key = payload.new.key;
+                        // Ignore updates for other years
+                        if (!key.startsWith(activeYear + '_')) return;
+                        isApplyingRemoteUpdate = true;
                         const value = payload.new.value;
-                        switch (key) {
+                        const field = key.substring(key.indexOf('_') + 1);
+                        switch (field) {
                             case 'events': events = value || []; events = events.map(ev => ({ Event_ID: ev.Event_ID || '', Event_Number: ev.Event_Number || '', Event: ev.Event || '', First_Event_Day: ev.First_Event_Day || '', Last_Event_Day: ev.Last_Event_Day || '', Mon_Date: ev.Mon_Date || '', Tues_Date: ev.Tues_Date || '', Wed_Date: ev.Wed_Date || '', Thurs_Date: ev.Thurs_Date || '', Location: ev.Location || '', Hotel: ev.Hotel || '', Early_Bird_Start: ev.Early_Bird_Start || '', Early_End_Date: ev.Early_End_Date || '', Room_Count: ev.Room_Count || 10, Total_Days: ev.Total_Days || 0 })); break;
                             case 'courses': courses = value || []; updateTopicFilter(); break;
                             case 'instructor_away': instructorAway = value || []; break;
@@ -3768,30 +3839,6 @@
             }
         }
 
-        async function pushToCloud() {
-            if (!confirm('Push current local data to cloud? This will overwrite cloud data.')) return;
-            try {
-                const now = new Date().toISOString();
-                const { error } = await sb.from('schedulepro_state').upsert([
-                    { key: 'events', value: events, updated_at: now },
-                    { key: 'courses', value: courses, updated_at: now },
-                    { key: 'instructor_away', value: instructorAway, updated_at: now },
-                    { key: 'schedule', value: schedule, updated_at: now },
-                    { key: 'shortlists', value: shortlists, updated_at: now },
-                    { key: 'change_log', value: changeLog, updated_at: now },
-                    { key: 'slot_notes', value: slotNotes, updated_at: now },
-                    { key: 'shortlist_notes', value: shortlistNotes, updated_at: now },
-                    { key: 'event_notes', value: eventNotes, updated_at: now }
-                ]);
-                if (error) throw error;
-                supabaseConnected = true;
-                updateSyncStatus('saved');
-                showToast('Data pushed to cloud', 'success');
-            } catch (err) {
-                console.error('Push to cloud failed:', err);
-                showToast('Failed to push to cloud: ' + err.message, 'error');
-            }
-        }
     </script>
 </body>
 </html>
