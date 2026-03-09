@@ -3966,15 +3966,18 @@
                     if (stateMap[yearKey('shortlist_notes')]) shortlistNotes = stateMap[yearKey('shortlist_notes')];
                     if (stateMap[yearKey('event_notes')]) eventNotes = stateMap[yearKey('event_notes')];
 
-                    // Normalize events with default fields
+                    // Normalize events — supports old and new field names
                     events = events.map(ev => ({
-                        Event_ID: ev.Event_ID || '', Event_Number: ev.Event_Number || '',
-                        Event: ev.Event || '', First_Event_Day: ev.First_Event_Day || '',
-                        Last_Event_Day: ev.Last_Event_Day || '', Mon_Date: ev.Mon_Date || '',
-                        Tues_Date: ev.Tues_Date || '', Wed_Date: ev.Wed_Date || '',
-                        Thurs_Date: ev.Thurs_Date || '', Location: ev.Location || '',
-                        Hotel: ev.Hotel || '', Early_Bird_Start: ev.Early_Bird_Start || '',
-                        Early_End_Date: ev.Early_End_Date || '', Room_Count: ev.Room_Count || 10,
+                        Event_ID: ev.Event_ID || ev.Event || '',
+                        Event: ev.Event || '',
+                        Location: ev.Location || '',
+                        Hotel_Location: ev.Hotel_Location || ev.Hotel || '',
+                        Room_Count: ev.Room_Count || 10,
+                        First_Event_Day: ev.First_Event_Day || '',
+                        Last_Event_Day: ev.Last_Event_Day || '',
+                        EarlyBird_Start_Date: ev.EarlyBird_Start_Date || ev.Early_Bird_Start || '',
+                        EarlyBird_End_Date: ev.EarlyBird_End_Date || ev.Early_End_Date || '',
+                        Notes: ev.Notes || '',
                         Total_Days: ev.Total_Days || 0
                     }));
 
