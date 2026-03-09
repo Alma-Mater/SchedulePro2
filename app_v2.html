@@ -1168,11 +1168,13 @@
                 <span id="syncText">Connecting...</span>
             </span>
             <button class="btn" onclick="document.getElementById('fileInput').click()">📁 Load Excel</button>
+            <button class="btn" onclick="document.getElementById('scheduleFileInput').click()">📅 Import Schedule</button>
             <button class="btn" onclick="exportSchedule()">📤 Export</button>
             <button class="btn" onclick="exportContracts()">📄 Export Contracts</button>
             <button class="btn btn-danger" onclick="clearAllData()">🗑️ Clear All</button>
         </div>
         <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="loadExcelFile(event)">
+        <input type="file" id="scheduleFileInput" accept=".xlsx,.xls,.csv" onchange="importExistingSchedule(event)">
         <input type="file" id="loadSessionInput" accept=".json" onchange="loadSession(event)">
     </header>
 
@@ -1571,6 +1573,89 @@
                 } catch (err) {
                     console.error(err);
                     showToast('Error loading file', 'error');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+            event.target.value = '';
+        }
+
+        // ==================== IMPORT EXISTING SCHEDULE ====================
+        function importExistingSchedule(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+                    if (!rows.length || !rows[0].hasOwnProperty('Course_ID') || !rows[0].hasOwnProperty('Event_ID')) {
+                        showToast('Invalid schedule file. Need columns: Course_ID, Event_ID, First_Day, Duration_Days, Room_Number', 'error');
+                        return;
+                    }
+
+                    let assigned = 0, drafted = 0, skipped = 0;
+
+                    for (const row of rows) {
+                        const courseId = String(row.Course_ID || '').trim();
+                        const eventId = String(row.Event_ID || '').trim();
+                        const duration = Math.ceil(parseFloat(row.Duration_Days) || 1);
+                        const roomNum = parseInt(row.Room_Number);
+                        let firstDay = '';
+                        if (row.First_Day instanceof Date) {
+                            firstDay = formatDateForStorage(row.First_Day);
+                        } else {
+                            firstDay = formatDateForStorage(String(row.First_Day || '').trim());
+                        }
+
+                        if (!courseId || !eventId) { skipped++; continue; }
+
+                        // Ensure event schedule structures exist
+                        if (!schedule[eventId]) schedule[eventId] = {};
+                        if (!shortlists[eventId]) shortlists[eventId] = [];
+
+                        // Calculate startDay from First_Day relative to event's First_Event_Day
+                        const ev = events.find(e => e.Event_ID === eventId);
+                        let startDay = 1;
+                        if (ev && firstDay) {
+                            const evStart = parseDate(ev.First_Event_Day);
+                            const courseStart = parseDate(firstDay);
+                            if (evStart && courseStart) {
+                                startDay = Math.round((courseStart - evStart) / (1000 * 60 * 60 * 24)) + 1;
+                                if (startDay < 1) startDay = 1;
+                            }
+                        }
+
+                        if (roomNum && roomNum > 0) {
+                            // Assign to room
+                            if (!schedule[eventId][roomNum]) schedule[eventId][roomNum] = [];
+                            // Skip if already assigned there
+                            const already = schedule[eventId][roomNum].some(a => a.courseId === courseId);
+                            if (!already) {
+                                schedule[eventId][roomNum].push({ courseId, startDay, duration, note: '' });
+                                assigned++;
+                            }
+                        } else {
+                            // No room — add to draft picks if not already there or assigned
+                            const alreadyDrafted = (shortlists[eventId] || []).includes(courseId);
+                            const alreadyAssigned = Object.values(schedule[eventId] || {}).some(room => room.some(a => a.courseId === courseId));
+                            if (!alreadyDrafted && !alreadyAssigned) {
+                                shortlists[eventId].push(courseId);
+                                drafted++;
+                            }
+                        }
+                    }
+
+                    addLogEntry('upload', null, null, `Imported schedule: ${file.name} (${assigned} assigned, ${drafted} drafted, ${skipped} skipped)`);
+                    saveToLocalStorage();
+                    render();
+                    showToast(`Imported: ${assigned} assigned, ${drafted} to draft picks`, 'success');
+                } catch (err) {
+                    console.error(err);
+                    showToast('Error importing schedule file', 'error');
                 }
             };
             reader.readAsArrayBuffer(file);
