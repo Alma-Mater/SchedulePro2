@@ -1623,7 +1623,14 @@
 
                     if (workbook.SheetNames.includes('Events')) {
                         const sheet = workbook.Sheets['Events'];
-                        const rawData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+                        const rawDataRaw = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+                        // Trim all column header names to handle invisible whitespace
+                        const rawData = rawDataRaw.map(row => {
+                            const clean = {};
+                            for (const k of Object.keys(row)) clean[k.trim()] = row[k];
+                            return clean;
+                        });
+                        if (rawData.length > 0) console.log('[SchedulePro] Events columns:', Object.keys(rawData[0]));
                         events = rawData.map((row, i) => ({
                             Event_ID: String(row.Event_ID || row.Event || `EV${String(i+1).padStart(3,'0')}`).trim(),
                             Event: String(row.Event || '').trim(),
@@ -3467,12 +3474,7 @@
             input.type = field === 'Room_Count' ? 'number' : 'text';
             if (field === 'Room_Count') { input.min = '1'; input.max = '50'; }
             input.value = val;
-            input.style.width = '100%';
-            input.style.boxSizing = 'border-box';
-            input.style.border = 'none';
-            input.style.padding = '0';
-            input.style.fontSize = 'inherit';
-            input.style.fontFamily = 'inherit';
+            input.style.cssText = 'width:100%;height:100%;box-sizing:border-box;border:none;padding:0;margin:0;font-size:inherit;font-family:inherit;background:transparent;outline:none;';
             
             // Add placeholder for date fields
             if (field.includes('Date')) {
@@ -4035,7 +4037,7 @@
                         const value = payload.new.value;
                         const field = key.substring(key.indexOf('_') + 1);
                         switch (field) {
-                            case 'events': events = value || []; events = events.map(ev => ({ Event_ID: ev.Event_ID || '', Event_Number: ev.Event_Number || '', Event: ev.Event || '', First_Event_Day: ev.First_Event_Day || '', Last_Event_Day: ev.Last_Event_Day || '', Mon_Date: ev.Mon_Date || '', Tues_Date: ev.Tues_Date || '', Wed_Date: ev.Wed_Date || '', Thurs_Date: ev.Thurs_Date || '', Location: ev.Location || '', Hotel: ev.Hotel || '', Early_Bird_Start: ev.Early_Bird_Start || '', Early_End_Date: ev.Early_End_Date || '', Room_Count: ev.Room_Count || 10, Total_Days: ev.Total_Days || 0 })); break;
+                            case 'events': events = (value || []).map(ev => ({ Event_ID: ev.Event_ID || ev.Event || '', Event: ev.Event || '', Location: ev.Location || '', Hotel_Location: ev.Hotel_Location || ev.Hotel || '', Room_Count: ev.Room_Count || 10, First_Event_Day: ev.First_Event_Day || '', Last_Event_Day: ev.Last_Event_Day || '', EarlyBird_Start_Date: ev.EarlyBird_Start_Date || ev.Early_Bird_Start || '', EarlyBird_End_Date: ev.EarlyBird_End_Date || ev.Early_End_Date || '', Notes: ev.Notes || '', Total_Days: ev.Total_Days || 0 })); break;
                             case 'courses': courses = value || []; updateTopicFilter(); break;
                             case 'instructor_away': instructorAway = value || []; break;
                             case 'schedule': schedule = value || {}; break;
@@ -4046,7 +4048,12 @@
                             case 'event_notes': eventNotes = value || {}; break;
                         }
                         saveToLocalStorage();
-                        render();
+                        // Don't destroy an active cell edit — defer the render
+                        if (currentEditingCell) {
+                            setTimeout(() => { if (!currentEditingCell) render(); }, 2000);
+                        } else {
+                            render();
+                        }
                         isApplyingRemoteUpdate = false;
                     }
                 })
