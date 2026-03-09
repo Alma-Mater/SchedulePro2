@@ -1392,17 +1392,16 @@
                     <table class="data-table" id="eventsTable">
                         <thead>
                             <tr>
-                                <th style="background: #c084fc; color: white;">Event #</th>
-                                <th style="background: #c084fc; color: white;">EVENT LOCATION</th>
+                                <th style="background: #c084fc; color: white;">Event</th>
+                                <th style="background: #c084fc; color: white;">Location</th>
+                                <th style="background: #c084fc; color: white;">Hotel</th>
                                 <th style="background: #c084fc; color: white; text-align:center;">Rooms</th>
-                                <th style="background: #c084fc; color: white;">Mon</th>
-                                <th style="background: #c084fc; color: white;">Tues</th>
-                                <th style="background: #c084fc; color: white;">Wed</th>
-                                <th style="background: #c084fc; color: white;">Thurs</th>
-                                <th style="background: #c084fc; color: white;">HOTEL - Location</th>
-                                <th style="background: #facc15; color: black;">Early bird start</th>
-                                <th style="background: #facc15; color: black;">Early End date</th>
-                                <th style="width: 80px;">Actions</th>
+                                <th style="background: #c084fc; color: white;">First Day</th>
+                                <th style="background: #c084fc; color: white;">Last Day</th>
+                                <th style="background: #facc15; color: black;">Early Bird Start</th>
+                                <th style="background: #facc15; color: black;">Early Bird End</th>
+                                <th style="background: #e5e7eb; color: #374151;">Notes</th>
+                                <th style="width: 60px;">Del</th>
                             </tr>
                         </thead>
                         <tbody id="eventsTableBody"></tbody>
@@ -1625,25 +1624,22 @@
                     if (workbook.SheetNames.includes('Events')) {
                         const sheet = workbook.Sheets['Events'];
                         const rawData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-                        events = rawData.map(row => ({
-                            Event_ID: String(row.Event_ID || '').trim(),
-                            Event_Number: String(row.Event_Number || '').trim(),
+                        events = rawData.map((row, i) => ({
+                            Event_ID: String(row.Event_ID || row.Event || `EV${String(i+1).padStart(3,'0')}`).trim(),
                             Event: String(row.Event || '').trim(),
+                            Location: String(row.Location || '').trim(),
+                            Hotel_Location: String(row.Hotel_Location || row.Hotel || row['HOTEL - Location'] || '').trim(),
+                            Room_Count: parseInt(row.Room_Count) || 10,
                             First_Event_Day: formatDateForStorage(row.First_Event_Day),
                             Last_Event_Day: formatDateForStorage(row.Last_Event_Day),
-                            Mon_Date: formatDateForStorage(row.Mon_Date || row.Mon),
-                            Tues_Date: formatDateForStorage(row.Tues_Date || row.Tues),
-                            Wed_Date: formatDateForStorage(row.Wed_Date || row.Wed),
-                            Thurs_Date: formatDateForStorage(row.Thurs_Date || row.Thurs),
-                            Location: String(row.Location || '').trim(),
-                            Hotel: String(row.Hotel || row['HOTEL - Location'] || '').trim(),
-                            Early_Bird_Start: String(row.Early_Bird_Start || row['Early bird start'] || '').trim(),
-                            Early_End_Date: formatDateForStorage(row.Early_End_Date || row['Early End date']),
-                            Room_Count: parseInt(row.Room_Count) || 10,
+                            EarlyBird_Start_Date: String(row.EarlyBird_Start_Date || row.Early_Bird_Start || row['Early bird start'] || '').trim(),
+                            EarlyBird_End_Date: formatDateForStorage(row.EarlyBird_End_Date || row.Early_End_Date || row['Early End date']),
+                            Notes: String(row.Notes || '').trim(),
                             Total_Days: parseInt(row.Total_Days) || 0
-                        })).filter(e => e.Event_ID);
+                        })).filter(e => e.Event);
                         
                         events.forEach(ev => {
+                            if (!ev.Event_ID) ev.Event_ID = ev.Event;
                             if (!ev.Total_Days) ev.Total_Days = calculateDays(ev.First_Event_Day, ev.Last_Event_Day);
                             if (!schedule[ev.Event_ID]) schedule[ev.Event_ID] = {};
                             if (!shortlists[ev.Event_ID]) shortlists[ev.Event_ID] = [];
@@ -1723,11 +1719,11 @@
                             const firstDay = info.minDate ? formatDateForStorage(info.minDate) : '';
                             const lastDay = info.maxDate ? formatDateForStorage(info.maxDate) : '';
                             events.push({
-                                Event_ID: eventId, Event_Number: eventId.replace(/\D/g, ''),
-                                Event: eventId, First_Event_Day: firstDay, Last_Event_Day: lastDay,
-                                Mon_Date: '', Tues_Date: '', Wed_Date: '', Thurs_Date: '',
-                                Location: '', Hotel: '', Early_Bird_Start: '', Early_End_Date: '',
+                                Event_ID: eventId,
+                                Event: eventId, Location: '', Hotel_Location: '',
                                 Room_Count: Math.max(info.maxRoom, 10),
+                                First_Event_Day: firstDay, Last_Event_Day: lastDay,
+                                EarlyBird_Start_Date: '', EarlyBird_End_Date: '', Notes: '',
                                 Total_Days: calculateDays(firstDay, lastDay)
                             });
                             eventsCreated++;
@@ -3387,28 +3383,19 @@
             
             // Render existing events
             events.forEach((ev, idx) => {
-                // Build event location display: "EventName - Location"
-                let eventLocation = '';
-                if (ev.Event) eventLocation += ev.Event;
-                if (ev.Location) {
-                    if (eventLocation) eventLocation += ' - ';
-                    eventLocation += ev.Location;
-                }
-                
                 html += `
                     <tr>
-                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Event_Number', this)">${ev.Event_Number || ''}</td>
-                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Event_Location', this)" style="font-weight: 600;">${eventLocation || ''}</td>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Event', this)" style="font-weight:600;">${ev.Event || ''}</td>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Location', this)">${ev.Location || ''}</td>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Hotel_Location', this)">${ev.Hotel_Location || ''}</td>
                         <td class="editable-cell" onclick="editEventCell(${idx}, 'Room_Count', this)" style="text-align:center;">${ev.Room_Count || ''}</td>
-                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Mon_Date', this)">${ev.Mon_Date || ''}</td>
-                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Tues_Date', this)">${ev.Tues_Date || ''}</td>
-                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Wed_Date', this)">${ev.Wed_Date || ''}</td>
-                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Thurs_Date', this)">${ev.Thurs_Date || ''}</td>
-                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Hotel', this)">${ev.Hotel || ''}</td>
-                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Early_Bird_Start', this)">${ev.Early_Bird_Start || ''}</td>
-                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Early_End_Date', this)">${ev.Early_End_Date || ''}</td>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'First_Event_Day', this)">${ev.First_Event_Day || ''}</td>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Last_Event_Day', this)">${ev.Last_Event_Day || ''}</td>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'EarlyBird_Start_Date', this)">${ev.EarlyBird_Start_Date || ''}</td>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'EarlyBird_End_Date', this)">${ev.EarlyBird_End_Date || ''}</td>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Notes', this)">${ev.Notes || ''}</td>
                         <td>
-                            <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteEventRow(${idx})" style="padding: 6px 12px;">✕</button>
+                            <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteEventRow(${idx})" style="padding: 6px 10px;">✕</button>
                         </td>
                     </tr>
                 `;
@@ -3419,16 +3406,15 @@
                 const blankIdx = events.length + i;
                 html += `
                     <tr style="background: white;">
-                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Event_Number', this, true)"></td>
-                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Event_Location', this, true)"></td>
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Event', this, true)"></td>
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Location', this, true)"></td>
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Hotel_Location', this, true)"></td>
                         <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Room_Count', this, true)" style="text-align:center;"></td>
-                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Mon_Date', this, true)"></td>
-                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Tues_Date', this, true)"></td>
-                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Wed_Date', this, true)"></td>
-                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Thurs_Date', this, true)"></td>
-                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Hotel', this, true)"></td>
-                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Early_Bird_Start', this, true)"></td>
-                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Early_End_Date', this, true)"></td>
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'First_Event_Day', this, true)"></td>
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Last_Event_Day', this, true)"></td>
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'EarlyBird_Start_Date', this, true)"></td>
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'EarlyBird_End_Date', this, true)"></td>
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Notes', this, true)"></td>
                         <td></td>
                     </tr>
                 `;
@@ -3457,19 +3443,15 @@
                 const newEventId = `EV${String(events.length + 1).padStart(3, '0')}`;
                 events.push({
                     Event_ID: newEventId,
-                    Event_Number: '',
                     Event: '',
+                    Location: '',
+                    Hotel_Location: '',
+                    Room_Count: 10,
                     First_Event_Day: '',
                     Last_Event_Day: '',
-                    Mon_Date: '',
-                    Tues_Date: '',
-                    Wed_Date: '',
-                    Thurs_Date: '',
-                    Location: '',
-                    Hotel: '',
-                    Early_Bird_Start: '',
-                    Early_End_Date: '',
-                    Room_Count: 10,
+                    EarlyBird_Start_Date: '',
+                    EarlyBird_End_Date: '',
+                    Notes: '',
                     Total_Days: 4
                 });
                 schedule[newEventId] = {};
@@ -3479,18 +3461,7 @@
             const event = events[idx];
             if (!event) return;
             
-            let val = '';
-            
-            // Handle composite Event_Location field
-            if (field === 'Event_Location') {
-                val = `${event.Event || ''}`;
-                if (event.Location) {
-                    if (val) val += ' - ';
-                    val += event.Location;
-                }
-            } else {
-                val = event[field] || '';
-            }
+            let val = event[field] !== undefined ? String(event[field]) : '';
             
             const input = document.createElement('input');
             input.type = field === 'Room_Count' ? 'number' : 'text';
@@ -3517,56 +3488,13 @@
             const saveData = () => {
                 let newVal = input.value.trim();
                 
-                if (field === 'Event_Location') {
-                    // Parse the event location back into components
-                    const match = newVal.match(/^(.+?)\s+-\s+(.+)$/);
-                    if (match) {
-                        event.Event = match[1].trim();
-                        event.Location = match[2].trim();
-                    } else {
-                        event.Event = newVal;
-                        event.Location = '';
-                    }
-                } else if (field === 'Room_Count') {
+                if (field === 'Room_Count') {
                     event[field] = parseInt(newVal) || 10;
+                } else if (field === 'First_Event_Day' || field === 'Last_Event_Day') {
+                    event[field] = newVal;
+                    event.Total_Days = calculateDays(event.First_Event_Day, event.Last_Event_Day);
                 } else {
                     event[field] = newVal;
-                    
-                    // Auto-populate subsequent days if editing Mon_Date
-                    if (field === 'Mon_Date' && newVal) {
-                        // Validate YYYY-MM-DD format
-                        const dateMatch = newVal.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-                        if (dateMatch) {
-                            const year = parseInt(dateMatch[1]);
-                            const month = parseInt(dateMatch[2]);
-                            const day = parseInt(dateMatch[3]);
-                            
-                            // Create date at noon local time to avoid timezone issues
-                            const date = new Date(year, month - 1, day, 12, 0, 0);
-                            
-                            if (!isNaN(date.getTime())) {
-                                // Calculate next 3 days
-                                const tues = new Date(date);
-                                tues.setDate(tues.getDate() + 1);
-                                const wed = new Date(date);
-                                wed.setDate(wed.getDate() + 2);
-                                const thurs = new Date(date);
-                                thurs.setDate(thurs.getDate() + 3);
-                                
-                                // Format as YYYY-MM-DD
-                                const formatDate = (d) => {
-                                    const year = d.getFullYear();
-                                    const month = String(d.getMonth() + 1).padStart(2, '0');
-                                    const day = String(d.getDate()).padStart(2, '0');
-                                    return `${year}-${month}-${day}`;
-                                };
-                                
-                                event.Tues_Date = formatDate(tues);
-                                event.Wed_Date = formatDate(wed);
-                                event.Thurs_Date = formatDate(thurs);
-                            }
-                        }
-                    }
                 }
                 
                 saveToLocalStorage();
@@ -3684,13 +3612,18 @@
 
             if (editId) {
                 const idx = events.findIndex(e => e.Event_ID === editId);
-                if (idx !== -1) events[idx] = eventData;
+                if (idx !== -1) {
+                    // Preserve fields not editable in the modal
+                    events[idx] = Object.assign({}, events[idx], eventData);
+                }
             } else {
                 if (events.find(e => e.Event_ID === eventData.Event_ID)) {
                     showToast('Event ID exists', 'error');
                     return;
                 }
-                events.push(eventData);
+                events.push(Object.assign({
+                    Hotel_Location: '', EarlyBird_Start_Date: '', EarlyBird_End_Date: '', Notes: ''
+                }, eventData));
                 schedule[eventData.Event_ID] = {};
                 shortlists[eventData.Event_ID] = [];
             }
@@ -3923,22 +3856,18 @@
                 shortlistNotes = JSON.parse(localStorage.getItem(yearKey('sp_shortlistNotes'))) || {};
                 eventNotes = JSON.parse(localStorage.getItem(yearKey('sp_eventNotes'))) || [];
                 
-                // Add default values for new event fields
+                // Normalise event fields (supports old & new field names)
                 events = events.map(ev => ({
-                    Event_ID: ev.Event_ID || '',
-                    Event_Number: ev.Event_Number || '',
+                    Event_ID: ev.Event_ID || ev.Event || '',
                     Event: ev.Event || '',
+                    Location: ev.Location || '',
+                    Hotel_Location: ev.Hotel_Location || ev.Hotel || '',
+                    Room_Count: ev.Room_Count || 10,
                     First_Event_Day: ev.First_Event_Day || '',
                     Last_Event_Day: ev.Last_Event_Day || '',
-                    Mon_Date: ev.Mon_Date || '',
-                    Tues_Date: ev.Tues_Date || '',
-                    Wed_Date: ev.Wed_Date || '',
-                    Thurs_Date: ev.Thurs_Date || '',
-                    Location: ev.Location || '',
-                    Hotel: ev.Hotel || '',
-                    Early_Bird_Start: ev.Early_Bird_Start || '',
-                    Early_End_Date: ev.Early_End_Date || '',
-                    Room_Count: ev.Room_Count || 10,
+                    EarlyBird_Start_Date: ev.EarlyBird_Start_Date || ev.Early_Bird_Start || '',
+                    EarlyBird_End_Date: ev.EarlyBird_End_Date || ev.Early_End_Date || '',
+                    Notes: ev.Notes || '',
                     Total_Days: ev.Total_Days || 0
                 }));
                 
