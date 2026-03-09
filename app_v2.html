@@ -1155,6 +1155,79 @@
                 display: none;
             }
         }
+
+        /* ========== WORKFLOW GUIDE ========== */
+        .workflow-guide {
+            background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+            border-bottom: 2px solid #ddd6fe;
+            padding: 12px 20px;
+            display: flex;
+            align-items: stretch;
+            gap: 0;
+            flex-shrink: 0;
+        }
+        .workflow-guide.hidden { display: none; }
+        .workflow-step {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .workflow-step:hover { background: rgba(124,58,237,0.07); }
+        .workflow-step-num {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #e5e7eb;
+            color: #9ca3af;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            flex-shrink: 0;
+            transition: background 0.2s, color 0.2s;
+        }
+        .workflow-step.completed .workflow-step-num { background: #10b981; color: white; }
+        .workflow-step.active .workflow-step-num   { background: #7c3aed; color: white; }
+        .workflow-step.active { background: white; box-shadow: 0 1px 6px rgba(124,58,237,0.18); }
+        .workflow-step-title {
+            font-weight: 700;
+            font-size: 13px;
+            color: #374151;
+            line-height: 1.3;
+        }
+        .workflow-step.active .workflow-step-title    { color: #7c3aed; }
+        .workflow-step.completed .workflow-step-title { color: #059669; }
+        .workflow-step-desc {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 2px;
+            line-height: 1.3;
+        }
+        .workflow-arrow {
+            color: #c4b5fd;
+            font-size: 22px;
+            display: flex;
+            align-items: center;
+            padding: 0 2px;
+            flex-shrink: 0;
+        }
+        .workflow-dismiss {
+            background: none;
+            border: none;
+            color: #9ca3af;
+            cursor: pointer;
+            font-size: 20px;
+            padding: 4px 8px;
+            align-self: flex-start;
+            line-height: 1;
+        }
+        .workflow-dismiss:hover { color: #374151; }
     </style>
 </head>
 <body>
@@ -1211,6 +1284,34 @@
                 <div class="nav-tab" data-tab="courses">Courses</div>
                 <div class="nav-tab" data-tab="availability">Instructors</div>
                 <div class="nav-tab" data-tab="log">Change Log</div>
+            </div>
+
+            <!-- WORKFLOW GUIDE STRIP -->
+            <div class="workflow-guide" id="workflowGuide">
+                <div class="workflow-step pending" id="wfStep1" onclick="goToStep(1)">
+                    <div class="workflow-step-num" id="wfNum1">1</div>
+                    <div>
+                        <div class="workflow-step-title">Add Events &amp; Dates</div>
+                        <div class="workflow-step-desc" id="wfDesc1">Events tab → add event name, location &amp; dates</div>
+                    </div>
+                </div>
+                <div class="workflow-arrow">›</div>
+                <div class="workflow-step pending" id="wfStep2" onclick="goToStep(2)">
+                    <div class="workflow-step-num" id="wfNum2">2</div>
+                    <div>
+                        <div class="workflow-step-title">Set Number of Rooms</div>
+                        <div class="workflow-step-desc" id="wfDesc2">Edit the Rooms column in the Events tab</div>
+                    </div>
+                </div>
+                <div class="workflow-arrow">›</div>
+                <div class="workflow-step pending" id="wfStep3" onclick="goToStep(3)">
+                    <div class="workflow-step-num" id="wfNum3">3</div>
+                    <div>
+                        <div class="workflow-step-title">Assign &amp; Auto-Fill</div>
+                        <div class="workflow-step-desc" id="wfDesc3">Schedule tab → Draft Picks → 🔄 Auto-Fill</div>
+                    </div>
+                </div>
+                <button class="workflow-dismiss" onclick="dismissWorkflowGuide()" title="Dismiss guide">×</button>
             </div>
 
             <div class="tab-panels">
@@ -1284,12 +1385,16 @@
 
                 <!-- EVENTS TAB -->
                 <div class="tab-panel" id="tab-events">
-                    <p style="margin-bottom: 16px; color: #6b7280;">Click any cell to edit. Changes save automatically when you click away or press Enter.</p>
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+                        <p style="color:#6b7280;">Click any cell to edit inline. Changes save automatically.</p>
+                        <button class="btn btn-primary btn-sm" onclick="showAddEventModal()">+ Add Event</button>
+                    </div>
                     <table class="data-table" id="eventsTable">
                         <thead>
                             <tr>
                                 <th style="background: #c084fc; color: white;">Event #</th>
                                 <th style="background: #c084fc; color: white;">EVENT LOCATION</th>
+                                <th style="background: #c084fc; color: white; text-align:center;">Rooms</th>
                                 <th style="background: #c084fc; color: white;">Mon</th>
                                 <th style="background: #c084fc; color: white;">Tues</th>
                                 <th style="background: #c084fc; color: white;">Wed</th>
@@ -1491,6 +1596,8 @@
             render();
             updateSyncStatus();
             showToast(`Switched to ${year}`, 'success');
+            // Auto-navigate to Events tab when the year has no events yet
+            if (events.length === 0) goToStep(1);
         }
 
         function setupTabs() {
@@ -1757,7 +1864,70 @@
         }
 
         // ==================== RENDERING ====================
+        // ==================== WORKFLOW GUIDE ====================
+        let workflowGuideDismissed = false;
+
+        function renderWorkflowGuide() {
+            const guide = document.getElementById('workflowGuide');
+            if (!guide) return;
+            if (workflowGuideDismissed) { guide.classList.add('hidden'); return; }
+            guide.classList.remove('hidden');
+
+            const step1Done = events.length > 0;
+            const eventsWithRooms = step1Done ? events.filter(e => parseInt(e.Room_Count) > 0).length : 0;
+            const step2Done = step1Done && eventsWithRooms === events.length;
+            const anyAssigned = step2Done && Object.values(schedule).some(ev =>
+                ev && Object.values(ev).some(room =>
+                    room && typeof room === 'object' && Object.values(room).some(v => v)
+                )
+            );
+            const step3Done = anyAssigned;
+            const activeStep = !step1Done ? 1 : !step2Done ? 2 : !step3Done ? 3 : 3;
+
+            [1, 2, 3].forEach(i => {
+                const stepEl = document.getElementById('wfStep' + i);
+                const numEl  = document.getElementById('wfNum'  + i);
+                const done     = i === 1 ? step1Done : i === 2 ? step2Done : step3Done;
+                const isActive = !done && i === activeStep;
+                stepEl.className = 'workflow-step ' + (done ? 'completed' : isActive ? 'active' : 'pending');
+                numEl.textContent = done ? '✓' : String(i);
+            });
+
+            document.getElementById('wfDesc1').textContent = step1Done
+                ? `${events.length} event${events.length !== 1 ? 's' : ''} added ✓`
+                : 'Events tab → add event name, location & dates';
+
+            document.getElementById('wfDesc2').textContent = step2Done
+                ? 'All events have rooms set ✓'
+                : step1Done
+                    ? `${eventsWithRooms}/${events.length} events have rooms — edit the Rooms column`
+                    : 'Complete Step 1 first';
+
+            document.getElementById('wfDesc3').textContent = step3Done
+                ? 'Courses scheduled ✓'
+                : step2Done
+                    ? 'Schedule tab → add courses to Draft Picks → click 🔄 Auto-Fill'
+                    : 'Complete Steps 1 & 2 first';
+        }
+
+        function goToStep(step) {
+            const tabName = step <= 2 ? 'events' : 'schedule';
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            const tab   = document.querySelector(`.nav-tab[data-tab="${tabName}"]`);
+            const panel = document.getElementById('tab-' + tabName);
+            if (tab)   tab.classList.add('active');
+            if (panel) panel.classList.add('active');
+        }
+
+        function dismissWorkflowGuide() {
+            workflowGuideDismissed = true;
+            const guide = document.getElementById('workflowGuide');
+            if (guide) guide.classList.add('hidden');
+        }
+
         function render() {
+            renderWorkflowGuide();
             renderEventSelector();
             renderCourseList();
             renderSelectedEvent();
@@ -1771,7 +1941,7 @@
             const container = document.getElementById('eventSelector');
             
             if (events.length === 0) {
-                container.innerHTML = `<div class="empty-state"><h3>No events loaded</h3><p>Load an Excel file to get started</p></div>`;
+                container.innerHTML = `<div class="empty-state"><h3>No events yet for ${activeYear}</h3><p><strong>Step 1:</strong> Go to the Events tab to add your events &amp; dates.<br><strong>Step 2:</strong> Set the room count for each event.<br>Then come back here for Step 3.</p><button class="btn btn-primary btn-sm" onclick="goToStep(1)" style="margin-top:12px;">→ Go to Events Tab</button></div>`;
                 return;
             }
 
@@ -3229,6 +3399,7 @@
                     <tr>
                         <td class="editable-cell" onclick="editEventCell(${idx}, 'Event_Number', this)">${ev.Event_Number || ''}</td>
                         <td class="editable-cell" onclick="editEventCell(${idx}, 'Event_Location', this)" style="font-weight: 600;">${eventLocation || ''}</td>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Room_Count', this)" style="text-align:center;">${ev.Room_Count || ''}</td>
                         <td class="editable-cell" onclick="editEventCell(${idx}, 'Mon_Date', this)">${ev.Mon_Date || ''}</td>
                         <td class="editable-cell" onclick="editEventCell(${idx}, 'Tues_Date', this)">${ev.Tues_Date || ''}</td>
                         <td class="editable-cell" onclick="editEventCell(${idx}, 'Wed_Date', this)">${ev.Wed_Date || ''}</td>
@@ -3250,6 +3421,7 @@
                     <tr style="background: white;">
                         <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Event_Number', this, true)"></td>
                         <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Event_Location', this, true)"></td>
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Room_Count', this, true)" style="text-align:center;"></td>
                         <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Mon_Date', this, true)"></td>
                         <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Tues_Date', this, true)"></td>
                         <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Wed_Date', this, true)"></td>
@@ -3321,7 +3493,8 @@
             }
             
             const input = document.createElement('input');
-            input.type = 'text';
+            input.type = field === 'Room_Count' ? 'number' : 'text';
+            if (field === 'Room_Count') { input.min = '1'; input.max = '50'; }
             input.value = val;
             input.style.width = '100%';
             input.style.boxSizing = 'border-box';
@@ -3354,6 +3527,8 @@
                         event.Event = newVal;
                         event.Location = '';
                     }
+                } else if (field === 'Room_Count') {
+                    event[field] = parseInt(newVal) || 10;
                 } else {
                     event[field] = newVal;
                     
