@@ -1,0 +1,28 @@
+2026-02-10
+
+Tasks
+
+Modify availability
+o We should allow the user to toggle showing draft/undraft in the change log, but default to not showing them
+
+oWant a tab view showing modifiable instructor availability 
+
+We want a reports tab:
+	All registered course counts for the whole year by instructor (count of total courses, and total unique courses)
+	Show all drafted courses for the year by event, by instructor
+
+~Want to allow notes for changes
+o can change notes column
+	
+
+Export 
+	o contracts
+	CSI ticket report in Excel
+	Excel file exactly like that
+	email notice of cancellation
+
+Add event #s
+
+lock button on events
+
+maybe need version control make a new CSI export ID for each export with timestamp of the export / snapshot
