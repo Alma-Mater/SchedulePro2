@@ -4211,6 +4211,7 @@
                 if (error) throw error;
                 updateSyncStatus('saved');
             } catch (err) {
+                supabaseConnected = false;
                 console.warn('Supabase save failed:', err.message);
                 updateSyncStatus('error');
             }
@@ -4258,7 +4259,7 @@
                     }
                 })
                 .subscribe((status) => {
-                    supabaseConnected = (status === 'SUBSCRIBED');
+                    if (status === 'SUBSCRIBED') supabaseConnected = true;
                     updateSyncStatus();
                 });
         }
