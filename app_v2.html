@@ -1275,7 +1275,6 @@
             <button class="btn" onclick="exportSchedule()">📤 Export</button>
             <button class="btn" onclick="exportContracts()">📄 Export Contracts</button>
             <button class="btn" id="trackingBtn" onclick="toggleTracking()" style="background:#16a34a;color:white;border-color:#15803d;font-weight:600;">💾 SAVE (Start Tracking Changes)</button>
-            <button class="btn btn-danger" onclick="clearAllData()">🗑️ Clear All</button>
         </div>
         <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="loadExcelFile(event)">
         <input type="file" id="scheduleFileInput" accept=".xlsx,.xls,.csv" onchange="importExistingSchedule(event)">
@@ -1378,7 +1377,6 @@
                                         <div class="event-actions">
                                             <button class="btn btn-sm btn-primary" onclick="autoPopulateRooms()" id="autoFillBtn">🔄 Auto-Fill Draft</button>
                                             <button class="btn btn-sm btn-danger" onclick="clearDraftPicks()">🗑️ Clear Draft</button>
-                                            <button class="btn btn-sm btn-danger" onclick="clearEventSchedule()">🗑️ Clear All Assigned</button>
                                         </div>
 
                                         <!-- Draft Picks -->
