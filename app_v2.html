@@ -1274,6 +1274,7 @@
             <button class="btn" onclick="document.getElementById('scheduleFileInput').click()">📅 Import Schedule</button>
             <button class="btn" onclick="exportSchedule()">📤 Export</button>
             <button class="btn" onclick="exportContracts()">📄 Export Contracts</button>
+            <button class="btn" id="trackingBtn" onclick="toggleTracking()" style="background:#16a34a;color:white;border-color:#15803d;font-weight:600;">💾 SAVE (Start Tracking Changes)</button>
             <button class="btn btn-danger" onclick="clearAllData()">🗑️ Clear All</button>
         </div>
         <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="loadExcelFile(event)">
@@ -1584,6 +1585,7 @@
         let shortlistNotes = {}; // Notes for shortlist items: {eventId: {courseId: 'note'}}
         let eventNotes = {}; // General notes for each event: {eventId: 'note'}
         let changeLog = [];
+        let trackingEnabled = false;
         let selectedEventId = null;
         let selectedDurations = [];
         let coursesSortColumn = null;
@@ -3805,6 +3807,7 @@
         let showDraftUndraftInLog = false;
 
         function addLogEntry(action, eventId, courseId, description, before = '', after = '', notes = '', instructorOverride = null) {
+            if (!trackingEnabled) return;
             const course = courseId ? courses.find(c => c.Course_ID === courseId) : null;
             const now = new Date();
             changeLog.push({
@@ -3821,6 +3824,27 @@
                 notes
             });
             saveToLocalStorage();
+        }
+
+        function toggleTracking() {
+            trackingEnabled = !trackingEnabled;
+            updateTrackingButton();
+            saveToLocalStorage();
+            showToast(trackingEnabled ? 'Change tracking started' : 'Change tracking paused', 'success');
+        }
+
+        function updateTrackingButton() {
+            const btn = document.getElementById('trackingBtn');
+            if (!btn) return;
+            if (trackingEnabled) {
+                btn.textContent = '🟢 Tracking Active';
+                btn.style.background = '#7c3aed';
+                btn.style.borderColor = '#6d28d9';
+            } else {
+                btn.textContent = '💾 SAVE (Start Tracking Changes)';
+                btn.style.background = '#16a34a';
+                btn.style.borderColor = '#15803d';
+            }
         }
 
         function clearChangeLog() {
@@ -4000,6 +4024,7 @@
                 localStorage.setItem(yearKey('sp_schedule'), JSON.stringify(schedule));
                 localStorage.setItem(yearKey('sp_shortlists'), JSON.stringify(shortlists));
                 localStorage.setItem(yearKey('sp_log'), JSON.stringify(changeLog));
+                localStorage.setItem(yearKey('sp_tracking'), JSON.stringify(trackingEnabled));
                 localStorage.setItem(yearKey('sp_slotNotes'), JSON.stringify(slotNotes));
                 localStorage.setItem(yearKey('sp_shortlistNotes'), JSON.stringify(shortlistNotes));
                 localStorage.setItem(yearKey('sp_eventNotes'), JSON.stringify(eventNotes));
@@ -4017,6 +4042,7 @@
                 schedule = JSON.parse(localStorage.getItem(yearKey('sp_schedule'))) || {};
                 shortlists = JSON.parse(localStorage.getItem(yearKey('sp_shortlists'))) || {};
                 changeLog = JSON.parse(localStorage.getItem(yearKey('sp_log'))) || [];
+                trackingEnabled = JSON.parse(localStorage.getItem(yearKey('sp_tracking'))) || false;
                 slotNotes = JSON.parse(localStorage.getItem(yearKey('sp_slotNotes'))) || {};
                 shortlistNotes = JSON.parse(localStorage.getItem(yearKey('sp_shortlistNotes'))) || {};
                 eventNotes = JSON.parse(localStorage.getItem(yearKey('sp_eventNotes'))) || [];
@@ -4037,6 +4063,7 @@
                 }));
                 
                 updateTopicFilter();
+                updateTrackingButton();
             } catch (err) {}
         }
 
