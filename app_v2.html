@@ -1431,7 +1431,7 @@
                     <table class="data-table" id="eventsTable">
                         <thead>
                             <tr>
-                                <th style="background: #c084fc; color: white;">Event</th>
+                                <th style="background: #c084fc; color: white; min-width: 200px;">Event</th>
                                 <th style="background: #c084fc; color: white;">Location</th>
                                 <th style="background: #c084fc; color: white;">Hotel</th>
                                 <th style="background: #c084fc; color: white; text-align:center;">Rooms</th>
@@ -3557,14 +3557,14 @@
             events.forEach((ev, idx) => {
                 html += `
                     <tr>
-                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Event', this)" style="font-weight:600;">${ev.Event || ''}</td>
-                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Location', this)">${ev.Location || ''}</td>
-                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Hotel_Location', this)">${ev.Hotel_Location || ''}</td>
-                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Room_Count', this)" style="text-align:center;">${ev.Room_Count || ''}</td>
-                        <td class="editable-cell" onclick="editEventCell(${idx}, 'First_Event_Day', this)">${ev.First_Event_Day || ''}</td>
-                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Last_Event_Day', this)">${ev.Last_Event_Day || ''}</td>
-                        <td class="editable-cell" onclick="editEventCell(${idx}, 'EarlyBird_End_Date', this)">${ev.EarlyBird_End_Date || ''}</td>
-                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Notes', this)">${ev.Notes || ''}</td>
+                        <td class="editable-cell" data-evtidx="${idx}" data-evtfield="Event" onclick="editEventCell(${idx}, 'Event', this)" style="font-weight:600; min-width:200px;">${ev.Event || ''}</td>
+                        <td class="editable-cell" data-evtidx="${idx}" data-evtfield="Location" onclick="editEventCell(${idx}, 'Location', this)">${ev.Location || ''}</td>
+                        <td class="editable-cell" data-evtidx="${idx}" data-evtfield="Hotel_Location" onclick="editEventCell(${idx}, 'Hotel_Location', this)">${ev.Hotel_Location || ''}</td>
+                        <td class="editable-cell" data-evtidx="${idx}" data-evtfield="Room_Count" onclick="editEventCell(${idx}, 'Room_Count', this)" style="text-align:center;">${ev.Room_Count || ''}</td>
+                        <td class="editable-cell" data-evtidx="${idx}" data-evtfield="First_Event_Day" onclick="editEventCell(${idx}, 'First_Event_Day', this)">${ev.First_Event_Day || ''}</td>
+                        <td class="editable-cell" data-evtidx="${idx}" data-evtfield="Last_Event_Day" onclick="editEventCell(${idx}, 'Last_Event_Day', this)">${ev.Last_Event_Day || ''}</td>
+                        <td class="editable-cell" data-evtidx="${idx}" data-evtfield="EarlyBird_End_Date" onclick="editEventCell(${idx}, 'EarlyBird_End_Date', this)">${ev.EarlyBird_End_Date || ''}</td>
+                        <td class="editable-cell" data-evtidx="${idx}" data-evtfield="Notes" onclick="editEventCell(${idx}, 'Notes', this)">${ev.Notes || ''}</td>
                         <td>
                             <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteEventRow(${idx})" style="padding: 6px 10px;">✕</button>
                         </td>
@@ -3577,14 +3577,14 @@
                 const blankIdx = events.length + i;
                 html += `
                     <tr style="background: white;">
-                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Event', this, true)"></td>
-                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Location', this, true)"></td>
-                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Hotel_Location', this, true)"></td>
-                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Room_Count', this, true)" style="text-align:center;"></td>
-                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'First_Event_Day', this, true)"></td>
-                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Last_Event_Day', this, true)"></td>
-                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'EarlyBird_End_Date', this, true)"></td>
-                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Notes', this, true)"></td>
+                        <td class="editable-cell" data-evtidx="${blankIdx}" data-evtfield="Event" onclick="editEventCell(${blankIdx}, 'Event', this, true)" style="min-width:200px;"></td>
+                        <td class="editable-cell" data-evtidx="${blankIdx}" data-evtfield="Location" onclick="editEventCell(${blankIdx}, 'Location', this, true)"></td>
+                        <td class="editable-cell" data-evtidx="${blankIdx}" data-evtfield="Hotel_Location" onclick="editEventCell(${blankIdx}, 'Hotel_Location', this, true)"></td>
+                        <td class="editable-cell" data-evtidx="${blankIdx}" data-evtfield="Room_Count" onclick="editEventCell(${blankIdx}, 'Room_Count', this, true)" style="text-align:center;"></td>
+                        <td class="editable-cell" data-evtidx="${blankIdx}" data-evtfield="First_Event_Day" onclick="editEventCell(${blankIdx}, 'First_Event_Day', this, true)"></td>
+                        <td class="editable-cell" data-evtidx="${blankIdx}" data-evtfield="Last_Event_Day" onclick="editEventCell(${blankIdx}, 'Last_Event_Day', this, true)"></td>
+                        <td class="editable-cell" data-evtidx="${blankIdx}" data-evtfield="EarlyBird_End_Date" onclick="editEventCell(${blankIdx}, 'EarlyBird_End_Date', this, true)"></td>
+                        <td class="editable-cell" data-evtidx="${blankIdx}" data-evtfield="Notes" onclick="editEventCell(${blankIdx}, 'Notes', this, true)"></td>
                         <td></td>
                     </tr>
                 `;
@@ -3596,15 +3596,24 @@
         function editEventCell(idx, field, cell, isBlankRow = false) {
             if (cell.querySelector('input')) return;
             
-            // Save any currently editing cell first (without rendering)
+            // Save any currently editing cell first
             if (currentEditingCell && currentEditingCell.cell !== cell) {
                 const input = currentEditingCell.cell.querySelector('input');
                 if (input) {
-                    // Get the new value before saving
-                    const newVal = input.value.trim();
+                    const prevWasBlankRow = currentEditingCell.wasBlankRow;
                     currentEditingCell.saveData();
-                    // Restore the cell's display with the NEW value
-                    currentEditingCell.cell.textContent = newVal;
+                    if (prevWasBlankRow) {
+                        // Blank row needs a real render so the DOM reflects the new event
+                        currentEditingCell = null;
+                        renderEventsTable();
+                        // Re-locate the target cell in the freshly rendered DOM
+                        cell = document.querySelector(
+                            `#eventsTableBody [data-evtidx="${idx}"][data-evtfield="${field}"]`
+                        );
+                        if (!cell) return;
+                    } else {
+                        currentEditingCell.cell.textContent = input.value.trim();
+                    }
                 }
             }
             
@@ -3676,7 +3685,8 @@
                 cell, 
                 save, 
                 saveData,
-                displayValue: val
+                displayValue: val,
+                wasBlankRow: isBlankRow
             };
 
             input.addEventListener('blur', () => {
