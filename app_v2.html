@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SchedulePro</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * {
             margin: 0;
@@ -318,106 +317,76 @@
             display: block;
         }
 
-        /* ========== EVENTS VIEW — VERTICAL LIST ========== */
-        .schedule-tab-layout {
+        /* ========== EVENTS VIEW ========== */
+        .event-selector {
             display: flex;
-            gap: 16px;
-            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
         }
-        .event-list-panel {
-            width: 320px;
-            flex-shrink: 0;
+
+        .event-selector:empty {
+            display: none;
+        }
+
+        .event-pill {
+            padding: 10px 20px;
             background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 10px;
-            overflow: hidden;
-        }
-        .event-list-header {
-            padding: 14px 18px;
-            background: #7c3aed;
-            color: white;
-            font-weight: 700;
-            font-size: 18px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .event-list-add {
-            background: rgba(255,255,255,0.25);
-            border: none;
-            color: white;
-            border-radius: 4px;
-            padding: 4px 10px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
             cursor: pointer;
-            font-size: 18px;
-            line-height: 1;
-        }
-        .event-list-add:hover { background: rgba(255,255,255,0.4); }
-        .event-list-item {
-            padding: 14px 18px;
-            cursor: pointer;
-            border-bottom: 1px solid #f3f4f6;
-            transition: background 0.12s;
+            transition: all 0.15s;
             position: relative;
         }
-        .event-list-item:last-child { border-bottom: none; }
-        .event-list-item:hover { background: #faf5ff; }
-        .event-list-item.selected {
-            background: #f5f3ff;
-            border-left: 3px solid #7c3aed;
-            padding-left: 15px;
+
+        .event-pill:hover {
+            border-color: #c4b5fd;
         }
-        .event-list-item-name {
+
+        .event-pill.selected {
+            border-color: #7c3aed;
+            background: #faf5ff;
+        }
+
+        .event-pill-name {
             font-weight: 600;
-            font-size: 22px;
+            font-size: 17px;
             color: #374151;
-            line-height: 1.3;
         }
-        .event-list-item.selected .event-list-item-name { color: #7c3aed; }
-        .event-list-item-dates {
-            font-size: 16px;
-            color: #9ca3af;
+
+        .event-pill-dates {
+            font-size: 15px;
+            color: #6b7280;
             margin-top: 4px;
         }
-        .event-list-item-availability {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            margin-top: 4px;
-            font-size: 13px;
-            font-weight: 600;
-            color: #16a34a;
-        }
-        .availability-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #22c55e;
-            display: inline-block;
-            flex-shrink: 0;
-        }
-        .availability-dot.full {
-            background: #d1d5db;
-        }
-        .event-list-item-edit {
+
+        .event-pill-edit {
             position: absolute;
+            top: 8px;
             right: 8px;
-            top: 50%;
-            transform: translateY(-50%);
-            opacity: 0;
-            background: none;
-            border: none;
+            width: 28px;
+            height: 28px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
-            font-size: 13px;
-            padding: 2px 4px;
-            transition: opacity 0.12s;
+            opacity: 0;
+            transition: all 0.15s;
+            font-size: 14px;
         }
-        .event-list-item:hover .event-list-item-edit { opacity: 1; }
-        .event-panel-wrap {
-            flex: 1;
-            min-width: 0;
+
+        .event-pill:hover .event-pill-edit {
+            opacity: 1;
         }
-        .event-selector { display: none; }
+
+        .event-pill-edit:hover {
+            background: #7c3aed;
+            color: white;
+            border-color: #7c3aed;
+        }
 
         /* ========== SELECTED EVENT PANEL ========== */
         .event-panel {
@@ -1185,79 +1154,6 @@
                 display: none;
             }
         }
-
-        /* ========== WORKFLOW GUIDE ========== */
-        .workflow-guide {
-            background: linear-gradient(135deg, #f5f3ff, #ede9fe);
-            border-bottom: 2px solid #ddd6fe;
-            padding: 12px 20px;
-            display: flex;
-            align-items: stretch;
-            gap: 0;
-            flex-shrink: 0;
-        }
-        .workflow-guide.hidden { display: none; }
-        .workflow-step {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px 14px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background 0.15s;
-        }
-        .workflow-step:hover { background: rgba(124,58,237,0.07); }
-        .workflow-step-num {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: #e5e7eb;
-            color: #9ca3af;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 14px;
-            flex-shrink: 0;
-            transition: background 0.2s, color 0.2s;
-        }
-        .workflow-step.completed .workflow-step-num { background: #10b981; color: white; }
-        .workflow-step.active .workflow-step-num   { background: #7c3aed; color: white; }
-        .workflow-step.active { background: white; box-shadow: 0 1px 6px rgba(124,58,237,0.18); }
-        .workflow-step-title {
-            font-weight: 700;
-            font-size: 13px;
-            color: #374151;
-            line-height: 1.3;
-        }
-        .workflow-step.active .workflow-step-title    { color: #7c3aed; }
-        .workflow-step.completed .workflow-step-title { color: #059669; }
-        .workflow-step-desc {
-            font-size: 12px;
-            color: #6b7280;
-            margin-top: 2px;
-            line-height: 1.3;
-        }
-        .workflow-arrow {
-            color: #c4b5fd;
-            font-size: 22px;
-            display: flex;
-            align-items: center;
-            padding: 0 2px;
-            flex-shrink: 0;
-        }
-        .workflow-dismiss {
-            background: none;
-            border: none;
-            color: #9ca3af;
-            cursor: pointer;
-            font-size: 20px;
-            padding: 4px 8px;
-            align-self: flex-start;
-            line-height: 1;
-        }
-        .workflow-dismiss:hover { color: #374151; }
     </style>
 </head>
 <body>
@@ -1265,19 +1161,12 @@
     <header>
         <h1>📅 SchedulePro</h1>
         <div class="header-buttons">
-            <select id="yearSelect" onchange="switchYear(this.value)" style="padding:8px 12px;border:2px solid #7c3aed;border-radius:6px;font-size:16px;font-weight:600;color:#7c3aed;background:white;cursor:pointer;margin-right:8px;"></select>
-            <span id="syncStatus" style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:#6b7280;margin-right:8px;">
-                <span id="syncDot" style="width:10px;height:10px;border-radius:50%;background:#9ca3af;display:inline-block;"></span>
-                <span id="syncText">Connecting...</span>
-            </span>
             <button class="btn" onclick="document.getElementById('fileInput').click()">📁 Load Excel</button>
-            <button class="btn" onclick="document.getElementById('scheduleFileInput').click()">📅 Import Schedule</button>
             <button class="btn" onclick="exportSchedule()">📤 Export</button>
             <button class="btn" onclick="exportContracts()">📄 Export Contracts</button>
             <button class="btn btn-danger" onclick="clearAllData()">🗑️ Clear All</button>
         </div>
         <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="loadExcelFile(event)">
-        <input type="file" id="scheduleFileInput" accept=".xlsx,.xls,.csv" onchange="importExistingSchedule(event)">
         <input type="file" id="loadSessionInput" accept=".json" onchange="loadSession(event)">
     </header>
 
@@ -1316,108 +1205,70 @@
                 <div class="nav-tab" data-tab="log">Change Log</div>
             </div>
 
-            <!-- WORKFLOW GUIDE STRIP -->
-            <div class="workflow-guide" id="workflowGuide">
-                <div class="workflow-step pending" id="wfStep1" onclick="goToStep(1)">
-                    <div class="workflow-step-num" id="wfNum1">1</div>
-                    <div>
-                        <div class="workflow-step-title">Add Events &amp; Dates</div>
-                        <div class="workflow-step-desc" id="wfDesc1">Events tab → add event name, location &amp; dates</div>
-                    </div>
-                </div>
-                <div class="workflow-arrow">›</div>
-                <div class="workflow-step pending" id="wfStep2" onclick="goToStep(2)">
-                    <div class="workflow-step-num" id="wfNum2">2</div>
-                    <div>
-                        <div class="workflow-step-title">Set Number of Rooms</div>
-                        <div class="workflow-step-desc" id="wfDesc2">Edit the Rooms column in the Events tab</div>
-                    </div>
-                </div>
-                <div class="workflow-arrow">›</div>
-                <div class="workflow-step pending" id="wfStep3" onclick="goToStep(3)">
-                    <div class="workflow-step-num" id="wfNum3">3</div>
-                    <div>
-                        <div class="workflow-step-title">Assign &amp; Auto-Fill</div>
-                        <div class="workflow-step-desc" id="wfDesc3">Schedule tab → Draft Picks → 🔄 Auto-Fill</div>
-                    </div>
-                </div>
-                <button class="workflow-dismiss" onclick="dismissWorkflowGuide()" title="Dismiss guide">×</button>
-            </div>
-
             <div class="tab-panels">
                 <!-- SCHEDULE TAB -->
                 <div class="tab-panel active" id="tab-schedule">
-                    <div class="schedule-tab-layout">
-                        <!-- Vertical Event List -->
-                        <div class="event-list-panel" id="eventListPanel">
-                            <div class="event-list-header">
-                                Events
-                                <button class="event-list-add" onclick="showAddEventModal()" title="Add event">+</button>
-                            </div>
-                            <div id="eventSelector"></div>
+                    <!-- Event Selector -->
+                    <div class="event-selector" id="eventSelector">
+                        <div class="empty-state">
+                            <h3>No events loaded</h3>
+                            <p>Load an Excel file to get started</p>
                         </div>
+                    </div>
 
-                        <!-- Event detail panel -->
-                        <div class="event-panel-wrap">
-                            <div id="eventPanel" style="display: none;">
-                                <div class="event-panel">
-                                    <div class="event-panel-header">
-                                        <button class="event-edit-btn" onclick="showEditEventModal()">✏️ Edit Event</button>
-                                        <div class="event-panel-title" id="eventTitle">Event Name</div>
-                                        <div class="event-panel-subtitle" id="eventSubtitle">Location • Dates</div>
-                                        <div class="event-panel-stats">
-                                            <div class="event-stat"><strong id="eventRooms">0</strong> Rooms</div>
-                                            <div class="event-stat"><strong id="eventDays">0</strong> Days</div>
-                                            <div class="event-stat"><strong id="eventAssigned">0</strong> Assigned</div>
-                                        </div>
-                                        <div id="eventAvailInfo" style="margin-top:10px;font-size:14px;"></div>
-                                    </div>
-                                    <div class="event-panel-body">
-                                        <!-- Actions -->
-                                        <div class="event-actions">
-                                            <button class="btn btn-sm btn-primary" onclick="autoPopulateRooms()" id="autoFillBtn">🔄 Auto-Fill Draft</button>
-                                            <button class="btn btn-sm btn-danger" onclick="clearDraftPicks()">🗑️ Clear Draft</button>
-                                            <button class="btn btn-sm btn-danger" onclick="clearEventSchedule()">🗑️ Clear All Assigned</button>
-                                        </div>
-
-                                        <!-- Draft Picks -->
-                                        <div class="shortlist-section">
-                                            <div class="section-title">Draft Picks</div>
-                                            <div id="shortlistContainer">
-                                                <div class="shortlist-empty">
-                                                    Click courses from the sidebar to add them here
-                                                </div>
-                                            </div>
-                                            <div style="margin-top: 12px;">
-                                                <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 6px;">Notes</div>
-                                                <textarea id="eventNotesTextarea" placeholder="Add general notes for this event..." style="width: 100%; min-height: 80px; padding: 10px; border: 2px solid #e5e7eb; border-radius: 6px; font-size: 18px; font-family: inherit; resize: vertical;" onblur="saveEventNote()" onkeydown="if(event.ctrlKey && event.key === 'Enter') saveEventNote();"></textarea>
-                                            </div>
-                                        </div>
-
-                                        <!-- Schedule Table -->
-                                        <div class="schedule-section">
-                                            <div class="section-title">Room Schedule</div>
-                                            <div class="schedule-view-tabs">
-                                                <button class="schedule-view-tab active" onclick="switchScheduleView('room')" id="viewRoomTab">By Room</button>
-                                                <button class="schedule-view-tab" onclick="switchScheduleView('instructor')" id="viewInstructorTab">By Instructor</button>
-                                                <button class="schedule-view-tab" onclick="switchScheduleView('course')" id="viewCourseTab">By Course</button>
-                                            </div>
-                                            <div id="scheduleViewRoom">
-                                                <div class="schedule-table-wrapper">
-                                                    <table class="schedule-table" id="scheduleTable">
-                                                        <thead id="scheduleHead"></thead>
-                                                        <tbody id="scheduleBody"></tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                            <div id="scheduleViewInstructor" style="display:none;"></div>
-                                            <div id="scheduleViewCourse" style="display:none;"></div>
-                                        </div>
-                                    </div>
+                    <!-- Selected Event Panel -->
+                    <div id="eventPanel" style="display: none;">
+                        <div class="event-panel">
+                            <div class="event-panel-header">
+                                <button class="event-edit-btn" onclick="showEditEventModal()">✏️ Edit Event</button>
+                                <div class="event-panel-title" id="eventTitle">Event Name</div>
+                                <div class="event-panel-subtitle" id="eventSubtitle">Location • Dates</div>
+                                <div class="event-panel-stats">
+                                    <div class="event-stat"><strong id="eventRooms">0</strong> Rooms</div>
+                                    <div class="event-stat"><strong id="eventDays">0</strong> Days</div>
+                                    <div class="event-stat"><strong id="eventAssigned">0</strong> Assigned</div>
                                 </div>
                             </div>
-                            <div id="eventPanelEmpty" style="color:#9ca3af; padding:40px 20px; text-align:center;">
-                                <p style="font-size:15px;">← Select an event to view its schedule</p>
+                            <div class="event-panel-body">
+                                <!-- Actions -->
+                                <div class="event-actions">
+                                    <button class="btn btn-sm btn-primary" onclick="autoPopulateRooms()" id="autoFillBtn">🔄 Auto-Fill Draft</button>
+                                    <button class="btn btn-sm btn-danger" onclick="clearEventSchedule()">🗑️ Clear All</button>
+                                </div>
+
+                                <!-- Draft Picks -->
+                                <div class="shortlist-section">
+                                    <div class="section-title">Draft Picks</div>
+                                    <div id="shortlistContainer">
+                                        <div class="shortlist-empty">
+                                            Click courses from the sidebar to add them here
+                                        </div>
+                                    </div>
+                                    <div style="margin-top: 12px;">
+                                        <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 6px;">Notes</div>
+                                        <textarea id="eventNotesTextarea" placeholder="Add general notes for this event..." style="width: 100%; min-height: 80px; padding: 10px; border: 2px solid #e5e7eb; border-radius: 6px; font-size: 18px; font-family: inherit; resize: vertical;" onblur="saveEventNote()" onkeydown="if(event.ctrlKey && event.key === 'Enter') saveEventNote();"></textarea>
+                                    </div>
+                                </div>
+
+                                <!-- Schedule Table -->
+                                <div class="schedule-section">
+                                    <div class="section-title">Room Schedule</div>
+                                    <div class="schedule-view-tabs">
+                                        <button class="schedule-view-tab active" onclick="switchScheduleView('room')" id="viewRoomTab">By Room</button>
+                                        <button class="schedule-view-tab" onclick="switchScheduleView('instructor')" id="viewInstructorTab">By Instructor</button>
+                                        <button class="schedule-view-tab" onclick="switchScheduleView('course')" id="viewCourseTab">By Course</button>
+                                    </div>
+                                    <div id="scheduleViewRoom">
+                                        <div class="schedule-table-wrapper">
+                                            <table class="schedule-table" id="scheduleTable">
+                                                <thead id="scheduleHead"></thead>
+                                                <tbody id="scheduleBody"></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <div id="scheduleViewInstructor" style="display:none;"></div>
+                                    <div id="scheduleViewCourse" style="display:none;"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1425,23 +1276,20 @@
 
                 <!-- EVENTS TAB -->
                 <div class="tab-panel" id="tab-events">
-                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
-                        <p style="color:#6b7280;">Click any cell to edit inline. Changes save automatically.</p>
-                        <button class="btn btn-primary btn-sm" onclick="showAddEventModal()">+ Add Event</button>
-                    </div>
+                    <p style="margin-bottom: 16px; color: #6b7280;">Click any cell to edit. Changes save automatically when you click away or press Enter.</p>
                     <table class="data-table" id="eventsTable">
                         <thead>
                             <tr>
-                                <th style="background: #c084fc; color: white;">Event</th>
-                                <th style="background: #c084fc; color: white;">Location</th>
-                                <th style="background: #c084fc; color: white;">Hotel</th>
-                                <th style="background: #c084fc; color: white; text-align:center;">Rooms</th>
-                                <th style="background: #c084fc; color: white;">First Day</th>
-                                <th style="background: #c084fc; color: white;">Last Day</th>
-                                <th style="background: #facc15; color: black;">Early Bird Start</th>
-                                <th style="background: #facc15; color: black;">Early Bird End</th>
-                                <th style="background: #e5e7eb; color: #374151;">Notes</th>
-                                <th style="width: 60px;">Del</th>
+                                <th style="background: #c084fc; color: white;">Event #</th>
+                                <th style="background: #c084fc; color: white;">EVENT LOCATION</th>
+                                <th style="background: #c084fc; color: white;">Mon</th>
+                                <th style="background: #c084fc; color: white;">Tues</th>
+                                <th style="background: #c084fc; color: white;">Wed</th>
+                                <th style="background: #c084fc; color: white;">Thurs</th>
+                                <th style="background: #c084fc; color: white;">HOTEL - Location</th>
+                                <th style="background: #facc15; color: black;">Early bird start</th>
+                                <th style="background: #facc15; color: black;">Early End date</th>
+                                <th style="width: 80px;">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="eventsTableBody"></tbody>
@@ -1590,54 +1438,12 @@
         let coursesSortDirection = 'asc';
         let currentEditingCell = null;
 
-        // ==================== YEAR / SEASON ====================
-        const AVAILABLE_YEARS = [2026, 2027];
-        let activeYear = 2026;
-
-        function yearKey(base) { return activeYear + '_' + base; }
-
-        // ==================== SUPABASE CONFIG ====================
-        const SUPABASE_URL = 'https://lwwdhcdidukglsdqhnqp.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx3d2RoY2RpZHVrZ2xzZHFobnFwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMzcwMzcsImV4cCI6MjA4ODYxMzAzN30.oMUx4EbCmqueJbdxYq3Zc37SQltaLP6K523rkhQqvJg';
-        const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        let supabaseConnected = false;
-        let supabaseSaveTimer = null;
-        let isApplyingRemoteUpdate = false;
-        let realtimeChannel = null;
-
         // ==================== INIT ====================
-        document.addEventListener('DOMContentLoaded', async () => {
+        document.addEventListener('DOMContentLoaded', () => {
             setupTabs();
-            populateYearSelector();
             loadFromLocalStorage();
-            await loadFromSupabase();
-            setupRealtimeSubscription();
             render();
-            updateSyncStatus();
         });
-
-        function populateYearSelector() {
-            const sel = document.getElementById('yearSelect');
-            sel.innerHTML = AVAILABLE_YEARS.map(y =>
-                `<option value="${y}" ${y === activeYear ? 'selected' : ''}>${y}</option>`
-            ).join('');
-        }
-
-        async function switchYear(year) {
-            year = parseInt(year);
-            if (year === activeYear) return;
-            activeYear = year;
-            selectedEventId = null;
-            loadFromLocalStorage();
-            await loadFromSupabase();
-            if (realtimeChannel) { sb.removeChannel(realtimeChannel); }
-            setupRealtimeSubscription();
-            render();
-            updateSyncStatus();
-            showToast(`Switched to ${year}`, 'success');
-            // Auto-navigate to Events tab when the year has no events yet
-            if (events.length === 0) goToStep(1);
-        }
 
         function setupTabs() {
             document.querySelectorAll('.nav-tab').forEach(tab => {
@@ -1663,30 +1469,26 @@
 
                     if (workbook.SheetNames.includes('Events')) {
                         const sheet = workbook.Sheets['Events'];
-                        const rawDataRaw = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-                        // Trim all column header names to handle invisible whitespace
-                        const rawData = rawDataRaw.map(row => {
-                            const clean = {};
-                            for (const k of Object.keys(row)) clean[k.trim()] = row[k];
-                            return clean;
-                        });
-                        if (rawData.length > 0) console.log('[SchedulePro] Events columns:', Object.keys(rawData[0]));
-                        events = rawData.map((row, i) => ({
-                            Event_ID: String(row.Event_ID || row.Event || `EV${String(i+1).padStart(3,'0')}`).trim(),
+                        const rawData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+                        events = rawData.map(row => ({
+                            Event_ID: String(row.Event_ID || '').trim(),
+                            Event_Number: String(row.Event_Number || '').trim(),
                             Event: String(row.Event || '').trim(),
-                            Location: String(row.Location || '').trim(),
-                            Hotel_Location: String(row.Hotel_Location || row.Hotel || row['HOTEL - Location'] || '').trim(),
-                            Room_Count: parseInt(row.Room_Count) || 10,
                             First_Event_Day: formatDateForStorage(row.First_Event_Day),
                             Last_Event_Day: formatDateForStorage(row.Last_Event_Day),
-                            EarlyBird_Start_Date: String(row.EarlyBird_Start_Date || row.Early_Bird_Start || row['Early bird start'] || '').trim(),
-                            EarlyBird_End_Date: formatDateForStorage(row.EarlyBird_End_Date || row.Early_End_Date || row['Early End date']),
-                            Notes: String(row.Notes || '').trim(),
+                            Mon_Date: formatDateForStorage(row.Mon_Date || row.Mon),
+                            Tues_Date: formatDateForStorage(row.Tues_Date || row.Tues),
+                            Wed_Date: formatDateForStorage(row.Wed_Date || row.Wed),
+                            Thurs_Date: formatDateForStorage(row.Thurs_Date || row.Thurs),
+                            Location: String(row.Location || '').trim(),
+                            Hotel: String(row.Hotel || row['HOTEL - Location'] || '').trim(),
+                            Early_Bird_Start: String(row.Early_Bird_Start || row['Early bird start'] || '').trim(),
+                            Early_End_Date: formatDateForStorage(row.Early_End_Date || row['Early End date']),
+                            Room_Count: parseInt(row.Room_Count) || 10,
                             Total_Days: parseInt(row.Total_Days) || 0
-                        })).filter(e => e.Event);
+                        })).filter(e => e.Event_ID);
                         
                         events.forEach(ev => {
-                            if (!ev.Event_ID) ev.Event_ID = ev.Event;
                             if (!ev.Total_Days) ev.Total_Days = calculateDays(ev.First_Event_Day, ev.Last_Event_Day);
                             if (!schedule[ev.Event_ID]) schedule[ev.Event_ID] = {};
                             if (!shortlists[ev.Event_ID]) shortlists[ev.Event_ID] = [];
@@ -1723,169 +1525,6 @@
                 } catch (err) {
                     console.error(err);
                     showToast('Error loading file', 'error');
-                }
-            };
-            reader.readAsArrayBuffer(file);
-            event.target.value = '';
-        }
-
-        // ==================== IMPORT EXISTING SCHEDULE ====================
-        function importExistingSchedule(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-
-                    if (!rows.length || !rows[0].hasOwnProperty('Course_ID') || !rows[0].hasOwnProperty('Event_ID')) {
-                        showToast('Invalid schedule file. Need columns: Course_ID, Event_ID, First_Day, Duration_Days, Room_Number', 'error');
-                        return;
-                    }
-
-                    // --- Build date map per CSV event ID ---
-                    const eventDateMap = {}; // {csvEventId: {minDate, maxDate, maxRoom}}
-                    for (const row of rows) {
-                        const csvId = String(row.Event_ID || '').trim();
-                        if (!csvId) continue;
-                        let fd = row.First_Day instanceof Date ? row.First_Day : parseDate(formatDateForStorage(String(row.First_Day || '')));
-                        let ld = row.Last_Day instanceof Date ? row.Last_Day : parseDate(formatDateForStorage(String(row.Last_Day || '')));
-                        const rm = parseInt(row.Room_Number) || 0;
-                        if (!eventDateMap[csvId]) eventDateMap[csvId] = { minDate: null, maxDate: null, maxRoom: 0 };
-                        if (fd && (!eventDateMap[csvId].minDate || fd < eventDateMap[csvId].minDate)) eventDateMap[csvId].minDate = fd;
-                        if (ld && (!eventDateMap[csvId].maxDate || ld > eventDateMap[csvId].maxDate)) eventDateMap[csvId].maxDate = ld;
-                        if (rm > eventDateMap[csvId].maxRoom) eventDateMap[csvId].maxRoom = rm;
-                    }
-
-                    // --- Map CSV event IDs → existing events (by exact ID, then by date overlap) ---
-                    const eventIdRemap = {}; // csvId → real Event_ID in events[]
-                    let eventsCreated = 0;
-                    for (const [csvId, info] of Object.entries(eventDateMap)) {
-                        // 1. Exact match
-                        if (events.find(ev => ev.Event_ID === csvId)) {
-                            eventIdRemap[csvId] = csvId;
-                        } else if (info.minDate) {
-                            // 2. Date-overlap match — find event whose range overlaps the CSV rows
-                            const match = events.find(ev => {
-                                const evStart = parseDate(ev.First_Event_Day);
-                                const evEnd   = parseDate(ev.Last_Event_Day);
-                                return evStart && evEnd && info.minDate <= evEnd && info.maxDate >= evStart;
-                            });
-                            if (match) {
-                                eventIdRemap[csvId] = match.Event_ID;
-                            } else {
-                                // 3. No match — create a new event stub
-                                const firstDay = formatDateForStorage(info.minDate);
-                                const lastDay  = formatDateForStorage(info.maxDate);
-                                events.push({
-                                    Event_ID: csvId, Event: csvId, Location: '', Hotel_Location: '',
-                                    Room_Count: Math.max(info.maxRoom, 10),
-                                    First_Event_Day: firstDay, Last_Event_Day: lastDay,
-                                    EarlyBird_Start_Date: '', EarlyBird_End_Date: '', Notes: '',
-                                    Total_Days: calculateDays(firstDay, lastDay)
-                                });
-                                eventIdRemap[csvId] = csvId;
-                                eventsCreated++;
-                            }
-                        } else {
-                            eventIdRemap[csvId] = csvId;
-                        }
-                        const realId = eventIdRemap[csvId];
-                        if (!schedule[realId])   schedule[realId]   = {};
-                        if (!shortlists[realId]) shortlists[realId] = [];
-                    }
-
-                    // --- Auto-create course stubs if missing ---
-                    let coursesCreated = 0;
-                    const existingCourseIds = new Set(courses.map(c => c.Course_ID));
-                    for (const row of rows) {
-                        const courseId = String(row.Course_ID || '').trim();
-                        if (!courseId || existingCourseIds.has(courseId)) continue;
-                        courses.push({
-                            Course_ID: courseId, Instructor: '', Course_Name: courseId,
-                            Duration_Days: parseFloat(row.Duration_Days) || 1, Topic: ''
-                        });
-                        existingCourseIds.add(courseId);
-                        coursesCreated++;
-                    }
-                    if (coursesCreated) updateTopicFilter();
-
-                    // --- Place courses into rooms / draft picks ---
-                    let assigned = 0, drafted = 0, skipped = 0;
-
-                    for (const row of rows) {
-                        const courseId = String(row.Course_ID || '').trim();
-                        const csvEventId = String(row.Event_ID || '').trim();
-                        const eventId = eventIdRemap[csvEventId] || csvEventId; // use remapped real ID
-                        const duration = Math.ceil(parseFloat(row.Duration_Days) || 1);
-                        const roomNum = parseInt(row.Room_Number);
-                        let firstDay = '';
-                        if (row.First_Day instanceof Date) {
-                            firstDay = formatDateForStorage(row.First_Day);
-                        } else {
-                            firstDay = formatDateForStorage(String(row.First_Day || '').trim());
-                        }
-
-                        if (!courseId || !eventId) { skipped++; continue; }
-
-                        // Calculate startDay from First_Day relative to event's First_Event_Day
-                        const ev = events.find(e => e.Event_ID === eventId);
-                        let startDay = 1;
-                        if (ev && firstDay) {
-                            const evStart = parseDate(ev.First_Event_Day);
-                            const courseStart = parseDate(firstDay);
-                            if (evStart && courseStart) {
-                                startDay = Math.round((courseStart - evStart) / (1000 * 60 * 60 * 24)) + 1;
-                                if (startDay < 1) startDay = 1;
-                            }
-                        }
-
-                        if (roomNum && roomNum > 0) {
-                            // Assign to specified room
-                            if (!schedule[eventId][roomNum]) schedule[eventId][roomNum] = [];
-                            const already = schedule[eventId][roomNum].some(a => a.courseId === courseId);
-                            if (!already) {
-                                schedule[eventId][roomNum].push({ courseId, startDay, duration, note: '' });
-                                assigned++;
-                            }
-                        } else {
-                            // No room number — virtual events get 1 room per course, others go to Room 1
-                            const isVirtualEvent = (ev && (ev.Location || '').toLowerCase().includes('virtual'));
-                            let targetRoom = 1;
-                            if (isVirtualEvent) {
-                                // Find next available room number for this event
-                                const usedRooms = Object.keys(schedule[eventId]).map(Number).filter(n => n > 0);
-                                targetRoom = usedRooms.length > 0 ? Math.max(...usedRooms) + 1 : 1;
-                            }
-                            if (!schedule[eventId][targetRoom]) schedule[eventId][targetRoom] = [];
-                            const already = schedule[eventId][targetRoom].some(a => a.courseId === courseId);
-                            if (!already) {
-                                schedule[eventId][targetRoom].push({ courseId, startDay, duration, note: '' });
-                                assigned++;
-                            }
-                            // Update Room_Count on the event to match
-                            if (isVirtualEvent && ev) {
-                                const maxRoom = Math.max(...Object.keys(schedule[eventId]).map(Number).filter(n => n > 0));
-                                if (maxRoom > (parseInt(ev.Room_Count) || 0)) ev.Room_Count = maxRoom;
-                            }
-                        }
-                    }
-
-                    addLogEntry('upload', null, null, `Imported schedule: ${file.name} (${eventsCreated} events, ${coursesCreated} courses, ${assigned} assigned, ${drafted} drafted)`);
-                    saveToLocalStorage();
-                    render();
-                    let msg = '';
-                    if (eventsCreated) msg += `${eventsCreated} events, `;
-                    if (coursesCreated) msg += `${coursesCreated} courses, `;
-                    msg += `${assigned} assigned, ${drafted} to draft picks`;
-                    showToast(msg, 'success');
-                } catch (err) {
-                    console.error(err);
-                    showToast('Error importing schedule file', 'error');
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -1940,70 +1579,7 @@
         }
 
         // ==================== RENDERING ====================
-        // ==================== WORKFLOW GUIDE ====================
-        let workflowGuideDismissed = false;
-
-        function renderWorkflowGuide() {
-            const guide = document.getElementById('workflowGuide');
-            if (!guide) return;
-            if (workflowGuideDismissed) { guide.classList.add('hidden'); return; }
-            guide.classList.remove('hidden');
-
-            const step1Done = events.length > 0;
-            const eventsWithRooms = step1Done ? events.filter(e => parseInt(e.Room_Count) > 0).length : 0;
-            const step2Done = step1Done && eventsWithRooms === events.length;
-            const anyAssigned = step2Done && Object.values(schedule).some(ev =>
-                ev && Object.values(ev).some(room =>
-                    room && typeof room === 'object' && Object.values(room).some(v => v)
-                )
-            );
-            const step3Done = anyAssigned;
-            const activeStep = !step1Done ? 1 : !step2Done ? 2 : !step3Done ? 3 : 3;
-
-            [1, 2, 3].forEach(i => {
-                const stepEl = document.getElementById('wfStep' + i);
-                const numEl  = document.getElementById('wfNum'  + i);
-                const done     = i === 1 ? step1Done : i === 2 ? step2Done : step3Done;
-                const isActive = !done && i === activeStep;
-                stepEl.className = 'workflow-step ' + (done ? 'completed' : isActive ? 'active' : 'pending');
-                numEl.textContent = done ? '✓' : String(i);
-            });
-
-            document.getElementById('wfDesc1').textContent = step1Done
-                ? `${events.length} event${events.length !== 1 ? 's' : ''} added ✓`
-                : 'Events tab → add event name, location & dates';
-
-            document.getElementById('wfDesc2').textContent = step2Done
-                ? 'All events have rooms set ✓'
-                : step1Done
-                    ? `${eventsWithRooms}/${events.length} events have rooms — edit the Rooms column`
-                    : 'Complete Step 1 first';
-
-            document.getElementById('wfDesc3').textContent = step3Done
-                ? 'Courses scheduled ✓'
-                : step2Done
-                    ? 'Schedule tab → add courses to Draft Picks → click 🔄 Auto-Fill'
-                    : 'Complete Steps 1 & 2 first';
-        }
-
-        function goToStep(step) {
-            const tabName = step <= 2 ? 'events' : 'schedule';
-            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-            const tab   = document.querySelector(`.nav-tab[data-tab="${tabName}"]`);
-            const panel = document.getElementById('tab-' + tabName);
-            if (tab)   tab.classList.add('active');
-            if (panel) panel.classList.add('active');
-        }
-
-        function dismissWorkflowGuide() {
-            workflowGuideDismissed = true;
-            const guide = document.getElementById('workflowGuide');
-            if (guide) guide.classList.add('hidden');
-        }
-
         function render() {
-            renderWorkflowGuide();
             renderEventSelector();
             renderCourseList();
             renderSelectedEvent();
@@ -2015,43 +1591,29 @@
 
         function renderEventSelector() {
             const container = document.getElementById('eventSelector');
-            const emptyEl   = document.getElementById('eventPanelEmpty');
-            const panelEl   = document.getElementById('eventPanel');
-
+            
             if (events.length === 0) {
-                container.innerHTML = `<div style="padding:12px;font-size:12px;color:#9ca3af;text-align:center;">No events yet.<br>Go to the Events tab to add some.</div>`;
-                if (panelEl) panelEl.style.display = 'none';
-                if (emptyEl) emptyEl.style.display = 'block';
+                container.innerHTML = `<div class="empty-state"><h3>No events loaded</h3><p>Load an Excel file to get started</p></div>`;
                 return;
             }
 
+            // Sort events chronologically by first event day
             const sortedEvents = [...events].sort((a, b) => {
                 const dateA = parseDate(a.First_Event_Day);
                 const dateB = parseDate(b.First_Event_Day);
                 return dateA - dateB;
             });
+
+            // Filter out any invalid events
             const validEvents = sortedEvents.filter(ev => ev && ev.Event_ID && ev.Event);
 
-            container.innerHTML = validEvents.map(ev => {
-                const avail = getEventAvailability(ev);
-                const isVirtual = (ev.Location || '').toLowerCase().includes('virtual');
-                let availHtml = '';
-                if (!isVirtual && avail.totalSlots > 0) {
-                    if (avail.openSlots > 0) {
-                        availHtml = `<div class="event-list-item-availability"><span class="availability-dot"></span>${avail.openSlots} room-day${avail.openSlots !== 1 ? 's' : ''} open</div>`;
-                    } else {
-                        availHtml = `<div class="event-list-item-availability" style="color:#9ca3af;"><span class="availability-dot full"></span>Full</div>`;
-                    }
-                }
-                return `
-                <div class="event-list-item ${selectedEventId === ev.Event_ID ? 'selected' : ''}" onclick="selectEvent('${ev.Event_ID}')">
-                    <button class="event-list-item-edit" onclick="event.stopPropagation(); showEditEventModalForEvent('${ev.Event_ID}')">✏️</button>
-                    <div class="event-list-item-name">${ev.Event}</div>
-                    <div class="event-list-item-dates">${ev.First_Event_Day || ''} – ${ev.Last_Event_Day || ''}</div>
-                    ${availHtml}
+            container.innerHTML = validEvents.map(ev => `
+                <div class="event-pill ${selectedEventId === ev.Event_ID ? 'selected' : ''}" onclick="selectEvent('${ev.Event_ID}')">
+                    <div class="event-pill-edit" onclick="event.stopPropagation(); showEditEventModalForEvent('${ev.Event_ID}')">✏️</div>
+                    <div class="event-pill-name">${ev.Event}</div>
+                    <div class="event-pill-dates">${ev.First_Event_Day || ''} – ${ev.Last_Event_Day || ''}</div>
                 </div>
-            `;
-            }).join('');
+            `).join('') + `<div class="event-pill" onclick="showAddEventModal()" style="border-style: dashed;"><div class="event-pill-name">+ Add Event</div></div>`;
         }
 
         function renderCourseList() {
@@ -2071,10 +1633,10 @@
 
             let filtered = courses.filter(c => {
                 const matchSearch = !search || 
-                    (c.Course_ID || '').toLowerCase().includes(search) ||
-                    (c.Course_Name || '').toLowerCase().includes(search) ||
-                    (c.Instructor || '').toLowerCase().includes(search);
-                const matchTopic = !topicFilter || (c.Topic || '') === topicFilter;
+                    c.Course_ID.toLowerCase().includes(search) ||
+                    c.Course_Name.toLowerCase().includes(search) ||
+                    c.Instructor.toLowerCase().includes(search);
+                const matchTopic = !topicFilter || c.Topic === topicFilter;
                 const matchDuration = selectedDurations.length === 0 || selectedDurations.includes(parseFloat(c.Duration_Days));
                 return matchSearch && matchTopic && matchDuration;
             });
@@ -2132,49 +1694,26 @@
         }
 
         function renderSelectedEvent() {
-            const panel   = document.getElementById('eventPanel');
-            const emptyEl = document.getElementById('eventPanelEmpty');
-
-            const hide = () => { if (panel) panel.style.display = 'none'; if (emptyEl) emptyEl.style.display = 'block'; };
-            const show = () => { if (panel) panel.style.display = 'block'; if (emptyEl) emptyEl.style.display = 'none'; };
-
-            if (!selectedEventId) { hide(); return; }
+            const panel = document.getElementById('eventPanel');
+            
+            if (!selectedEventId) {
+                panel.style.display = 'none';
+                return;
+            }
 
             const event = events.find(e => e.Event_ID === selectedEventId);
-            if (!event) { hide(); return; }
+            if (!event) {
+                panel.style.display = 'none';
+                return;
+            }
 
-            show();
+            panel.style.display = 'block';
 
             document.getElementById('eventTitle').textContent = event.Event;
             document.getElementById('eventSubtitle').textContent = `${event.Location} · ${event.First_Event_Day} – ${event.Last_Event_Day}`;
             document.getElementById('eventRooms').textContent = event.Room_Count;
             document.getElementById('eventDays').textContent = event.Total_Days;
             document.getElementById('eventAssigned').textContent = countAssignedCourses(selectedEventId);
-
-            // Show room-day availability
-            const isVirtual = (event.Location || '').toLowerCase().includes('virtual');
-            const availInfoEl = document.getElementById('eventAvailInfo');
-            if (availInfoEl) {
-                if (isVirtual) {
-                    availInfoEl.innerHTML = '<span style="color:rgba(255,255,255,0.7);">Virtual event – no room availability</span>';
-                } else {
-                    const avail = getEventAvailability(event);
-                    if (avail.totalSlots === 0) {
-                        availInfoEl.innerHTML = '';
-                    } else if (avail.openSlots === 0) {
-                        availInfoEl.innerHTML = '<span style="color:#fca5a5;font-weight:600;">All room-days filled</span>';
-                    } else {
-                        let html = `<span style="color:#bbf7d0;font-weight:600;">${avail.openSlots} of ${avail.totalSlots} room-day${avail.totalSlots !== 1 ? 's' : ''} available</span>`;
-                        html += '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:8px;">';
-                        avail.roomDetail.forEach(rd => {
-                            const dayRanges = compactDayRanges(rd.openDays);
-                            html += `<span style="background:rgba(255,255,255,0.15);color:white;padding:3px 8px;border-radius:4px;font-size:13px;">Room ${rd.room}: Day ${dayRanges}</span>`;
-                        });
-                        html += '</div>';
-                        availInfoEl.innerHTML = html;
-                    }
-                }
-            }
 
             renderShortlist();
             renderScheduleTable();
@@ -2590,10 +2129,10 @@
             const entry = instructorAway[idx];
             if (confirm(`Remove unavailability period for "${entry.Instructor}"?`)) {
                 instructorAway.splice(idx, 1);
-                addLogEntry('remove', null, null, `Retired instructor unavailability: ${entry.Instructor}`, '', '', '', entry.Instructor);
+                addLogEntry('remove', null, null, `Removed instructor unavailability: ${entry.Instructor}`, '', '', '', entry.Instructor);
                 saveToLocalStorage();
                 render();
-                showToast('Entry retired', 'success');
+                showToast('Entry removed', 'success');
             }
         }
 
@@ -2796,7 +2335,7 @@
 
         function getActionLabel(action) {
             const labels = {
-                'draft': 'Drafted', 'add': 'Added', 'remove': 'Retired', 'assign': 'Added',
+                'draft': 'Drafted', 'add': 'Added', 'remove': 'Removed', 'assign': 'Added',
                 'clear': 'Cleared', 'edit': 'Edited', 'auto-fill': 'Auto-Filled',
                 'upload': 'Uploaded', 'load': 'Loaded', 'undraft': 'Undrafted',
                 'note': 'Note', 'move': 'Moved'
@@ -2847,18 +2386,18 @@
                 // Course is assigned to a room - show confirmation dialog
                 if (confirm(`Remove "${course?.Course_Name || courseId}" from Room ${assignedRoom}?`)) {
                     schedule[selectedEventId][assignedRoom] = schedule[selectedEventId][assignedRoom].filter(a => a.courseId !== courseId);
-                    addLogEntry('remove', selectedEventId, courseId, `Retired from Room ${assignedRoom}`, `Room ${assignedRoom}`, 'Unassigned');
+                    addLogEntry('remove', selectedEventId, courseId, `Removed from Room ${assignedRoom}`, `Room ${assignedRoom}`, 'Unassigned');
                     saveToLocalStorage();
                     render();
-                    showToast('Course retired', 'success');
+                    showToast('Course removed', 'success');
                 }
             } else if (shortlist.includes(courseId)) {
                 // Course is in draft picks but not assigned - remove without dialog
                 shortlists[selectedEventId] = shortlist.filter(id => id !== courseId);
-                addLogEntry('undraft', selectedEventId, courseId, `Retired from draft picks`);
+                addLogEntry('undraft', selectedEventId, courseId, `Removed from draft picks`);
                 saveToLocalStorage();
                 render();
-                showToast(`Retired "${course?.Course_Name}"`, 'success');
+                showToast(`Removed "${course?.Course_Name}"`, 'success');
             } else {
                 // Course not in shortlist - add it
                 shortlists[selectedEventId] = [...shortlist, courseId];
@@ -2872,7 +2411,7 @@
         function removeFromShortlist(courseId) {
             const course = courses.find(c => c.Course_ID === courseId);
             shortlists[selectedEventId] = (shortlists[selectedEventId] || []).filter(id => id !== courseId);
-            addLogEntry('undraft', selectedEventId, courseId, `Retired from draft picks`);
+            addLogEntry('undraft', selectedEventId, courseId, `Removed from draft picks`);
             saveToLocalStorage();
             render();
         }
@@ -2949,10 +2488,10 @@
             const course = courses.find(c => c.Course_ID === courseId);
             if (confirm(`Remove "${course?.Course_Name || courseId}" from Room ${room}?`)) {
                 schedule[eventId][room] = schedule[eventId][room].filter(a => a.courseId !== courseId);
-                addLogEntry('remove', eventId, courseId, `Retired from Room ${room}`, `Room ${room}`, 'Unassigned');
+                addLogEntry('remove', eventId, courseId, `Removed from Room ${room}`, `Room ${room}`, 'Unassigned');
                 saveToLocalStorage();
                 render();
-                showToast('Course retired', 'success');
+                showToast('Course removed', 'success');
             }
         }
 
@@ -3216,17 +2755,6 @@
             }
         }
 
-        function clearDraftPicks() {
-            const ev = events.find(e => e.Event_ID === selectedEventId);
-            if (!ev) return;
-            if (!confirm(`Clear all draft picks for "${ev.Event}"?`)) return;
-            shortlists[selectedEventId] = [];
-            addLogEntry('clear', selectedEventId, null, 'Cleared draft picks');
-            saveToLocalStorage();
-            render();
-            showToast('Draft picks cleared', 'success');
-        }
-
         function clearEventSchedule() {
             const event = events.find(e => e.Event_ID === selectedEventId);
             if (!confirm(`Clear all assignments for "${event?.Event}"?`)) return;
@@ -3429,48 +2957,6 @@
             return count;
         }
 
-        function getEventAvailability(ev) {
-            const roomCount = parseInt(ev.Room_Count) || 0;
-            const totalDays = parseInt(ev.Total_Days) || 0;
-            const totalSlots = roomCount * totalDays;
-            let usedDays = 0;
-            const eventSchedule = schedule[ev.Event_ID] || {};
-            for (const room in eventSchedule) {
-                for (const a of eventSchedule[room]) {
-                    usedDays += (a.duration || 0);
-                }
-            }
-            const openSlots = Math.max(0, totalSlots - usedDays);
-            // Build per-room availability detail
-            const roomDetail = [];
-            for (let r = 1; r <= roomCount; r++) {
-                const roomAssignments = eventSchedule[r] || [];
-                const openDays = [];
-                for (let d = 1; d <= totalDays; d++) {
-                    let occupied = false;
-                    for (const a of roomAssignments) {
-                        if (d >= a.startDay && d < a.startDay + a.duration) { occupied = true; break; }
-                    }
-                    if (!occupied) openDays.push(d);
-                }
-                if (openDays.length > 0) roomDetail.push({ room: r, openDays });
-            }
-            return { totalSlots, usedDays, openSlots, roomDetail };
-        }
-
-        function compactDayRanges(days) {
-            if (!days.length) return '';
-            const sorted = [...days].sort((a, b) => a - b);
-            const ranges = [];
-            let start = sorted[0], end = sorted[0];
-            for (let i = 1; i < sorted.length; i++) {
-                if (sorted[i] === end + 1) { end = sorted[i]; }
-                else { ranges.push(start === end ? `${start}` : `${start}-${end}`); start = end = sorted[i]; }
-            }
-            ranges.push(start === end ? `${start}` : `${start}-${end}`);
-            return ranges.join(', ');
-        }
-
         function buildAssignmentMap() {
             const map = {};
             for (const eventId in schedule) {
@@ -3553,19 +3039,27 @@
             
             // Render existing events
             events.forEach((ev, idx) => {
+                // Build event location display: "EventName - Location"
+                let eventLocation = '';
+                if (ev.Event) eventLocation += ev.Event;
+                if (ev.Location) {
+                    if (eventLocation) eventLocation += ' - ';
+                    eventLocation += ev.Location;
+                }
+                
                 html += `
                     <tr>
-                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Event', this)" style="font-weight:600;">${ev.Event || ''}</td>
-                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Location', this)">${ev.Location || ''}</td>
-                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Hotel_Location', this)">${ev.Hotel_Location || ''}</td>
-                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Room_Count', this)" style="text-align:center;">${ev.Room_Count || ''}</td>
-                        <td class="editable-cell" onclick="editEventCell(${idx}, 'First_Event_Day', this)">${ev.First_Event_Day || ''}</td>
-                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Last_Event_Day', this)">${ev.Last_Event_Day || ''}</td>
-                        <td class="editable-cell" onclick="editEventCell(${idx}, 'EarlyBird_Start_Date', this)">${ev.EarlyBird_Start_Date || ''}</td>
-                        <td class="editable-cell" onclick="editEventCell(${idx}, 'EarlyBird_End_Date', this)">${ev.EarlyBird_End_Date || ''}</td>
-                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Notes', this)">${ev.Notes || ''}</td>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Event_Number', this)">${ev.Event_Number || ''}</td>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Event_Location', this)" style="font-weight: 600;">${eventLocation || ''}</td>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Mon_Date', this)">${ev.Mon_Date || ''}</td>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Tues_Date', this)">${ev.Tues_Date || ''}</td>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Wed_Date', this)">${ev.Wed_Date || ''}</td>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Thurs_Date', this)">${ev.Thurs_Date || ''}</td>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Hotel', this)">${ev.Hotel || ''}</td>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Early_Bird_Start', this)">${ev.Early_Bird_Start || ''}</td>
+                        <td class="editable-cell" onclick="editEventCell(${idx}, 'Early_End_Date', this)">${ev.Early_End_Date || ''}</td>
                         <td>
-                            <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteEventRow(${idx})" style="padding: 6px 10px;">✕</button>
+                            <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteEventRow(${idx})" style="padding: 6px 12px;">✕</button>
                         </td>
                     </tr>
                 `;
@@ -3576,15 +3070,15 @@
                 const blankIdx = events.length + i;
                 html += `
                     <tr style="background: white;">
-                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Event', this, true)"></td>
-                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Location', this, true)"></td>
-                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Hotel_Location', this, true)"></td>
-                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Room_Count', this, true)" style="text-align:center;"></td>
-                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'First_Event_Day', this, true)"></td>
-                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Last_Event_Day', this, true)"></td>
-                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'EarlyBird_Start_Date', this, true)"></td>
-                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'EarlyBird_End_Date', this, true)"></td>
-                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Notes', this, true)"></td>
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Event_Number', this, true)"></td>
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Event_Location', this, true)"></td>
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Mon_Date', this, true)"></td>
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Tues_Date', this, true)"></td>
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Wed_Date', this, true)"></td>
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Thurs_Date', this, true)"></td>
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Hotel', this, true)"></td>
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Early_Bird_Start', this, true)"></td>
+                        <td class="editable-cell" onclick="editEventCell(${blankIdx}, 'Early_End_Date', this, true)"></td>
                         <td></td>
                     </tr>
                 `;
@@ -3613,15 +3107,19 @@
                 const newEventId = `EV${String(events.length + 1).padStart(3, '0')}`;
                 events.push({
                     Event_ID: newEventId,
+                    Event_Number: '',
                     Event: '',
-                    Location: '',
-                    Hotel_Location: '',
-                    Room_Count: 10,
                     First_Event_Day: '',
                     Last_Event_Day: '',
-                    EarlyBird_Start_Date: '',
-                    EarlyBird_End_Date: '',
-                    Notes: '',
+                    Mon_Date: '',
+                    Tues_Date: '',
+                    Wed_Date: '',
+                    Thurs_Date: '',
+                    Location: '',
+                    Hotel: '',
+                    Early_Bird_Start: '',
+                    Early_End_Date: '',
+                    Room_Count: 10,
                     Total_Days: 4
                 });
                 schedule[newEventId] = {};
@@ -3631,13 +3129,28 @@
             const event = events[idx];
             if (!event) return;
             
-            let val = event[field] !== undefined ? String(event[field]) : '';
+            let val = '';
+            
+            // Handle composite Event_Location field
+            if (field === 'Event_Location') {
+                val = `${event.Event || ''}`;
+                if (event.Location) {
+                    if (val) val += ' - ';
+                    val += event.Location;
+                }
+            } else {
+                val = event[field] || '';
+            }
             
             const input = document.createElement('input');
-            input.type = field === 'Room_Count' ? 'number' : 'text';
-            if (field === 'Room_Count') { input.min = '1'; input.max = '50'; }
+            input.type = 'text';
             input.value = val;
-            input.style.cssText = 'width:100%;height:100%;box-sizing:border-box;border:none;padding:0;margin:0;font-size:inherit;font-family:inherit;background:transparent;outline:none;';
+            input.style.width = '100%';
+            input.style.boxSizing = 'border-box';
+            input.style.border = 'none';
+            input.style.padding = '0';
+            input.style.fontSize = 'inherit';
+            input.style.fontFamily = 'inherit';
             
             // Add placeholder for date fields
             if (field.includes('Date')) {
@@ -3653,13 +3166,54 @@
             const saveData = () => {
                 let newVal = input.value.trim();
                 
-                if (field === 'Room_Count') {
-                    event[field] = parseInt(newVal) || 10;
-                } else if (field === 'First_Event_Day' || field === 'Last_Event_Day') {
-                    event[field] = newVal;
-                    event.Total_Days = calculateDays(event.First_Event_Day, event.Last_Event_Day);
+                if (field === 'Event_Location') {
+                    // Parse the event location back into components
+                    const match = newVal.match(/^(.+?)\s+-\s+(.+)$/);
+                    if (match) {
+                        event.Event = match[1].trim();
+                        event.Location = match[2].trim();
+                    } else {
+                        event.Event = newVal;
+                        event.Location = '';
+                    }
                 } else {
                     event[field] = newVal;
+                    
+                    // Auto-populate subsequent days if editing Mon_Date
+                    if (field === 'Mon_Date' && newVal) {
+                        // Validate YYYY-MM-DD format
+                        const dateMatch = newVal.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                        if (dateMatch) {
+                            const year = parseInt(dateMatch[1]);
+                            const month = parseInt(dateMatch[2]);
+                            const day = parseInt(dateMatch[3]);
+                            
+                            // Create date at noon local time to avoid timezone issues
+                            const date = new Date(year, month - 1, day, 12, 0, 0);
+                            
+                            if (!isNaN(date.getTime())) {
+                                // Calculate next 3 days
+                                const tues = new Date(date);
+                                tues.setDate(tues.getDate() + 1);
+                                const wed = new Date(date);
+                                wed.setDate(wed.getDate() + 2);
+                                const thurs = new Date(date);
+                                thurs.setDate(thurs.getDate() + 3);
+                                
+                                // Format as YYYY-MM-DD
+                                const formatDate = (d) => {
+                                    const year = d.getFullYear();
+                                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                                    const day = String(d.getDate()).padStart(2, '0');
+                                    return `${year}-${month}-${day}`;
+                                };
+                                
+                                event.Tues_Date = formatDate(tues);
+                                event.Wed_Date = formatDate(wed);
+                                event.Thurs_Date = formatDate(thurs);
+                            }
+                        }
+                    }
                 }
                 
                 saveToLocalStorage();
@@ -3777,18 +3331,13 @@
 
             if (editId) {
                 const idx = events.findIndex(e => e.Event_ID === editId);
-                if (idx !== -1) {
-                    // Preserve fields not editable in the modal
-                    events[idx] = Object.assign({}, events[idx], eventData);
-                }
+                if (idx !== -1) events[idx] = eventData;
             } else {
                 if (events.find(e => e.Event_ID === eventData.Event_ID)) {
                     showToast('Event ID exists', 'error');
                     return;
                 }
-                events.push(Object.assign({
-                    Hotel_Location: '', EarlyBird_Start_Date: '', EarlyBird_End_Date: '', Notes: ''
-                }, eventData));
+                events.push(eventData);
                 schedule[eventData.Event_ID] = {};
                 shortlists[eventData.Event_ID] = [];
             }
@@ -3973,66 +3522,48 @@
         }
 
         // ==================== LOCAL STORAGE ====================
-
-        // One-time: migrate old un-prefixed localStorage keys to 2026_
-        (function migrateLocalStorage() {
-            const OLD_KEYS = {
-                'sp_events': '2026_sp_events', 'sp_courses': '2026_sp_courses',
-                'sp_away': '2026_sp_away', 'sp_schedule': '2026_sp_schedule',
-                'sp_shortlists': '2026_sp_shortlists', 'sp_log': '2026_sp_log',
-                'sp_slotNotes': '2026_sp_slotNotes', 'sp_shortlistNotes': '2026_sp_shortlistNotes',
-                'sp_eventNotes': '2026_sp_eventNotes'
-            };
-            for (const [old, nw] of Object.entries(OLD_KEYS)) {
-                const val = localStorage.getItem(old);
-                if (val !== null && localStorage.getItem(nw) === null) {
-                    localStorage.setItem(nw, val);
-                    localStorage.removeItem(old);
-                }
-            }
-        })();
-
         function saveToLocalStorage() {
             try {
-                localStorage.setItem(yearKey('sp_events'), JSON.stringify(events));
-                localStorage.setItem(yearKey('sp_courses'), JSON.stringify(courses));
-                localStorage.setItem(yearKey('sp_away'), JSON.stringify(instructorAway));
-                localStorage.setItem(yearKey('sp_schedule'), JSON.stringify(schedule));
-                localStorage.setItem(yearKey('sp_shortlists'), JSON.stringify(shortlists));
-                localStorage.setItem(yearKey('sp_log'), JSON.stringify(changeLog));
-                localStorage.setItem(yearKey('sp_slotNotes'), JSON.stringify(slotNotes));
-                localStorage.setItem(yearKey('sp_shortlistNotes'), JSON.stringify(shortlistNotes));
-                localStorage.setItem(yearKey('sp_eventNotes'), JSON.stringify(eventNotes));
+                localStorage.setItem('sp_events', JSON.stringify(events));
+                localStorage.setItem('sp_courses', JSON.stringify(courses));
+                localStorage.setItem('sp_away', JSON.stringify(instructorAway));
+                localStorage.setItem('sp_schedule', JSON.stringify(schedule));
+                localStorage.setItem('sp_shortlists', JSON.stringify(shortlists));
+                localStorage.setItem('sp_log', JSON.stringify(changeLog));
+                localStorage.setItem('sp_slotNotes', JSON.stringify(slotNotes));
+                localStorage.setItem('sp_shortlistNotes', JSON.stringify(shortlistNotes));
+                localStorage.setItem('sp_eventNotes', JSON.stringify(eventNotes));
             } catch (err) {}
-            if (!isApplyingRemoteUpdate) {
-                debouncedSupabaseSave();
-            }
         }
 
         function loadFromLocalStorage() {
             try {
-                events = JSON.parse(localStorage.getItem(yearKey('sp_events'))) || [];
-                courses = JSON.parse(localStorage.getItem(yearKey('sp_courses'))) || [];
-                instructorAway = JSON.parse(localStorage.getItem(yearKey('sp_away'))) || [];
-                schedule = JSON.parse(localStorage.getItem(yearKey('sp_schedule'))) || {};
-                shortlists = JSON.parse(localStorage.getItem(yearKey('sp_shortlists'))) || {};
-                changeLog = JSON.parse(localStorage.getItem(yearKey('sp_log'))) || [];
-                slotNotes = JSON.parse(localStorage.getItem(yearKey('sp_slotNotes'))) || {};
-                shortlistNotes = JSON.parse(localStorage.getItem(yearKey('sp_shortlistNotes'))) || {};
-                eventNotes = JSON.parse(localStorage.getItem(yearKey('sp_eventNotes'))) || [];
+                events = JSON.parse(localStorage.getItem('sp_events')) || [];
+                courses = JSON.parse(localStorage.getItem('sp_courses')) || [];
+                instructorAway = JSON.parse(localStorage.getItem('sp_away')) || [];
+                schedule = JSON.parse(localStorage.getItem('sp_schedule')) || {};
+                shortlists = JSON.parse(localStorage.getItem('sp_shortlists')) || {};
+                changeLog = JSON.parse(localStorage.getItem('sp_log')) || [];
+                slotNotes = JSON.parse(localStorage.getItem('sp_slotNotes')) || {};
+                shortlistNotes = JSON.parse(localStorage.getItem('sp_shortlistNotes')) || {};
+                eventNotes = JSON.parse(localStorage.getItem('sp_eventNotes')) || {};
                 
-                // Normalise event fields (supports old & new field names)
+                // Add default values for new event fields
                 events = events.map(ev => ({
-                    Event_ID: ev.Event_ID || ev.Event || '',
+                    Event_ID: ev.Event_ID || '',
+                    Event_Number: ev.Event_Number || '',
                     Event: ev.Event || '',
-                    Location: ev.Location || '',
-                    Hotel_Location: ev.Hotel_Location || ev.Hotel || '',
-                    Room_Count: ev.Room_Count || 10,
                     First_Event_Day: ev.First_Event_Day || '',
                     Last_Event_Day: ev.Last_Event_Day || '',
-                    EarlyBird_Start_Date: ev.EarlyBird_Start_Date || ev.Early_Bird_Start || '',
-                    EarlyBird_End_Date: ev.EarlyBird_End_Date || ev.Early_End_Date || '',
-                    Notes: ev.Notes || '',
+                    Mon_Date: ev.Mon_Date || '',
+                    Tues_Date: ev.Tues_Date || '',
+                    Wed_Date: ev.Wed_Date || '',
+                    Thurs_Date: ev.Thurs_Date || '',
+                    Location: ev.Location || '',
+                    Hotel: ev.Hotel || '',
+                    Early_Bird_Start: ev.Early_Bird_Start || '',
+                    Early_End_Date: ev.Early_End_Date || '',
+                    Room_Count: ev.Room_Count || 10,
                     Total_Days: ev.Total_Days || 0
                 }));
                 
@@ -4041,14 +3572,14 @@
         }
 
         function clearAllData() {
-            if (!confirm(`Clear all ${activeYear} data and start fresh?`)) return;
-            localStorage.removeItem(yearKey('sp_events'));
-            localStorage.removeItem(yearKey('sp_courses'));
-            localStorage.removeItem(yearKey('sp_away'));
-            localStorage.removeItem(yearKey('sp_schedule'));
-            localStorage.removeItem(yearKey('sp_shortlists'));
-            localStorage.removeItem(yearKey('sp_log'));
-            localStorage.removeItem(yearKey('sp_assignments'));
+            if (!confirm('Clear all data and start fresh?')) return;
+            localStorage.removeItem('sp_events');
+            localStorage.removeItem('sp_courses');
+            localStorage.removeItem('sp_away');
+            localStorage.removeItem('sp_schedule');
+            localStorage.removeItem('sp_shortlists');
+            localStorage.removeItem('sp_log');
+            localStorage.removeItem('sp_assignments');
             events = [];
             courses = [];
             instructorAway = [];
@@ -4090,173 +3621,6 @@
         document.addEventListener('keydown', e => {
             if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
         });
-
-        // ==================== SUPABASE SYNC ====================
-
-        // One-time migration: move old un-prefixed keys to 2026_ prefix
-        async function migrateOldKeys() {
-            try {
-                const OLD_KEYS = ['events','courses','instructor_away','schedule','shortlists','change_log','slot_notes','shortlist_notes','event_notes'];
-                const { data } = await sb.from('schedulepro_state').select('key, value').in('key', OLD_KEYS);
-                if (!data || data.length === 0) return;
-                const now = new Date().toISOString();
-                const inserts = data.map(row => ({ key: '2026_' + row.key, value: row.value, updated_at: now }));
-                await sb.from('schedulepro_state').upsert(inserts);
-                // Delete old un-prefixed rows
-                await sb.from('schedulepro_state').delete().in('key', OLD_KEYS);
-                console.log('Migrated old keys to 2026_ prefix');
-            } catch (err) {
-                console.warn('Migration check skipped:', err.message);
-            }
-        }
-
-        async function loadFromSupabase() {
-            try {
-                await migrateOldKeys();
-                const prefix = activeYear + '_%';
-                const { data, error } = await sb.from('schedulepro_state').select('key, value').like('key', prefix);
-                if (error) throw error;
-
-                if (data && data.length > 0) {
-                    const stateMap = {};
-                    for (const row of data) stateMap[row.key] = row.value;
-
-                    if (stateMap[yearKey('events')]) events = stateMap[yearKey('events')];
-                    if (stateMap[yearKey('courses')]) courses = stateMap[yearKey('courses')];
-                    if (stateMap[yearKey('instructor_away')]) instructorAway = stateMap[yearKey('instructor_away')];
-                    if (stateMap[yearKey('schedule')]) schedule = stateMap[yearKey('schedule')];
-                    if (stateMap[yearKey('shortlists')]) shortlists = stateMap[yearKey('shortlists')];
-                    if (stateMap[yearKey('change_log')]) changeLog = stateMap[yearKey('change_log')];
-                    if (stateMap[yearKey('slot_notes')]) slotNotes = stateMap[yearKey('slot_notes')];
-                    if (stateMap[yearKey('shortlist_notes')]) shortlistNotes = stateMap[yearKey('shortlist_notes')];
-                    if (stateMap[yearKey('event_notes')]) eventNotes = stateMap[yearKey('event_notes')];
-
-                    // Normalize events — supports old and new field names
-                    events = events.map(ev => ({
-                        Event_ID: ev.Event_ID || ev.Event || '',
-                        Event: ev.Event || '',
-                        Location: ev.Location || '',
-                        Hotel_Location: ev.Hotel_Location || ev.Hotel || '',
-                        Room_Count: ev.Room_Count || 10,
-                        First_Event_Day: ev.First_Event_Day || '',
-                        Last_Event_Day: ev.Last_Event_Day || '',
-                        EarlyBird_Start_Date: ev.EarlyBird_Start_Date || ev.Early_Bird_Start || '',
-                        EarlyBird_End_Date: ev.EarlyBird_End_Date || ev.Early_End_Date || '',
-                        Notes: ev.Notes || '',
-                        Total_Days: ev.Total_Days || 0
-                    }));
-
-                    // Normalize courses — ensure all string fields exist
-                    courses = courses.map(c => ({
-                        Course_ID: String(c.Course_ID || '').trim(),
-                        Instructor: String(c.Instructor || '').trim(),
-                        Course_Name: String(c.Course_Name || '').trim(),
-                        Duration_Days: parseFloat(c.Duration_Days) || 1,
-                        Topic: String(c.Topic || '').trim()
-                    }));
-
-                    updateTopicFilter();
-                }
-
-                supabaseConnected = true;
-            } catch (err) {
-                console.warn('Supabase unavailable, using localStorage:', err.message);
-                supabaseConnected = false;
-            }
-        }
-
-        async function saveToSupabase() {
-            if (!supabaseConnected) return;
-            try {
-                const now = new Date().toISOString();
-                const { error } = await sb.from('schedulepro_state').upsert([
-                    { key: yearKey('events'), value: events, updated_at: now },
-                    { key: yearKey('courses'), value: courses, updated_at: now },
-                    { key: yearKey('instructor_away'), value: instructorAway, updated_at: now },
-                    { key: yearKey('schedule'), value: schedule, updated_at: now },
-                    { key: yearKey('shortlists'), value: shortlists, updated_at: now },
-                    { key: yearKey('change_log'), value: changeLog, updated_at: now },
-                    { key: yearKey('slot_notes'), value: slotNotes, updated_at: now },
-                    { key: yearKey('shortlist_notes'), value: shortlistNotes, updated_at: now },
-                    { key: yearKey('event_notes'), value: eventNotes, updated_at: now }
-                ]);
-                if (error) throw error;
-                updateSyncStatus('saved');
-            } catch (err) {
-                console.warn('Supabase save failed:', err.message);
-                updateSyncStatus('error');
-            }
-        }
-
-        function debouncedSupabaseSave() {
-            clearTimeout(supabaseSaveTimer);
-            updateSyncStatus('saving');
-            supabaseSaveTimer = setTimeout(saveToSupabase, 500);
-        }
-
-        function setupRealtimeSubscription() {
-            realtimeChannel = sb.channel('schedulepro-sync-' + activeYear)
-                .on('postgres_changes', {
-                    event: '*',
-                    schema: 'public',
-                    table: 'schedulepro_state'
-                }, (payload) => {
-                    if (payload.new && !isApplyingRemoteUpdate) {
-                        const key = payload.new.key;
-                        // Ignore updates for other years
-                        if (!key.startsWith(activeYear + '_')) return;
-                        isApplyingRemoteUpdate = true;
-                        const value = payload.new.value;
-                        const field = key.substring(key.indexOf('_') + 1);
-                        switch (field) {
-                            case 'events': events = (value || []).map(ev => ({ Event_ID: ev.Event_ID || ev.Event || '', Event: ev.Event || '', Location: ev.Location || '', Hotel_Location: ev.Hotel_Location || ev.Hotel || '', Room_Count: ev.Room_Count || 10, First_Event_Day: ev.First_Event_Day || '', Last_Event_Day: ev.Last_Event_Day || '', EarlyBird_Start_Date: ev.EarlyBird_Start_Date || ev.Early_Bird_Start || '', EarlyBird_End_Date: ev.EarlyBird_End_Date || ev.Early_End_Date || '', Notes: ev.Notes || '', Total_Days: ev.Total_Days || 0 })); break;
-                            case 'courses': courses = (value || []).map(c => ({ Course_ID: String(c.Course_ID || '').trim(), Instructor: String(c.Instructor || '').trim(), Course_Name: String(c.Course_Name || '').trim(), Duration_Days: parseFloat(c.Duration_Days) || 1, Topic: String(c.Topic || '').trim() })); updateTopicFilter(); break;
-                            case 'instructor_away': instructorAway = value || []; break;
-                            case 'schedule': schedule = value || {}; break;
-                            case 'shortlists': shortlists = value || {}; break;
-                            case 'change_log': changeLog = value || []; break;
-                            case 'slot_notes': slotNotes = value || {}; break;
-                            case 'shortlist_notes': shortlistNotes = value || {}; break;
-                            case 'event_notes': eventNotes = value || {}; break;
-                        }
-                        saveToLocalStorage();
-                        // Don't destroy an active cell edit — defer the render
-                        if (currentEditingCell) {
-                            setTimeout(() => { if (!currentEditingCell) render(); }, 2000);
-                        } else {
-                            render();
-                        }
-                        isApplyingRemoteUpdate = false;
-                    }
-                })
-                .subscribe((status) => {
-                    supabaseConnected = (status === 'SUBSCRIBED');
-                    updateSyncStatus();
-                });
-        }
-
-        function updateSyncStatus(state) {
-            const dot = document.getElementById('syncDot');
-            const text = document.getElementById('syncText');
-            if (!dot || !text) return;
-            if (state === 'saving') {
-                dot.style.background = '#f59e0b';
-                text.textContent = 'Saving...';
-            } else if (state === 'saved') {
-                dot.style.background = '#10b981';
-                text.textContent = 'Synced';
-            } else if (state === 'error') {
-                dot.style.background = '#ef4444';
-                text.textContent = 'Sync error';
-            } else if (supabaseConnected) {
-                dot.style.background = '#10b981';
-                text.textContent = 'Connected';
-            } else {
-                dot.style.background = '#9ca3af';
-                text.textContent = 'Offline';
-            }
-        }
-
     </script>
 </body>
 </html>
