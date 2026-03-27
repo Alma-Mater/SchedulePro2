@@ -2621,7 +2621,8 @@
         function renderChangeLog() {
             const container = document.getElementById('logTableContainer');
             
-            if (changeLog.length === 0) {
+            const trackedEntries = changeLog.filter(e => e && e.tracked);
+            if (trackedEntries.length === 0) {
                 container.innerHTML = '<div class="empty-state">No changes recorded yet</div>';
                 return;
             }
@@ -2637,7 +2638,10 @@
                 if (!entry || !entry.action) {
                     return showDraftUndraft;
                 }
-                
+
+                // Never show ghost (untracked) entries in the UI
+                if (!entry.tracked) return false;
+
                 if (showDraftUndraft) {
                     return true; // Show everything when checked
                 }
@@ -2647,9 +2651,8 @@
             });
             
             if (filteredLog.length === 0) {
-                const totalEntries = changeLog.length;
-                const draftCount = changeLog.filter(e => e && e.action && (e.action.toLowerCase() === 'draft' || e.action.toLowerCase() === 'undraft')).length;
-                container.innerHTML = `<div class="empty-state">No changes recorded yet${totalEntries > 0 ? ` (${draftCount} draft/undraft entries hidden - enable "Show Draft/Undraft" to see them)` : ''}</div>`;
+                const draftCount = trackedEntries.filter(e => e.action && (e.action.toLowerCase() === 'draft' || e.action.toLowerCase() === 'undraft')).length;
+                container.innerHTML = `<div class="empty-state">No changes recorded yet${trackedEntries.length > 0 ? ` (${draftCount} draft/undraft entries hidden - enable "Show Draft/Undraft" to see them)` : ''}</div>`;
                 return;
             }
 
@@ -3807,7 +3810,6 @@
         let showDraftUndraftInLog = false;
 
         function addLogEntry(action, eventId, courseId, description, before = '', after = '', notes = '', instructorOverride = null) {
-            if (!trackingEnabled) return;
             const course = courseId ? courses.find(c => c.Course_ID === courseId) : null;
             const now = new Date();
             changeLog.push({
@@ -3821,7 +3823,8 @@
                 description,
                 before,
                 after,
-                notes
+                notes,
+                tracked: trackingEnabled
             });
             saveToLocalStorage();
         }
