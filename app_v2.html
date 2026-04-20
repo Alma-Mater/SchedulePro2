@@ -1448,7 +1448,10 @@
 
                 <!-- ALL COURSES TAB -->
                 <div class="tab-panel" id="tab-courses">
-                    <p style="margin-bottom: 16px; color: #6b7280;">Click any cell to edit. Changes save automatically. Click column headers to sort.</p>
+                    <div style="margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between;">
+                        <p style="color: #6b7280;">Click any cell to edit. Changes save automatically. Click column headers to sort.</p>
+                        <button class="btn btn-primary btn-sm" onclick="addCourse()">+ Add Course</button>
+                    </div>
                     <table class="data-table" id="coursesTable">
                         <thead>
                             <tr>
@@ -2594,6 +2597,28 @@
                 render();
                 showToast('Entry retired', 'success');
             }
+        }
+
+        function addCourse() {
+            courses.push({
+                Course_ID: '',
+                Course_Name: '',
+                Instructor: '',
+                Duration_Days: 1,
+                Topic: ''
+            });
+            saveToLocalStorage();
+            renderCoursesTable();
+            renderSidebar();
+            showToast('Course added — click cells to edit', 'success');
+
+            // Auto-focus Course_ID cell of the new row
+            setTimeout(() => {
+                const cells = document.querySelectorAll('#coursesTableBody .editable-cell');
+                // New row has 5 editable cells; focus the first of the last row
+                const newRowFirstCell = cells[cells.length - 5];
+                if (newRowFirstCell) newRowFirstCell.click();
+            }, 100);
         }
 
         function addAvailabilityEntry() {
