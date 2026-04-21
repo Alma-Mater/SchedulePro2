@@ -936,6 +936,32 @@
             background: #faf5ff;
         }
 
+        /* New course input row */
+        .new-course-row td {
+            background: #f0fdf4;
+            border-bottom: 2px solid #86efac;
+        }
+
+        .new-course-row td:first-child {
+            border-left: 4px solid #22c55e;
+        }
+
+        .new-course-row input {
+            width: 100%;
+            border: 1px solid #86efac;
+            border-radius: 4px;
+            padding: 6px 8px;
+            font-size: 15px;
+            background: white;
+            box-sizing: border-box;
+            outline: none;
+        }
+
+        .new-course-row input:focus {
+            border-color: #22c55e;
+            box-shadow: 0 0 0 2px rgba(34,197,94,0.2);
+        }
+
         /* Courses tab scrollable wrapper with frozen header */
         .courses-table-wrapper {
             max-height: calc(100vh - 260px);
@@ -1475,9 +1501,8 @@
 
                 <!-- ALL COURSES TAB -->
                 <div class="tab-panel" id="tab-courses">
-                    <div style="margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between;">
-                        <p style="color: #6b7280;">Click any cell to edit. Changes save automatically. Click column headers to sort.</p>
-                        <button class="btn btn-primary btn-sm" onclick="addCourse()">+ Add Course</button>
+                    <div style="margin-bottom: 16px;">
+                        <p style="color: #6b7280;">Click any cell to edit. Changes save automatically. Click column headers to sort. Use the green row at the top to add a new course.</p>
                     </div>
                     <div class="courses-table-wrapper">
                         <table class="data-table" id="coursesTable">
@@ -1619,6 +1644,8 @@
         let selectedDurations = [];
         let coursesSortColumn = null;
         let coursesSortDirection = 'asc';
+        let newCourseBuffer = { Course_ID: '', Course_Name: '', Instructor: '', Duration_Days: '', Topic: '' };
+        let newCourseSaved = false;
         let currentEditingCell = null;
 
         // ==================== YEAR / SEASON ====================
@@ -1673,6 +1700,11 @@
         function setupTabs() {
             document.querySelectorAll('.nav-tab').forEach(tab => {
                 tab.addEventListener('click', () => {
+                    // If leaving the Courses tab with unsaved buffer content, silently commit
+                    const activePanel = document.querySelector('.tab-panel.active');
+                    if (activePanel && activePanel.id === 'tab-courses' && tab.dataset.tab !== 'courses') {
+                        commitNewCourse(false);
+                    }
                     document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
                     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
                     tab.classList.add('active');
@@ -2502,7 +2534,18 @@
                 }
             }
 
-            tbody.innerHTML = sortedCourses.map(c => {
+            const newRow = `
+                <tr class="new-course-row" id="newCourseRow">
+                    <td><input id="ncf_Course_ID" placeholder="+ new course" value="${newCourseBuffer.Course_ID}" oninput="updateNewCourseBuffer('Course_ID', this.value)" onkeydown="handleNewCourseKey(event)"></td>
+                    <td><input id="ncf_Course_Name" placeholder="Course Name" value="${newCourseBuffer.Course_Name}" oninput="updateNewCourseBuffer('Course_Name', this.value)" onkeydown="handleNewCourseKey(event)"></td>
+                    <td><input id="ncf_Instructor" placeholder="Instructor" value="${newCourseBuffer.Instructor}" oninput="updateNewCourseBuffer('Instructor', this.value)" onkeydown="handleNewCourseKey(event)"></td>
+                    <td><input id="ncf_Duration_Days" placeholder="Days" type="number" min="0.5" step="0.5" value="${newCourseBuffer.Duration_Days}" oninput="updateNewCourseBuffer('Duration_Days', this.value)" onkeydown="handleNewCourseKey(event)"></td>
+                    <td><input id="ncf_Topic" placeholder="Topic" value="${newCourseBuffer.Topic}" oninput="updateNewCourseBuffer('Topic', this.value)" onkeydown="handleNewCourseKey(event)"></td>
+                    <td></td>
+                </tr>
+            `;
+
+            tbody.innerHTML = newRow + sortedCourses.map(c => {
                 const assignments = assignedMap[c.Course_ID] || [];
                 return `
                     <tr>
@@ -2628,26 +2671,50 @@
             }
         }
 
-        function addCourse() {
-            courses.push({
-                Course_ID: '',
-                Course_Name: '',
-                Instructor: '',
-                Duration_Days: 1,
-                Topic: ''
+        function updateNewCourseBuffer(field, value) {
+            // Pure buffer update — no save, no re-render. Keeps inputs stable while typing.
+            newCourseBuffer[field] = value;
+        }
+
+        function handleNewCourseKey(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                commitNewCourse(true);
+            }
+            // Tab from the last field (Topic) submits the row
+            if (e.key === 'Tab' && !e.shiftKey && e.target.id === 'ncf_Topic') {
+                e.preventDefault();
+                commitNewCourse(true);
+            }
+        }
+
+        function commitNewCourse(focusAfter = false) {
+            const hasContent = (newCourseBuffer.Course_ID || '').trim() ||
+                               (newCourseBuffer.Course_Name || '').trim() ||
+                               (newCourseBuffer.Instructor || '').trim() ||
+                               newCourseBuffer.Duration_Days ||
+                               (newCourseBuffer.Topic || '').trim();
+            if (!hasContent) return;
+            const id   = (newCourseBuffer.Course_ID || '').trim();
+            const name = (newCourseBuffer.Course_Name || '').trim();
+            courses.unshift({
+                Course_ID:     id,
+                Course_Name:   name,
+                Instructor:    (newCourseBuffer.Instructor || '').trim(),
+                Duration_Days: parseFloat(newCourseBuffer.Duration_Days) || 1,
+                Topic:         (newCourseBuffer.Topic || '').trim()
             });
+            newCourseBuffer  = { Course_ID: '', Course_Name: '', Instructor: '', Duration_Days: '', Topic: '' };
+            newCourseSaved   = false;
             saveToLocalStorage();
             renderCoursesTable();
             renderSidebar();
-            showToast('Course added — click cells to edit', 'success');
-
-            // Auto-focus Course_ID cell of the new row
-            setTimeout(() => {
-                const cells = document.querySelectorAll('#coursesTableBody .editable-cell');
-                // New row has 5 editable cells; focus the first of the last row
-                const newRowFirstCell = cells[cells.length - 5];
-                if (newRowFirstCell) newRowFirstCell.click();
-            }, 100);
+            updateTopicFilter();
+            addLogEntry('add', null, id || name || 'new', 'Course added');
+            showToast(`Course "${id || name || 'new'}" added`, 'success');
+            if (focusAfter) {
+                setTimeout(() => { const el = document.getElementById('ncf_Course_ID'); if (el) el.focus(); }, 50);
+            }
         }
 
         function addAvailabilityEntry() {
