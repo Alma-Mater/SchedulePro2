@@ -772,6 +772,7 @@
             flex-direction: column;
             justify-content: center;
             position: relative;
+            overflow: hidden;
         }
 
         .course-block:hover {
@@ -783,6 +784,48 @@
             border-color: #f59e0b;
             background: #fffbeb;
         }
+
+        /* Half-day variants */
+        .course-block.half-day-am {
+            border-left: 5px solid #16a34a;
+            background: #f0fdf4;
+        }
+
+        .course-block.half-day-am:hover {
+            background: #dcfce7;
+        }
+
+        .course-block.half-day-pm {
+            border-left: 5px solid #9b1c1c;
+            background: #fff1f2;
+        }
+
+        .course-block.half-day-pm:hover {
+            background: #ffe4e6;
+        }
+
+        .half-day-ribbon {
+            position: absolute;
+            top: 16px;
+            right: -28px;
+            width: 100px;
+            padding: 4px 0;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 700;
+            color: white;
+            transform: rotate(45deg);
+            cursor: pointer;
+            user-select: none;
+            z-index: 10;
+            letter-spacing: 0.03em;
+            transition: filter 0.15s;
+        }
+
+        .half-day-ribbon:hover { filter: brightness(1.15); }
+
+        .half-day-am .half-day-ribbon { background: #16a34a; }
+        .half-day-pm .half-day-ribbon { background: #9b1c1c; }
 
         .course-block-note-indicator {
             position: absolute;
@@ -2385,10 +2428,16 @@
                         const course = courses.find(c => c.Course_ID === assignment.courseId);
                         const hasConflict = course && checkInstructorConflict(course.Instructor, selectedEventId);
                         const hasNote = assignment.note && assignment.note.trim().length > 0;
+                        const isHalfDay = course && parseFloat(course.Duration_Days) === 0.5;
+                        const halfDaySlot = isHalfDay ? (assignment.slot || 'AM') : null;
+                        const halfDayClass = isHalfDay ? `half-day-${halfDaySlot.toLowerCase()}` : '';
+                        const halfDayRibbon = isHalfDay
+                            ? `<div class="half-day-ribbon" onclick="event.stopPropagation(); toggleHalfDaySlot('${selectedEventId}', ${room}, '${assignment.courseId}')" title="Click to toggle AM / PM">4 hrs ${halfDaySlot}</div>`
+                            : '';
                         
                         bodyHtml += `
                             <td colspan="${assignment.duration}">
-                                <div class="course-block ${hasConflict ? 'has-conflict' : ''}" 
+                                <div class="course-block ${hasConflict ? 'has-conflict' : ''} ${halfDayClass}" 
                                      draggable="true"
                                      ondragstart="handleDragStart(event, '${selectedEventId}', ${room}, '${assignment.courseId}', ${assignment.startDay}, ${assignment.duration})"
                                      ondragend="handleDragEnd(event)"
@@ -2397,6 +2446,7 @@
                                     ${hasNote ? `<div class="course-block-note-indicator" onclick="event.stopPropagation(); addEditBlockNote('${selectedEventId}', ${room}, '${assignment.courseId}')">Note</div>` : ''}
                                     <div class="course-block-name">${course?.Course_Name || assignment.courseId}</div>
                                     <div class="course-block-instructor">${course?.Instructor || ''}</div>
+                                    ${halfDayRibbon}
                                 </div>
                             </td>
                         `;
@@ -3256,6 +3306,17 @@
             saveToLocalStorage();
             render();
             showToast(`Assigned "${course.Course_Name}"`, 'success');
+        }
+
+        function toggleHalfDaySlot(eventId, room, courseId) {
+            const roomSchedule = (schedule[eventId] || {})[room] || [];
+            const assignment = roomSchedule.find(a => a.courseId === courseId);
+            if (!assignment) return;
+            const current = assignment.slot || 'AM';
+            assignment.slot = current === 'AM' ? 'PM' : 'AM';
+            saveToLocalStorage();
+            renderScheduleTable();
+            showToast(`Switched to ${assignment.slot}`, 'success');
         }
 
         function confirmRemoveCourse(eventId, room, courseId) {
