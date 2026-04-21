@@ -721,6 +721,8 @@
             font-weight: 600;
             text-align: center;
             color: #6b7280;
+            position: relative;
+            white-space: nowrap;
         }
 
         .schedule-table tr:hover td {
@@ -729,6 +731,31 @@
 
         .schedule-table tr:hover td.room-cell {
             background: #f3f4f6;
+        }
+
+        .room-remove-btn {
+            display: none;
+            position: absolute;
+            top: 50%;
+            right: 4px;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #d1d5db;
+            font-size: 13px;
+            line-height: 1;
+            cursor: pointer;
+            padding: 2px 3px;
+            border-radius: 3px;
+        }
+
+        .schedule-table tr:hover .room-remove-btn {
+            display: inline-block;
+        }
+
+        .room-remove-btn:hover {
+            color: #ef4444;
+            background: #fee2e2;
         }
 
         /* ========== SCHEDULE COURSE BLOCK ========== */
@@ -2347,7 +2374,7 @@
             // Body
             let bodyHtml = '';
             for (let room = 1; room <= roomCount; room++) {
-                bodyHtml += `<tr><td class="room-cell">R${room}</td>`;
+                bodyHtml += `<tr><td class="room-cell">R${room}<button class="room-remove-btn" onclick="removeRoom('${selectedEventId}', ${room})" title="Remove this room">✕</button></td>`;
                 
                 let day = 1;
                 while (day <= totalDays) {
@@ -3238,6 +3265,58 @@
                 saveToLocalStorage();
                 render();
                 showToast('Course retired', 'success');
+            }
+        }
+
+        function removeRoom(eventId, roomNum) {
+            const eventSchedule = schedule[eventId] || {};
+            const roomAssignments = eventSchedule[roomNum] || [];
+            const bookedCourses = roomAssignments.map(a => {
+                const c = courses.find(x => x.Course_ID === a.courseId);
+                return c ? (c.Course_Name || c.Course_ID) : a.courseId;
+            });
+            const roomCount = events.find(e => e.Event_ID === eventId)?.Room_Count || 1;
+            if (roomCount <= 1) {
+                showToast('Cannot remove the only room', 'error');
+                return;
+            }
+
+            const doRemove = () => {
+                // Remove this room's schedule data
+                delete eventSchedule[roomNum];
+
+                // Renumber all rooms above roomNum down by 1
+                const newEventSchedule = {};
+                for (const r in eventSchedule) {
+                    const rNum = parseInt(r);
+                    if (rNum < roomNum) {
+                        newEventSchedule[rNum] = eventSchedule[r];
+                    } else if (rNum > roomNum) {
+                        newEventSchedule[rNum - 1] = eventSchedule[r];
+                    }
+                }
+                schedule[eventId] = newEventSchedule;
+
+                // Decrement Room_Count on the event
+                const ev = events.find(e => e.Event_ID === eventId);
+                if (ev) ev.Room_Count = Math.max(1, (parseInt(ev.Room_Count) || 1) - 1);
+
+                addLogEntry('edit', eventId, null, `Room ${roomNum} removed, rooms renumbered`);
+                saveToLocalStorage();
+                render();
+                showToast(`Room ${roomNum} removed`, 'success');
+            };
+
+            if (bookedCourses.length === 0) {
+                doRemove();
+            } else {
+                const courseList = bookedCourses.join(', ');
+                showConfirmToast(
+                    `Room ${roomNum} has ${bookedCourses.length} course${bookedCourses.length > 1 ? 's' : ''} scheduled (${courseList}). Remove the room and unschedule them?`,
+                    'Remove room',
+                    'error',
+                    doRemove
+                );
             }
         }
 
