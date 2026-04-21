@@ -806,19 +806,19 @@
 
         .half-day-ribbon {
             position: absolute;
-            top: 16px;
-            right: -28px;
-            width: 100px;
-            padding: 4px 0;
+            top: 18px;
+            right: -26px;
+            width: 110px;
+            padding: 5px 0;
             text-align: center;
-            font-size: 11px;
-            font-weight: 700;
+            font-size: 13px;
+            font-weight: 800;
             color: white;
             transform: rotate(45deg);
             cursor: pointer;
             user-select: none;
             z-index: 10;
-            letter-spacing: 0.03em;
+            letter-spacing: 0.06em;
             transition: filter 0.15s;
         }
 
@@ -2432,7 +2432,7 @@
                         const halfDaySlot = isHalfDay ? (assignment.slot || 'AM') : null;
                         const halfDayClass = isHalfDay ? `half-day-${halfDaySlot.toLowerCase()}` : '';
                         const halfDayRibbon = isHalfDay
-                            ? `<div class="half-day-ribbon" onclick="event.stopPropagation(); toggleHalfDaySlot('${selectedEventId}', ${room}, '${assignment.courseId}')" title="Click to toggle AM / PM">4 hrs ${halfDaySlot}</div>`
+                            ? `<div class="half-day-ribbon" onclick="event.stopPropagation(); toggleHalfDaySlot('${selectedEventId}', ${room}, '${assignment.courseId}')" title="Click to toggle AM / PM">${halfDaySlot}</div>`
                             : '';
                         
                         bodyHtml += `
