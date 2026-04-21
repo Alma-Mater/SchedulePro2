@@ -1213,6 +1213,46 @@
         .toast.error { background: #ef4444; }
         .toast.warning { background: #f59e0b; }
 
+        .toast-confirm-btns {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .toast-confirm-btns button {
+            flex: 1;
+            padding: 7px 0;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .toast-btn-confirm { background: white; color: #1f2937; }
+        .toast-btn-confirm.danger { background: #fca5a5; color: #7f1d1d; }
+        .toast-btn-cancel { background: rgba(255,255,255,0.2); color: white; }
+
+        /* Retired course rows */
+        .course-row-retired td { opacity: 0.45; }
+        .course-row-retired td:first-child { text-decoration: line-through; }
+
+        .btn-icon {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 4px;
+            font-size: 15px;
+            line-height: 1;
+            transition: background 0.15s;
+        }
+
+        .btn-icon:hover { background: #f3f4f6; }
+        .btn-icon.retire:hover { background: #fef9c3; }
+        .btn-icon.unretire:hover { background: #dcfce7; }
+        .btn-icon.delete:hover { background: #fee2e2; }
+
         /* ========== UTILITIES ========== */
         .empty-state {
             text-align: center;
@@ -1501,8 +1541,12 @@
 
                 <!-- ALL COURSES TAB -->
                 <div class="tab-panel" id="tab-courses">
-                    <div style="margin-bottom: 16px;">
-                        <p style="color: #6b7280;">Click any cell to edit. Changes save automatically. Click column headers to sort. Use the green row at the top to add a new course.</p>
+                    <div style="margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                        <p style="color: #6b7280; margin: 0;">Click any cell to edit. Changes save automatically. Click column headers to sort. Use the green row at the top to add a new course.</p>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; font-size: 14px; color: #6b7280;">
+                            <input type="checkbox" id="showRetiredCheckbox" onchange="toggleShowRetired()" style="cursor: pointer;">
+                            Show retired
+                        </label>
                     </div>
                     <div class="courses-table-wrapper">
                         <table class="data-table" id="coursesTable">
@@ -1514,6 +1558,7 @@
                                     <th onclick="sortCoursesTable('Duration_Days')" style="cursor: pointer; user-select: none;" id="header-Duration_Days">Duration <span class="sort-indicator"></span></th>
                                     <th onclick="sortCoursesTable('Topic')" style="cursor: pointer; user-select: none;" id="header-Topic">Topic <span class="sort-indicator"></span></th>
                                     <th>Assigned To</th>
+                                    <th style="width: 72px; text-align: center;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="coursesTableBody"></tbody>
@@ -2542,19 +2587,31 @@
                     <td><input id="ncf_Duration_Days" placeholder="Days" type="number" min="0.5" step="0.5" value="${newCourseBuffer.Duration_Days}" oninput="updateNewCourseBuffer('Duration_Days', this.value)" onkeydown="handleNewCourseKey(event)"></td>
                     <td><input id="ncf_Topic" placeholder="Topic" value="${newCourseBuffer.Topic}" oninput="updateNewCourseBuffer('Topic', this.value)" onkeydown="handleNewCourseKey(event)"></td>
                     <td></td>
+                    <td></td>
                 </tr>
             `;
 
-            tbody.innerHTML = newRow + sortedCourses.map(c => {
+            const showRetired = document.getElementById('showRetiredCheckbox')?.checked;
+            const visibleCourses = showRetired ? sortedCourses : sortedCourses.filter(c => !c.retired);
+
+            tbody.innerHTML = newRow + visibleCourses.map(c => {
                 const assignments = assignedMap[c.Course_ID] || [];
+                const isRetired = !!c.retired;
+                const retireBtn = isRetired
+                    ? `<button class="btn-icon unretire" title="Restore course" onclick="unretireCourse(${c.originalIdx})">↩️</button>`
+                    : `<button class="btn-icon retire" title="Retire course" onclick="retireCourse(${c.originalIdx})">📦</button>`;
                 return `
-                    <tr>
+                    <tr class="${isRetired ? 'course-row-retired' : ''}">
                         <td class="editable-cell" onclick="editCell(${c.originalIdx}, 'Course_ID', this)">${c.Course_ID}</td>
                         <td class="editable-cell" onclick="editCell(${c.originalIdx}, 'Course_Name', this)">${c.Course_Name}</td>
                         <td class="editable-cell" onclick="editCell(${c.originalIdx}, 'Instructor', this)">${c.Instructor}</td>
                         <td class="editable-cell" onclick="editCell(${c.originalIdx}, 'Duration_Days', this)">${c.Duration_Days} day${c.Duration_Days !== 1 ? 's' : ''}</td>
                         <td class="editable-cell" onclick="editCell(${c.originalIdx}, 'Topic', this)">${c.Topic || '—'}</td>
                         <td>${assignments.length ? assignments.join(', ') : '—'}</td>
+                        <td style="text-align: center; white-space: nowrap;">
+                            ${retireBtn}
+                            <button class="btn-icon delete" title="Delete course permanently" onclick="deleteCourse(${c.originalIdx})">🗑️</button>
+                        </td>
                     </tr>
                 `;
             }).join('');
@@ -2669,6 +2726,111 @@
                 render();
                 showToast('Entry retired', 'success');
             }
+        }
+
+        function toggleShowRetired() {
+            renderCoursesTable();
+        }
+
+        function isCourseScheduled(courseId) {
+            for (const eventId in schedule) {
+                for (const room in schedule[eventId]) {
+                    if ((schedule[eventId][room] || []).some(s => s.courseId === courseId)) return true;
+                }
+            }
+            return false;
+        }
+
+        function retireCourse(idx) {
+            const course = courses[idx];
+            const label = course.Course_Name || course.Course_ID || 'this course';
+            showConfirmToast(
+                `Retire "${label}"? It will be hidden from scheduling but kept for history.`,
+                'Retire',
+                'warning',
+                () => {
+                    courses[idx].retired = true;
+                    addLogEntry('edit', null, course.Course_ID, 'Course retired');
+                    saveToLocalStorage();
+                    renderCoursesTable();
+                    renderSidebar();
+                    showToast(`"${label}" retired`, 'warning');
+                }
+            );
+        }
+
+        function unretireCourse(idx) {
+            const course = courses[idx];
+            delete courses[idx].retired;
+            addLogEntry('edit', null, course.Course_ID, 'Course restored');
+            saveToLocalStorage();
+            renderCoursesTable();
+            renderSidebar();
+            showToast(`"${course.Course_Name || course.Course_ID}" restored`, 'success');
+        }
+
+        function deleteCourse(idx) {
+            const course = courses[idx];
+            const label = course.Course_Name || course.Course_ID || 'this course';
+            if (isCourseScheduled(course.Course_ID)) {
+                showConfirmToast(
+                    `"${label}" is currently scheduled in one or more events. Deleting it will remove those slots too. This cannot be undone.`,
+                    'Delete anyway',
+                    'error',
+                    () => {
+                        removeScheduledCourse(course.Course_ID);
+                        courses.splice(idx, 1);
+                        addLogEntry('remove', null, course.Course_ID, 'Course permanently deleted');
+                        saveToLocalStorage();
+                        renderCoursesTable();
+                        renderSidebar();
+                        updateTopicFilter();
+                        render();
+                        showToast(`"${label}" deleted`, 'error');
+                    }
+                );
+            } else {
+                showConfirmToast(
+                    `Permanently delete "${label}"? This cannot be undone.`,
+                    'Delete',
+                    'error',
+                    () => {
+                        courses.splice(idx, 1);
+                        addLogEntry('remove', null, course.Course_ID, 'Course permanently deleted');
+                        saveToLocalStorage();
+                        renderCoursesTable();
+                        renderSidebar();
+                        updateTopicFilter();
+                        showToast(`"${label}" deleted`, 'error');
+                    }
+                );
+            }
+        }
+
+        function removeScheduledCourse(courseId) {
+            for (const eventId in schedule) {
+                for (const room in schedule[eventId]) {
+                    schedule[eventId][room] = (schedule[eventId][room] || []).filter(s => s.courseId !== courseId);
+                }
+            }
+            for (const eventId in shortlists) {
+                shortlists[eventId] = (shortlists[eventId] || []).filter(id => id !== courseId);
+            }
+        }
+
+        function showConfirmToast(message, confirmLabel, type, onConfirm) {
+            const t = document.getElementById('toast');
+            clearTimeout(t._hideTimer);
+            t.className = 'toast ' + type + ' show';
+            t.innerHTML = `
+                <div style="max-width: 280px; line-height: 1.4;">${message}</div>
+                <div class="toast-confirm-btns">
+                    <button class="toast-btn-confirm ${type === 'error' ? 'danger' : ''}" onclick="_toastConfirm()">${confirmLabel}</button>
+                    <button class="toast-btn-cancel" onclick="_toastCancel()">Cancel</button>
+                </div>
+            `;
+            window._toastConfirm = () => { t.classList.remove('show'); onConfirm(); };
+            window._toastCancel  = () => { t.classList.remove('show'); };
         }
 
         function updateNewCourseBuffer(field, value) {
