@@ -4529,7 +4529,7 @@
                         const field = key.substring(key.indexOf('_') + 1);
                         switch (field) {
                             case 'events': events = (value || []).map(ev => ({ Event_ID: ev.Event_ID || ev.Event || '', Event: ev.Event || '', Location: ev.Location || '', Hotel_Location: ev.Hotel_Location || ev.Hotel || '', Room_Count: ev.Room_Count || 10, First_Event_Day: ev.First_Event_Day || '', Last_Event_Day: ev.Last_Event_Day || '', EarlyBird_Start_Date: ev.EarlyBird_Start_Date || ev.Early_Bird_Start || '', EarlyBird_End_Date: ev.EarlyBird_End_Date || ev.Early_End_Date || '', Notes: ev.Notes || '', Total_Days: ev.Total_Days || 0 })); break;
-                            case 'courses': courses = (value || []).map(c => ({ Course_ID: String(c.Course_ID || '').trim(), Instructor: String(c.Instructor || '').trim(), Course_Name: String(c.Course_Name || '').trim(), Duration_Days: parseFloat(c.Duration_Days) || 1, Topic: String(c.Topic || '').trim() })); updateTopicFilter(); break;
+                            case 'courses': courses = (value || []).map(c => ({ Course_ID: String(c.Course_ID || '').trim(), Instructor: String(c.Instructor || '').trim(), Course_Name: String(c.Course_Name || '').trim(), Duration_Days: parseFloat(c.Duration_Days) || 1, Topic: String(c.Topic || '').trim(), ...(c.retired ? { retired: true } : {}) })); updateTopicFilter(); break;
                             case 'instructor_away': instructorAway = value || []; break;
                             case 'schedule': schedule = value || {}; break;
                             case 'shortlists': shortlists = value || {}; break;
