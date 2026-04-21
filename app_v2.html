@@ -936,6 +936,27 @@
             background: #faf5ff;
         }
 
+        /* Courses tab scrollable wrapper with frozen header */
+        .courses-table-wrapper {
+            max-height: calc(100vh - 260px);
+            overflow-y: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+
+        #coursesTable {
+            border-radius: 0;
+            overflow: visible;
+            border: none;
+        }
+
+        #coursesTable thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            box-shadow: 0 1px 0 #e5e7eb;
+        }
+
         .editable-cell {
             cursor: pointer;
         }
@@ -1458,19 +1479,21 @@
                         <p style="color: #6b7280;">Click any cell to edit. Changes save automatically. Click column headers to sort.</p>
                         <button class="btn btn-primary btn-sm" onclick="addCourse()">+ Add Course</button>
                     </div>
-                    <table class="data-table" id="coursesTable">
-                        <thead>
-                            <tr>
-                                <th onclick="sortCoursesTable('Course_ID')" style="cursor: pointer; user-select: none;" id="header-Course_ID">Course ID <span class="sort-indicator"></span></th>
-                                <th onclick="sortCoursesTable('Course_Name')" style="cursor: pointer; user-select: none;" id="header-Course_Name">Course Name <span class="sort-indicator"></span></th>
-                                <th onclick="sortCoursesTable('Instructor')" style="cursor: pointer; user-select: none;" id="header-Instructor">Instructor <span class="sort-indicator"></span></th>
-                                <th onclick="sortCoursesTable('Duration_Days')" style="cursor: pointer; user-select: none;" id="header-Duration_Days">Duration <span class="sort-indicator"></span></th>
-                                <th onclick="sortCoursesTable('Topic')" style="cursor: pointer; user-select: none;" id="header-Topic">Topic <span class="sort-indicator"></span></th>
-                                <th>Assigned To</th>
-                            </tr>
-                        </thead>
-                        <tbody id="coursesTableBody"></tbody>
-                    </table>
+                    <div class="courses-table-wrapper">
+                        <table class="data-table" id="coursesTable">
+                            <thead>
+                                <tr>
+                                    <th onclick="sortCoursesTable('Course_ID')" style="cursor: pointer; user-select: none;" id="header-Course_ID">Course ID <span class="sort-indicator"></span></th>
+                                    <th onclick="sortCoursesTable('Course_Name')" style="cursor: pointer; user-select: none;" id="header-Course_Name">Course Name <span class="sort-indicator"></span></th>
+                                    <th onclick="sortCoursesTable('Instructor')" style="cursor: pointer; user-select: none;" id="header-Instructor">Instructor <span class="sort-indicator"></span></th>
+                                    <th onclick="sortCoursesTable('Duration_Days')" style="cursor: pointer; user-select: none;" id="header-Duration_Days">Duration <span class="sort-indicator"></span></th>
+                                    <th onclick="sortCoursesTable('Topic')" style="cursor: pointer; user-select: none;" id="header-Topic">Topic <span class="sort-indicator"></span></th>
+                                    <th>Assigned To</th>
+                                </tr>
+                            </thead>
+                            <tbody id="coursesTableBody"></tbody>
+                        </table>
+                    </div>
                 </div>
 
                 <!-- AVAILABILITY TAB -->
