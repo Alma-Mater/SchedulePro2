@@ -4477,7 +4477,7 @@
             for (const ev of sortedEvents) {
                 const dates = getEventDates(ev);
                 evLocAoa.push([
-                    ev.Event,
+                    `Event ${evNum(ev.Event_ID)} - ${ev.Event}`,
                     dates[0] ? toYMD(dates[0]) : '',
                     dates[1] ? toYMD(dates[1]) : '',
                     dates[2] ? toYMD(dates[2]) : '',
