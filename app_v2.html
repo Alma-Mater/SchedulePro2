@@ -1653,6 +1653,7 @@
                     <div style="margin-bottom: 16px; display: flex; gap: 8px; align-items: center;">
                         <button class="btn btn-sm btn-danger" onclick="clearChangeLog()">Clear Log</button>
                         <button class="btn btn-sm" onclick="exportChangeLog()">Export Log</button>
+                        <button class="btn btn-sm btn-primary" onclick="exportPMITemplate()">📋 Export PMI Template</button>
                         <label style="margin-left: auto; display: flex; align-items: center; gap: 6px; cursor: pointer;">
                             <input type="checkbox" id="showDraftUndraftCheckbox" onchange="toggleShowDraftUndraft()" style="cursor: pointer;">
                             <span>Show Draft/Undraft</span>
@@ -4294,6 +4295,229 @@
                 csv += `"${e.timestamp}","${getActionLabelPlain(e.action)}","${eventName}","${e.instructor || ''}","${details}","${e.before || ''}","${e.after || ''}","${e.notes || ''}"\n`;
             }
             downloadFile(csv, 'change_log.csv', 'text/csv');
+        }
+
+        function exportPMITemplate() {
+            const wb = XLSX.utils.book_new();
+
+            // Sort events by start date
+            const sortedEvents = [...events].sort((a, b) => {
+                const da = parseDate(a.First_Event_Day);
+                const db = parseDate(b.First_Event_Day);
+                if (!da && !db) return 0;
+                if (!da) return 1;
+                if (!db) return -1;
+                return da - db;
+            });
+
+            const maxEvents = Math.min(sortedEvents.length, 13);
+
+            // Convert MM/DD/YYYY date string to Excel serial number (date-formatted cell)
+            function toExcelSerial(dateStr) {
+                if (!dateStr) return null;
+                const parts = dateStr.split('/');
+                if (parts.length !== 3) return null;
+                const d = new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
+                if (isNaN(d.getTime())) return null;
+                // Excel serial: days since 1899-12-30
+                return Math.floor(d.getTime() / 86400000) + 25569;
+            }
+
+            // ── Sheet 1: Schedule ──────────────────────────────────────────
+            // Columns A(0)…AO(40). Event pairs start at col 4 (E).
+            const NUM_COLS = 41;
+
+            // Header row
+            const headerRow = new Array(NUM_COLS).fill('');
+            headerRow[0]  = 'ID Code';
+            headerRow[1]  = 'Course Title that will appear on website';
+            headerRow[2]  = 'Course Length';
+            headerRow[3]  = 'Assessment Pricing';
+            for (let i = 0; i < maxEvents; i++) {
+                const ev = sortedEvents[i];
+                const baseCol = 4 + i * 2;
+                headerRow[baseCol]     = `Event ${i + 1} - First Day  ${ev.Location || ''}  ${ev.First_Event_Day || ''}`;
+                headerRow[baseCol + 1] = `Event ${i + 1} - Last Day  ${ev.Last_Event_Day || ''}`;
+            }
+            headerRow[30] = 'Allotment/Course Capacity';
+            headerRow[31] = 'Description w/html';
+            headerRow[32] = 'Course Level (Core, Intermediate, Advanced)';
+            headerRow[33] = 'Main Topic';
+            headerRow[34] = 'Keyword 1';
+            headerRow[35] = 'Keyword 2';
+            headerRow[36] = 'Speaker Name 1';
+            headerRow[37] = 'Speaker Name 2';
+            headerRow[38] = 'PDUs';
+            headerRow[39] = 'Speaker(s) Last Name(s), comma separated';
+            headerRow[40] = 'Change Log\nChanges in this column relate to this file only.';
+
+            // Collect change log notes per course (only tracked entries, skip draft/undraft noise)
+            const courseLogNotes = {};
+            for (const entry of changeLog) {
+                if (!entry || !entry.courseId || !entry.tracked) continue;
+                const cid = entry.courseId;
+                if (!courseLogNotes[cid]) courseLogNotes[cid] = [];
+
+                const eventObj = entry.eventId ? events.find(e => e.Event_ID === entry.eventId) : null;
+                const eventName = eventObj ? eventObj.Event : (entry.eventId || '');
+
+                let noteText = '';
+                switch (entry.action) {
+                    case 'assign':   noteText = `${cid}- add to ${eventName}`;              break;
+                    case 'remove':   noteText = `${cid}- remove from ${eventName}`;         break;
+                    case 'move':     noteText = `${cid}- moved in ${eventName}`;             break;
+                    case 'edit':     noteText = `${cid}- edited: ${entry.description || ''}`; break;
+                    case 'draft':    noteText = `${cid}- drafted for ${eventName}`;          break;
+                    case 'undraft':  noteText = `${cid}- undrafted from ${eventName}`;       break;
+                    case 'add':      noteText = `${cid}- added to catalog`;                  break;
+                    default:
+                        if (entry.notes) noteText = `${cid}- ${entry.notes}`;
+                        break;
+                }
+                if (noteText) courseLogNotes[cid].push(noteText);
+            }
+
+            // Data rows
+            const aoa = [headerRow];
+            const retiredRows = []; // Courses removed from catalog
+
+            for (const course of courses) {
+                const row = new Array(NUM_COLS).fill('');
+                row[0]  = course.Course_ID;
+                row[1]  = course.Course_Name;
+                row[2]  = course.Duration_Days;
+                row[3]  = 'N/A';
+                row[33] = course.Topic || '';
+                row[36] = course.Instructor || '';
+                // Extract last name(s) from instructor string
+                const nameParts = (course.Instructor || '').trim().split(/\s+/);
+                row[39] = nameParts.length > 1 ? nameParts[nameParts.length - 1] : nameParts[0] || '';
+                row[40] = (courseLogNotes[course.Course_ID] || []).join('\n');
+
+                // Event date columns
+                for (let i = 0; i < maxEvents; i++) {
+                    const ev = sortedEvents[i];
+                    const eventSchedule = schedule[ev.Event_ID] || {};
+                    const eventDates = getEventDates(ev);
+                    const baseCol = 4 + i * 2;
+
+                    let firstDateStr = null, lastDateStr = null;
+                    for (const room in eventSchedule) {
+                        for (const a of eventSchedule[room]) {
+                            if (a.courseId === course.Course_ID) {
+                                const startDate = eventDates[a.startDay - 1];
+                                const endIdx = Math.min(a.startDay + a.duration - 2, eventDates.length - 1);
+                                const endDate = eventDates[endIdx];
+                                if (startDate && (!firstDateStr || startDate < firstDateStr)) {
+                                    firstDateStr = startDate;
+                                    lastDateStr = endDate;
+                                }
+                            }
+                        }
+                    }
+
+                    if (firstDateStr) {
+                        row[baseCol]     = toExcelSerial(firstDateStr);
+                        row[baseCol + 1] = toExcelSerial(lastDateStr);
+                    }
+                }
+
+                aoa.push(row);
+            }
+
+            const ws1 = XLSX.utils.aoa_to_sheet(aoa);
+
+            // Apply date number format to all event date cells so Excel shows them as dates
+            const dateFmt = 'm/d/yyyy';
+            for (let r = 1; r < aoa.length; r++) {  // skip header row (r=0)
+                for (let i = 0; i < maxEvents; i++) {
+                    const baseCol = 4 + i * 2;
+                    for (const c of [baseCol, baseCol + 1]) {
+                        const cellRef = XLSX.utils.encode_cell({ r, c });
+                        if (ws1[cellRef] && ws1[cellRef].v) {
+                            ws1[cellRef].t = 'n';
+                            ws1[cellRef].z = dateFmt;
+                        }
+                    }
+                }
+            }
+
+            // Set column widths for readability
+            ws1['!cols'] = [
+                { wch: 10 },  // A: ID Code
+                { wch: 55 },  // B: Course Title
+                { wch: 10 },  // C: Length
+                { wch: 12 },  // D: Pricing
+                ...Array(maxEvents * 2).fill({ wch: 14 }),  // Event date pairs
+                ...Array(NUM_COLS - 4 - maxEvents * 2).fill({ wch: 18 }) // remaining cols
+            ];
+
+            XLSX.utils.book_append_sheet(wb, ws1, 'Schedule');
+
+            // ── Sheet 2: Event locations and dates ────────────────────────
+            const evLocAoa = [
+                [`${activeYear} Schedule`],
+                ['EVENT LOCATION', 'Mon', 'Tues', 'Wed', 'Thurs', 'HOTEL - Location', 'Early bird start', 'Early End date']
+            ];
+            for (const ev of sortedEvents) {
+                const dates = getEventDates(ev);
+                evLocAoa.push([
+                    ev.Event,
+                    dates[0] ? toExcelSerial(dates[0]) : '',
+                    dates[1] ? toExcelSerial(dates[1]) : '',
+                    dates[2] ? toExcelSerial(dates[2]) : '',
+                    dates[3] ? toExcelSerial(dates[3]) : '',
+                    ev.Hotel_Location || ev.Location || '',
+                    ev.EarlyBird_Start_Date || 'When registration opens',
+                    ev.EarlyBird_End_Date ? toExcelSerial(ev.EarlyBird_End_Date) : ''
+                ]);
+            }
+            const ws2 = XLSX.utils.aoa_to_sheet(evLocAoa);
+            // Date format for Mon-Thurs and Early End date columns in sheet 2
+            for (let r = 2; r < evLocAoa.length; r++) {
+                for (const c of [1, 2, 3, 4, 7]) {
+                    const cellRef = XLSX.utils.encode_cell({ r, c });
+                    if (ws2[cellRef] && ws2[cellRef].v) {
+                        ws2[cellRef].t = 'n';
+                        ws2[cellRef].z = dateFmt;
+                    }
+                }
+            }
+            ws2['!cols'] = [
+                { wch: 40 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 },
+                { wch: 35 }, { wch: 25 }, { wch: 18 }
+            ];
+            XLSX.utils.book_append_sheet(wb, ws2, 'Event locations and dates');
+
+            // ── Sheet 3: Retired (courses removed via change log) ─────────
+            // Find courses removed from catalog
+            const removedIds = new Set(
+                changeLog
+                    .filter(e => e && e.tracked && e.action === 'remove' && e.courseId && !e.eventId)
+                    .map(e => e.courseId)
+            );
+            const retiredHeaderRow = [...headerRow]; // same header as Schedule sheet
+            const retiredAoa = [retiredHeaderRow];
+
+            for (const cid of removedIds) {
+                const course = courses.find(c => c.Course_ID === cid);
+                const row = new Array(NUM_COLS).fill('');
+                row[0]  = cid;
+                row[1]  = course ? course.Course_Name : cid;
+                row[2]  = course ? course.Duration_Days : '';
+                row[3]  = 'N/A';
+                row[36] = course ? course.Instructor : '';
+                row[40] = (courseLogNotes[cid] || []).join('\n');
+                retiredAoa.push(row);
+            }
+
+            // Always include the Retired sheet (even if empty) to match template structure
+            const ws3 = XLSX.utils.aoa_to_sheet(retiredAoa);
+            ws3['!cols'] = ws1['!cols'];
+            XLSX.utils.book_append_sheet(wb, ws3, 'Retired');
+
+            XLSX.writeFile(wb, `PMI_Upload_Template_${activeYear}_export.xlsx`);
+            showToast('PMI Template exported successfully', 'success');
         }
 
         // ==================== EXPORT ====================
