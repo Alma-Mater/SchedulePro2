@@ -4456,6 +4456,7 @@
             }
 
             const ws1 = XLSX.utils.aoa_to_sheet(aoa);
+            applyTemplateColors(ws1, aoa.length - 1, maxEvents);
 
             // Set column widths for readability
             ws1['!cols'] = [
@@ -4516,11 +4517,69 @@
             }
 
             const ws3 = XLSX.utils.aoa_to_sheet(retiredAoa);
+            applyTemplateColors(ws3, retiredAoa.length - 1, maxEvents);
             ws3['!cols'] = ws1['!cols'];
             XLSX.utils.book_append_sheet(wb, ws3, 'Retired');
 
             XLSX.writeFile(wb, `CSI_Ticket_Export_${activeYear}.xlsx`);
             showToast('CSI Ticket exported successfully', 'success');
+        }
+
+        // Cell-color helper for CSI Ticket Export – matches the 13-event PMI template palette
+        function applyTemplateColors(ws, numDataRows, numEvents) {
+            // Colors extracted from PMI template (HLS-resolved from theme+tint values)
+            const EVENT_COLORS = [
+                { bg: 'E2F0D9', dark: false }, // Event 1  – green light
+                { bg: 'DEEBF7', dark: false }, // Event 2  – blue light
+                { bg: 'FFC000', dark: false }, // Event 3  – gold
+                { bg: 'FFF2CC', dark: false }, // Event 4  – amber light
+                { bg: 'FBE5D6', dark: false }, // Event 5  – orange light
+                { bg: '9DC3E6', dark: false }, // Event 6  – blue medium
+                { bg: '404040', dark: true  }, // Event 7  – dark charcoal
+                { bg: 'D8BEEC', dark: false }, // Event 8  – purple light
+                { bg: 'A9D18E', dark: false }, // Event 9  – green medium
+                { bg: '00B0F0', dark: false }, // Event 10 – cyan
+                { bg: 'FFD966', dark: false }, // Event 11 – yellow
+                { bg: '5B9BD5', dark: true  }, // Event 12 – blue
+                { bg: '44546A', dark: true  }, // Event 13 – dark blue-gray
+            ];
+
+            function sc(r, c, bg, bold, whiteText) {
+                const ref = XLSX.utils.encode_cell({ r, c });
+                if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+                const s = {};
+                if (bg) s.fill = { patternType: 'solid', fgColor: { rgb: bg } };
+                s.font = bold ? { bold: true } : {};
+                if (whiteText) s.font.color = { rgb: 'FFFFFF' };
+                s.alignment = { wrapText: true, vertical: 'top' };
+                ws[ref].s = s;
+            }
+
+            const n = Math.min(numEvents, EVENT_COLORS.length);
+
+            // Header row (r=0)
+            for (let i = 0; i < n; i++) {
+                const { bg, dark } = EVENT_COLORS[i];
+                const base = 4 + i * 2;
+                sc(0, base,     bg, true, dark);
+                sc(0, base + 1, bg, true, dark);
+            }
+            // Bold header for non-event cols
+            for (const c of [0, 1, 2, 3, 30, 31, 32, 36, 37, 38, 39, 40]) sc(0, c, null, true, false);
+            // Yellow header for keyword/topic cols
+            for (const c of [33, 34, 35]) sc(0, c, 'FFFF00', true, false);
+
+            // Data rows (r=1..numDataRows)
+            for (let r = 1; r <= numDataRows; r++) {
+                for (let i = 0; i < n; i++) {
+                    const { bg, dark } = EVENT_COLORS[i];
+                    const base = 4 + i * 2;
+                    sc(r, base,     bg, false, dark);
+                    sc(r, base + 1, bg, false, dark);
+                }
+                // Yellow for Main Topic, Keyword 1, Keyword 2
+                for (const c of [33, 34, 35]) sc(r, c, 'FFFF00', false, false);
+            }
         }
 
         // ==================== EXPORT ====================
