@@ -4521,40 +4521,51 @@
             ws3['!cols'] = ws1['!cols'];
             XLSX.utils.book_append_sheet(wb, ws3, 'Retired');
 
-            XLSX.writeFile(wb, `CSI_Ticket_Export_${activeYear}.xlsx`, { cellStyles: true });
-            addLogEntry('export', null, null, `CSI Ticket exported: CSI_Ticket_Export_${activeYear}.xlsx`);
+            // Build human-readable timestamp for filename and log
+            const _now = new Date();
+            const _mm = String(_now.getMonth() + 1).padStart(2, '0');
+            const _dd = String(_now.getDate()).padStart(2, '0');
+            const _yyyy = _now.getFullYear();
+            let _h = _now.getHours();
+            const _ampm = _h >= 12 ? 'PM' : 'AM';
+            _h = _h % 12 || 12;
+            const _min = String(_now.getMinutes()).padStart(2, '0');
+            const _exportId = `${_mm}_${_dd}_${_yyyy}_${_h}${_min}${_ampm}`;
+            const _filename = `CSI_Ticket_${_exportId}.xlsx`;
+
+            XLSX.writeFile(wb, _filename, { cellStyles: true });
+            addLogEntry('export', null, null, `CSI Ticket exported: ${_filename}`);
             renderChangeLog();
             showToast('CSI Ticket exported successfully', 'success');
         }
 
         // Cell-color helper for CSI Ticket Export – matches the 13-event PMI template palette
         function applyTemplateColors(ws, numDataRows, numEvents) {
-            // Colors extracted from PMI template (HLS-resolved from theme+tint values)
+            // Colors in AARRGGBB format (required by SheetJS for Excel compatibility)
             const EVENT_COLORS = [
-                { bg: 'E2F0D9', dark: false }, // Event 1  – green light
-                { bg: 'DEEBF7', dark: false }, // Event 2  – blue light
-                { bg: 'FFC000', dark: false }, // Event 3  – gold
-                { bg: 'FFF2CC', dark: false }, // Event 4  – amber light
-                { bg: 'FBE5D6', dark: false }, // Event 5  – orange light
-                { bg: '9DC3E6', dark: false }, // Event 6  – blue medium
-                { bg: '404040', dark: true  }, // Event 7  – dark charcoal
-                { bg: 'D8BEEC', dark: false }, // Event 8  – purple light
-                { bg: 'A9D18E', dark: false }, // Event 9  – green medium
-                { bg: '00B0F0', dark: false }, // Event 10 – cyan
-                { bg: 'FFD966', dark: false }, // Event 11 – yellow
-                { bg: '5B9BD5', dark: true  }, // Event 12 – blue
-                { bg: '44546A', dark: true  }, // Event 13 – dark blue-gray
+                { bg: 'FFE2F0D9', dark: false }, // Event 1  – green light
+                { bg: 'FFDEEBF7', dark: false }, // Event 2  – blue light
+                { bg: 'FFFFC000', dark: false }, // Event 3  – gold
+                { bg: 'FFFFF2CC', dark: false }, // Event 4  – amber light
+                { bg: 'FFFBE5D6', dark: false }, // Event 5  – orange light
+                { bg: 'FF9DC3E6', dark: false }, // Event 6  – blue medium
+                { bg: 'FF404040', dark: true  }, // Event 7  – dark charcoal
+                { bg: 'FFD8BEEC', dark: false }, // Event 8  – purple light
+                { bg: 'FFA9D18E', dark: false }, // Event 9  – green medium
+                { bg: 'FF00B0F0', dark: false }, // Event 10 – cyan
+                { bg: 'FFFFD966', dark: false }, // Event 11 – yellow
+                { bg: 'FF5B9BD5', dark: true  }, // Event 12 – blue
+                { bg: 'FF44546A', dark: true  }, // Event 13 – dark blue-gray
             ];
 
             function sc(r, c, bg, bold, whiteText) {
                 const ref = XLSX.utils.encode_cell({ r, c });
                 if (!ws[ref]) ws[ref] = { t: 's', v: '' };
-                const s = {};
-                if (bg) s.fill = { patternType: 'solid', fgColor: { rgb: bg } };
-                s.font = bold ? { bold: true } : {};
-                if (whiteText) s.font.color = { rgb: 'FFFFFF' };
-                s.alignment = { wrapText: true, vertical: 'top' };
-                ws[ref].s = s;
+                ws[ref].s = {
+                    fill: bg ? { patternType: 'solid', fgColor: { rgb: bg } } : { patternType: 'none' },
+                    font: { bold: !!bold, color: { rgb: whiteText ? 'FFFFFFFF' : 'FF000000' } },
+                    alignment: { wrapText: true, vertical: 'top' }
+                };
             }
 
             const n = Math.min(numEvents, EVENT_COLORS.length);
@@ -4569,7 +4580,7 @@
             // Bold header for non-event cols
             for (const c of [0, 1, 2, 3, 30, 31, 32, 36, 37, 38, 39, 40]) sc(0, c, null, true, false);
             // Yellow header for keyword/topic cols
-            for (const c of [33, 34, 35]) sc(0, c, 'FFFF00', true, false);
+            for (const c of [33, 34, 35]) sc(0, c, 'FFFFFF00', true, false);
 
             // Data rows (r=1..numDataRows)
             for (let r = 1; r <= numDataRows; r++) {
@@ -4580,7 +4591,7 @@
                     sc(r, base + 1, bg, false, dark);
                 }
                 // Yellow for Main Topic, Keyword 1, Keyword 2
-                for (const c of [33, 34, 35]) sc(r, c, 'FFFF00', false, false);
+                for (const c of [33, 34, 35]) sc(r, c, 'FFFFFF00', false, false);
             }
         }
 
