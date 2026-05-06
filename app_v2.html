@@ -3163,7 +3163,7 @@
                 'draft': 'Drafted', 'add': 'Added', 'remove': 'Retired', 'assign': 'Added',
                 'clear': 'Cleared', 'edit': 'Edited', 'auto-fill': 'Auto-Filled',
                 'upload': 'Uploaded', 'load': 'Loaded', 'undraft': 'Undrafted',
-                'note': 'Note', 'move': 'Moved'
+                'note': 'Note', 'move': 'Moved', 'export': 'Exported'
             };
             return labels[action] || action;
         }
@@ -4521,7 +4521,9 @@
             ws3['!cols'] = ws1['!cols'];
             XLSX.utils.book_append_sheet(wb, ws3, 'Retired');
 
-            XLSX.writeFile(wb, `CSI_Ticket_Export_${activeYear}.xlsx`);
+            XLSX.writeFile(wb, `CSI_Ticket_Export_${activeYear}.xlsx`, { cellStyles: true });
+            addLogEntry('export', null, null, `CSI Ticket exported: CSI_Ticket_Export_${activeYear}.xlsx`);
+            renderChangeLog();
             showToast('CSI Ticket exported successfully', 'success');
         }
 
