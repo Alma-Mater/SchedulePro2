@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SchedulePro</title>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * {
@@ -1628,6 +1628,7 @@
                                     <th onclick="sortCoursesTable('Instructor')" style="cursor: pointer; user-select: none;" id="header-Instructor">Instructor <span class="sort-indicator"></span></th>
                                     <th onclick="sortCoursesTable('Duration_Days')" style="cursor: pointer; user-select: none;" id="header-Duration_Days">Duration <span class="sort-indicator"></span></th>
                                     <th onclick="sortCoursesTable('Topic')" style="cursor: pointer; user-select: none;" id="header-Topic">Topic <span class="sort-indicator"></span></th>
+                                    <th onclick="sortCoursesTable('Notes')" style="cursor: pointer; user-select: none;" id="header-Notes">Notes <span class="sort-indicator"></span></th>
                                     <th>Assigned To</th>
                                     <th style="width: 72px; text-align: center;">Actions</th>
                                 </tr>
@@ -1650,10 +1651,24 @@
 
                 <!-- CHANGE LOG TAB -->
                 <div class="tab-panel" id="tab-log">
-                    <div style="margin-bottom: 16px; display: flex; gap: 8px; align-items: center;">
+                    <div style="margin-bottom: 16px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                         <button class="btn btn-sm btn-danger" onclick="clearChangeLog()">Clear Log</button>
                         <button class="btn btn-sm" onclick="exportChangeLog()">Export Log</button>
                         <button class="btn btn-sm btn-primary" onclick="exportPMITemplate()">📋 CSI Ticket Export</button>
+                        <div style="display: flex; align-items: center; gap: 6px; margin-left: 8px;">
+                            <label style="font-size: 14px; font-weight: 500; color: #374151;">Round:</label>
+                            <input type="text" id="roundSelect" list="roundSuggestions" placeholder="e.g. Round 1"
+                                oninput="saveRound()"
+                                style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; width: 130px;">
+                            <datalist id="roundSuggestions">
+                                <option value="Round 1">
+                                <option value="Round 2">
+                                <option value="Round 3">
+                                <option value="Round 4">
+                                <option value="Round 5">
+                                <option value="Final">
+                            </datalist>
+                        </div>
                         <label style="margin-left: auto; display: flex; align-items: center; gap: 6px; cursor: pointer;">
                             <input type="checkbox" id="showDraftUndraftCheckbox" onchange="toggleShowDraftUndraft()" style="cursor: pointer;">
                             <span>Show Draft/Undraft</span>
@@ -1761,7 +1776,7 @@
         let selectedDurations = [];
         let coursesSortColumn = null;
         let coursesSortDirection = 'asc';
-        let newCourseBuffer = { Course_ID: '', Course_Name: '', Instructor: '', Duration_Days: '', Topic: '' };
+        let newCourseBuffer = { Course_ID: '', Course_Name: '', Instructor: '', Duration_Days: '', Topic: '', Notes: '' };
         let newCourseSaved = false;
         let currentEditingCell = null;
 
@@ -2665,6 +2680,7 @@
                     <td><input id="ncf_Instructor" placeholder="Instructor" value="${newCourseBuffer.Instructor}" oninput="updateNewCourseBuffer('Instructor', this.value)" onkeydown="handleNewCourseKey(event)"></td>
                     <td><input id="ncf_Duration_Days" placeholder="Days" type="number" min="0.5" step="0.5" value="${newCourseBuffer.Duration_Days}" oninput="updateNewCourseBuffer('Duration_Days', this.value)" onkeydown="handleNewCourseKey(event)"></td>
                     <td><input id="ncf_Topic" placeholder="Topic" value="${newCourseBuffer.Topic}" oninput="updateNewCourseBuffer('Topic', this.value)" onkeydown="handleNewCourseKey(event)"></td>
+                    <td><input id="ncf_Notes" placeholder="Notes" value="${newCourseBuffer.Notes || ''}" oninput="updateNewCourseBuffer('Notes', this.value)" onkeydown="handleNewCourseKey(event)"></td>
                     <td></td>
                     <td></td>
                 </tr>
@@ -2686,6 +2702,7 @@
                         <td class="editable-cell" onclick="editCell(${c.originalIdx}, 'Instructor', this)">${c.Instructor}</td>
                         <td class="editable-cell" onclick="editCell(${c.originalIdx}, 'Duration_Days', this)">${c.Duration_Days} day${c.Duration_Days !== 1 ? 's' : ''}</td>
                         <td class="editable-cell" onclick="editCell(${c.originalIdx}, 'Topic', this)">${c.Topic || '—'}</td>
+                        <td class="editable-cell" onclick="editCell(${c.originalIdx}, 'Notes', this)">${c.Notes || ''}</td>
                         <td>${assignments.length ? assignments.join(', ') : '—'}</td>
                         <td style="text-align: center; white-space: nowrap;">
                             ${retireBtn}
@@ -2711,6 +2728,7 @@
                             <th>Instructor(s)</th>
                             <th>Unavailable Start</th>
                             <th>Unavailable End</th>
+                            <th>Notes</th>
                             <th style="width: 80px;">Actions</th>
                         </tr>
                     </thead>
@@ -2720,6 +2738,7 @@
                                 <td class="editable-cell" onclick="editAvailabilityCell(${idx}, 'Instructor', this)">${entry.Instructor || ''}</td>
                                 <td class="editable-cell" onclick="editAvailabilityCell(${idx}, 'Unavailable_Start', this)">${entry.Unavailable_Start || ''}</td>
                                 <td class="editable-cell" onclick="editAvailabilityCell(${idx}, 'Unavailable_End', this)">${entry.Unavailable_End || ''}</td>
+                                <td class="editable-cell" onclick="editAvailabilityCell(${idx}, 'Notes', this)">${entry.Notes || ''}</td>
                                 <td>
                                     <button class="btn btn-sm btn-danger" onclick="deleteAvailabilityEntry(${idx})" style="padding: 6px 12px;">✕</button>
                                 </td>
@@ -2943,9 +2962,10 @@
                 Course_Name:   name,
                 Instructor:    (newCourseBuffer.Instructor || '').trim(),
                 Duration_Days: parseFloat(newCourseBuffer.Duration_Days) || 1,
-                Topic:         (newCourseBuffer.Topic || '').trim()
+                Topic:         (newCourseBuffer.Topic || '').trim(),
+                Notes:         (newCourseBuffer.Notes || '').trim()
             });
-            newCourseBuffer  = { Course_ID: '', Course_Name: '', Instructor: '', Duration_Days: '', Topic: '' };
+            newCourseBuffer  = { Course_ID: '', Course_Name: '', Instructor: '', Duration_Days: '', Topic: '', Notes: '' };
             newCourseSaved   = false;
             saveToLocalStorage();
             renderCoursesTable();
@@ -2962,7 +2982,8 @@
             instructorAway.push({
                 Instructor: '',
                 Unavailable_Start: '',
-                Unavailable_End: ''
+                Unavailable_End: '',
+                Notes: ''
             });
             saveToLocalStorage();
             renderAvailabilityTable();
@@ -2972,7 +2993,7 @@
             // Auto-focus the first cell of the new row
             setTimeout(() => {
                 const cells = document.querySelectorAll('#availabilityTableContainer .editable-cell');
-                const newRowFirstCell = cells[cells.length - 3]; // -3 because last row has 3 editable cells
+                const newRowFirstCell = cells[cells.length - 4]; // -4 because last row has 4 editable cells
                 if (newRowFirstCell) newRowFirstCell.click();
             }, 100);
         }
@@ -3113,6 +3134,10 @@
             renderChangeLog();
         }
 
+        function saveRound() {
+            saveToLocalStorage();
+        }
+
         function editLogNote(timestampMs, cell) {
             if (cell.querySelector('textarea')) return;
             
@@ -3160,7 +3185,7 @@
 
         function getActionLabel(action) {
             const labels = {
-                'draft': 'Drafted', 'add': 'Added', 'remove': 'Retired', 'assign': 'Added',
+                'draft': 'Drafted', 'add': 'Added', 'remove': 'Removed', 'assign': 'Added',
                 'clear': 'Cleared', 'edit': 'Edited', 'auto-fill': 'Auto-Filled',
                 'upload': 'Uploaded', 'load': 'Loaded', 'undraft': 'Undrafted',
                 'note': 'Note', 'move': 'Moved', 'export': 'Exported'
@@ -4400,8 +4425,27 @@
                             notes.push(`${cid}- remove from event #${evNum(entry.eventId)}`);
                             i++;
                         }
+                    } else if (entry.action === 'edit' && entry.courseId) {
+                        const desc = entry.description || '';
+                        if (desc.includes('Course_Name')) {
+                            notes.push(`${cid}- title change`);
+                        } else if (desc.includes('Instructor')) {
+                            notes.push(`${cid}- instructor change`);
+                        } else if (desc.includes('Duration_Days')) {
+                            notes.push(`${cid}- duration change`);
+                        } else if (desc.includes('Topic')) {
+                            notes.push(`${cid}- topic change`);
+                        } else if (desc.includes('Course_ID')) {
+                            notes.push(`${cid}- id change`);
+                        } else if (desc === 'Course retired') {
+                            notes.push(`${cid}- removed`);
+                        } else if (desc.startsWith('Changed ')) {
+                            const field = desc.replace('Changed ', '').toLowerCase().replace(/_/g, ' ');
+                            notes.push(`${cid}- ${field} change`);
+                        }
+                        i++;
                     } else {
-                        i++; // skip add, move, draft, edit, note, etc.
+                        i++; // skip add, move, draft, note, etc.
                     }
                 }
 
@@ -4530,40 +4574,60 @@
             const _ampm = _h >= 12 ? 'PM' : 'AM';
             _h = _h % 12 || 12;
             const _min = String(_now.getMinutes()).padStart(2, '0');
+            const _round = (document.getElementById('roundSelect')?.value || '').replace(/\s+/g, '_');
+            const _roundPart = _round ? `_${_round}` : '';
             const _exportId = `${_mm}_${_dd}_${_yyyy}_${_h}${_min}${_ampm}`;
-            const _filename = `CSI_Ticket_${_exportId}.xlsx`;
+            const _filename = `CSI_Ticket${_roundPart}_${_exportId}.xlsx`;
 
-            XLSX.writeFile(wb, _filename, { cellStyles: true });
-            addLogEntry('export', null, null, `CSI Ticket exported: ${_filename}`);
+            XLSX.writeFile(wb, _filename);
+            // Always add export log entry (force tracked:true so it always appears)
+            changeLog.push({
+                timestamp: _now.toLocaleString(),
+                timestampMs: _now.getTime(),
+                action: 'export',
+                eventId: null,
+                courseId: null,
+                courseName: '',
+                instructor: '',
+                description: `CSI Ticket exported: ${_filename}`,
+                before: '', after: '', notes: '',
+                tracked: true
+            });
+            saveToLocalStorage();
             renderChangeLog();
             showToast('CSI Ticket exported successfully', 'success');
         }
 
         // Cell-color helper for CSI Ticket Export – matches the 13-event PMI template palette
         function applyTemplateColors(ws, numDataRows, numEvents) {
-            // Colors in AARRGGBB format (required by SheetJS for Excel compatibility)
+            // 6-char RRGGBB format required by xlsx-js-style
             const EVENT_COLORS = [
-                { bg: 'FFE2F0D9', dark: false }, // Event 1  – green light
-                { bg: 'FFDEEBF7', dark: false }, // Event 2  – blue light
-                { bg: 'FFFFC000', dark: false }, // Event 3  – gold
-                { bg: 'FFFFF2CC', dark: false }, // Event 4  – amber light
-                { bg: 'FFFBE5D6', dark: false }, // Event 5  – orange light
-                { bg: 'FF9DC3E6', dark: false }, // Event 6  – blue medium
-                { bg: 'FF404040', dark: true  }, // Event 7  – dark charcoal
-                { bg: 'FFD8BEEC', dark: false }, // Event 8  – purple light
-                { bg: 'FFA9D18E', dark: false }, // Event 9  – green medium
-                { bg: 'FF00B0F0', dark: false }, // Event 10 – cyan
-                { bg: 'FFFFD966', dark: false }, // Event 11 – yellow
-                { bg: 'FF5B9BD5', dark: true  }, // Event 12 – blue
-                { bg: 'FF44546A', dark: true  }, // Event 13 – dark blue-gray
+                { bg: 'E2F0D9', dark: false }, // Event 1  – green light
+                { bg: 'DEEBF7', dark: false }, // Event 2  – blue light
+                { bg: 'FFC000', dark: false }, // Event 3  – gold
+                { bg: 'FFF2CC', dark: false }, // Event 4  – amber light
+                { bg: 'FBE5D6', dark: false }, // Event 5  – orange light
+                { bg: '9DC3E6', dark: false }, // Event 6  – blue medium
+                { bg: '404040', dark: true  }, // Event 7  – dark charcoal
+                { bg: 'D8BEEC', dark: false }, // Event 8  – purple light
+                { bg: 'A9D18E', dark: false }, // Event 9  – green medium
+                { bg: '00B0F0', dark: false }, // Event 10 – cyan
+                { bg: 'FFD966', dark: false }, // Event 11 – yellow
+                { bg: '5B9BD5', dark: true  }, // Event 12 – blue
+                { bg: '44546A', dark: true  }, // Event 13 – dark blue-gray
             ];
 
             function sc(r, c, bg, bold, whiteText) {
                 const ref = XLSX.utils.encode_cell({ r, c });
                 if (!ws[ref]) ws[ref] = { t: 's', v: '' };
                 ws[ref].s = {
-                    fill: bg ? { patternType: 'solid', fgColor: { rgb: bg } } : { patternType: 'none' },
-                    font: { bold: !!bold, color: { rgb: whiteText ? 'FFFFFFFF' : 'FF000000' } },
+                    fill: bg
+                        ? { patternType: 'solid', fgColor: { rgb: bg } }
+                        : { patternType: 'none' },
+                    font: {
+                        bold: !!bold,
+                        color: { rgb: whiteText ? 'FFFFFF' : '000000' }
+                    },
                     alignment: { wrapText: true, vertical: 'top' }
                 };
             }
@@ -4577,10 +4641,10 @@
                 sc(0, base,     bg, true, dark);
                 sc(0, base + 1, bg, true, dark);
             }
-            // Bold header for non-event cols
+            // Bold header for fixed cols
             for (const c of [0, 1, 2, 3, 30, 31, 32, 36, 37, 38, 39, 40]) sc(0, c, null, true, false);
-            // Yellow header for keyword/topic cols
-            for (const c of [33, 34, 35]) sc(0, c, 'FFFFFF00', true, false);
+            // Yellow header for keyword/topic cols (matches template)
+            for (const c of [33, 34, 35]) sc(0, c, 'FFFF00', true, false);
 
             // Data rows (r=1..numDataRows)
             for (let r = 1; r <= numDataRows; r++) {
@@ -4590,8 +4654,7 @@
                     sc(r, base,     bg, false, dark);
                     sc(r, base + 1, bg, false, dark);
                 }
-                // Yellow for Main Topic, Keyword 1, Keyword 2
-                for (const c of [33, 34, 35]) sc(r, c, 'FFFFFF00', false, false);
+                for (const c of [33, 34, 35]) sc(r, c, 'FFFF00', false, false);
             }
         }
 
@@ -4756,6 +4819,7 @@
                 localStorage.setItem(yearKey('sp_shortlists'), JSON.stringify(shortlists));
                 localStorage.setItem(yearKey('sp_log'), JSON.stringify(changeLog));
                 localStorage.setItem(yearKey('sp_tracking'), JSON.stringify(trackingEnabled));
+                localStorage.setItem(yearKey('sp_round'), document.getElementById('roundSelect')?.value || '');
                 localStorage.setItem(yearKey('sp_slotNotes'), JSON.stringify(slotNotes));
                 localStorage.setItem(yearKey('sp_shortlistNotes'), JSON.stringify(shortlistNotes));
                 localStorage.setItem(yearKey('sp_eventNotes'), JSON.stringify(eventNotes));
@@ -4774,6 +4838,9 @@
                 shortlists = JSON.parse(localStorage.getItem(yearKey('sp_shortlists'))) || {};
                 changeLog = JSON.parse(localStorage.getItem(yearKey('sp_log'))) || [];
                 trackingEnabled = JSON.parse(localStorage.getItem(yearKey('sp_tracking'))) || false;
+                const savedRound = localStorage.getItem(yearKey('sp_round')) || '';
+                const roundSel = document.getElementById('roundSelect');
+                if (roundSel) roundSel.value = savedRound;
                 slotNotes = JSON.parse(localStorage.getItem(yearKey('sp_slotNotes'))) || {};
                 shortlistNotes = JSON.parse(localStorage.getItem(yearKey('sp_shortlistNotes'))) || {};
                 eventNotes = JSON.parse(localStorage.getItem(yearKey('sp_eventNotes'))) || [];
