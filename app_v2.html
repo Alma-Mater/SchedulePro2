@@ -2728,7 +2728,7 @@
                             <th>Instructor(s)</th>
                             <th>Unavailable Start</th>
                             <th>Unavailable End</th>
-                            <th>Notes</th>
+                            <th style="width: 200px; max-width: 200px;">Notes</th>
                             <th style="width: 80px;">Actions</th>
                         </tr>
                     </thead>
@@ -2761,6 +2761,8 @@
             const isDateField = (field === 'Unavailable_Start' || field === 'Unavailable_End');
             input.type = isDateField ? 'date' : 'text';
             input.value = val;
+            input.style.width = '100%';
+            input.style.boxSizing = 'border-box';
             
             const original = cell.innerHTML;
             cell.innerHTML = '';
@@ -3964,36 +3966,55 @@
             if (cell.querySelector('input')) return;
             
             const course = courses[idx];
-            let val = course[field];
+            let val = course[field] ?? '';
             
             const input = document.createElement('input');
             input.type = field === 'Duration_Days' ? 'number' : 'text';
-            input.value = val;
+            input.value = String(val);
+            input.style.cssText = 'width:100%;box-sizing:border-box;';
             if (field === 'Duration_Days') { input.step = '0.5'; input.min = '0.5'; }
             
-            const original = cell.innerHTML;
             cell.innerHTML = '';
             cell.appendChild(input);
             input.focus();
             input.select();
 
+            let saveInvoked = false;
             const save = () => {
+                if (saveInvoked) return;
+                saveInvoked = true;
                 let newVal = input.value.trim();
                 if (field === 'Duration_Days') newVal = parseFloat(newVal) || 1;
                 
-                if (newVal !== val) {
+                const strOld = String(val);
+                const strNew = String(newVal);
+                if (strNew !== strOld) {
                     course[field] = newVal;
-                    addLogEntry('edit', null, course.Course_ID, `Changed ${field}`, String(val), String(newVal));
+                    addLogEntry('edit', null, course.Course_ID, `Changed ${field}`, strOld, strNew);
                     saveToLocalStorage();
-                    updateTopicFilter();
                 }
-                render();
+
+                // Update cell text in-place — do NOT call render() so adjacent cells
+                // stay in the DOM and are clickable without needing a second click
+                cell.textContent = field === 'Duration_Days'
+                    ? `${newVal} day${newVal !== 1 ? 's' : ''}`
+                    : strNew;
+
+                if (field === 'Topic') updateTopicFilter();
+                if (field === 'Course_ID' || field === 'Course_Name' || field === 'Instructor') {
+                    renderCourseList();
+                }
             };
 
             input.addEventListener('blur', save);
             input.addEventListener('keydown', e => {
-                if (e.key === 'Enter') save();
-                if (e.key === 'Escape') cell.innerHTML = original;
+                if (e.key === 'Enter') { e.preventDefault(); save(); }
+                if (e.key === 'Escape') {
+                    saveInvoked = true;
+                    cell.textContent = field === 'Duration_Days'
+                        ? `${val} day${Number(val) !== 1 ? 's' : ''}`
+                        : String(val);
+                }
             });
         }
 
@@ -4977,7 +4998,9 @@
                         Instructor: String(c.Instructor || '').trim(),
                         Course_Name: String(c.Course_Name || '').trim(),
                         Duration_Days: parseFloat(c.Duration_Days) || 1,
-                        Topic: String(c.Topic || '').trim()
+                        Topic: String(c.Topic || '').trim(),
+                        Notes: String(c.Notes || '').trim(),
+                        ...(c.retired ? { retired: true } : {})
                     }));
 
                     updateTopicFilter();
@@ -5036,7 +5059,7 @@
                         const field = key.substring(key.indexOf('_') + 1);
                         switch (field) {
                             case 'events': events = (value || []).map(ev => ({ Event_ID: ev.Event_ID || ev.Event || '', Event: ev.Event || '', Location: ev.Location || '', Hotel_Location: ev.Hotel_Location || ev.Hotel || '', Room_Count: ev.Room_Count || 10, First_Event_Day: ev.First_Event_Day || '', Last_Event_Day: ev.Last_Event_Day || '', EarlyBird_Start_Date: ev.EarlyBird_Start_Date || ev.Early_Bird_Start || '', EarlyBird_End_Date: ev.EarlyBird_End_Date || ev.Early_End_Date || '', Notes: ev.Notes || '', Total_Days: ev.Total_Days || 0 })); break;
-                            case 'courses': courses = (value || []).map(c => ({ Course_ID: String(c.Course_ID || '').trim(), Instructor: String(c.Instructor || '').trim(), Course_Name: String(c.Course_Name || '').trim(), Duration_Days: parseFloat(c.Duration_Days) || 1, Topic: String(c.Topic || '').trim(), ...(c.retired ? { retired: true } : {}) })); updateTopicFilter(); break;
+                            case 'courses': courses = (value || []).map(c => ({ Course_ID: String(c.Course_ID || '').trim(), Instructor: String(c.Instructor || '').trim(), Course_Name: String(c.Course_Name || '').trim(), Duration_Days: parseFloat(c.Duration_Days) || 1, Topic: String(c.Topic || '').trim(), Notes: String(c.Notes || '').trim(), ...(c.retired ? { retired: true } : {}) })); updateTopicFilter(); break;
                             case 'instructor_away': instructorAway = value || []; break;
                             case 'schedule': schedule = value || {}; break;
                             case 'shortlists': shortlists = value || {}; break;
