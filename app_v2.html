@@ -1786,6 +1786,7 @@
         let newCourseSaved = false;
         let currentEditingCell = null;
         let activeInlineEdit = false; // true whenever any inline cell editor is open
+        let ownSaveTimestamp = 0;     // timestamp of our last Supabase save; used to ignore own echoes
 
         // ==================== YEAR / SEASON ====================
         const AVAILABLE_YEARS = [2026, 2027];
@@ -5030,6 +5031,7 @@
         async function saveToSupabase() {
             if (!supabaseConnected) return;
             try {
+                ownSaveTimestamp = Date.now();
                 const now = new Date().toISOString();
                 const { error } = await sb.from('schedulepro_state').upsert([
                     { key: yearKey('events'), value: events, updated_at: now },
@@ -5069,6 +5071,14 @@
                         // Ignore updates for other years
                         if (!key.startsWith(activeYear + '_')) return;
                         isApplyingRemoteUpdate = true;
+                        // If this update is likely our own echo (within 5s of our last save),
+                        // skip overwriting in-memory data — it's already correct.
+                        if (Date.now() - ownSaveTimestamp < 5000) {
+                            saveToLocalStorage();
+                            if (!currentEditingCell && !activeInlineEdit) render();
+                            isApplyingRemoteUpdate = false;
+                            return;
+                        }
                         const value = payload.new.value;
                         const field = key.substring(key.indexOf('_') + 1);
                         switch (field) {
