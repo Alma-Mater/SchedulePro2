@@ -1064,10 +1064,16 @@
 
         .editable-cell input {
             width: 100%;
-            padding: 8px 10px;
-            border: 2px solid #7c3aed;
-            border-radius: 4px;
-            font-size: 16px;
+            padding: 0;
+            margin: 0;
+            border: none;
+            border-bottom: 2px solid #7c3aed;
+            border-radius: 0;
+            font-size: inherit;
+            font-family: inherit;
+            background: transparent;
+            box-sizing: border-box;
+            outline: none;
         }
 
         /* ========== CHANGE LOG ========== */
@@ -1779,6 +1785,7 @@
         let newCourseBuffer = { Course_ID: '', Course_Name: '', Instructor: '', Duration_Days: '', Topic: '', Notes: '' };
         let newCourseSaved = false;
         let currentEditingCell = null;
+        let activeInlineEdit = false; // true whenever any inline cell editor is open
 
         // ==================== YEAR / SEASON ====================
         const AVAILABLE_YEARS = [2026, 2027];
@@ -2767,6 +2774,7 @@
             const original = cell.innerHTML;
             cell.innerHTML = '';
             cell.appendChild(input);
+            activeInlineEdit = true;
             input.focus();
             if (input.type === 'text') input.select();
 
@@ -2774,9 +2782,11 @@
 
             const save = () => {
                 if (!hasChanged) {
+                    activeInlineEdit = false;
                     cell.innerHTML = original;
                     return;
                 }
+                activeInlineEdit = false;
                 const newVal = isDateField ? input.value : input.value.trim();
                 if (newVal !== val) {
                     instructorAway[idx][field] = newVal;
@@ -2801,6 +2811,7 @@
                     // Delay to allow change event to fire first
                     setTimeout(() => {
                         if (!hasChanged) {
+                            activeInlineEdit = false;
                             cell.innerHTML = original;
                         }
                     }, 100);
@@ -2813,7 +2824,7 @@
             
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') { hasChanged = true; save(); }
-                if (e.key === 'Escape') { cell.innerHTML = original; }
+                if (e.key === 'Escape') { activeInlineEdit = false; cell.innerHTML = original; }
             });
         }
 
@@ -3976,6 +3987,7 @@
             
             cell.innerHTML = '';
             cell.appendChild(input);
+            activeInlineEdit = true;
             input.focus();
             input.select();
 
@@ -3983,6 +3995,7 @@
             const save = () => {
                 if (saveInvoked) return;
                 saveInvoked = true;
+                activeInlineEdit = false;
                 let newVal = input.value.trim();
                 if (field === 'Duration_Days') newVal = parseFloat(newVal) || 1;
                 
@@ -4011,6 +4024,7 @@
                 if (e.key === 'Enter') { e.preventDefault(); save(); }
                 if (e.key === 'Escape') {
                     saveInvoked = true;
+                    activeInlineEdit = false;
                     cell.textContent = field === 'Duration_Days'
                         ? `${val} day${Number(val) !== 1 ? 's' : ''}`
                         : String(val);
@@ -5070,8 +5084,8 @@
                         }
                         saveToLocalStorage();
                         // Don't destroy an active cell edit — defer the render
-                        if (currentEditingCell) {
-                            setTimeout(() => { if (!currentEditingCell) render(); }, 2000);
+                        if (currentEditingCell || activeInlineEdit) {
+                            setTimeout(() => { if (!currentEditingCell && !activeInlineEdit) render(); }, 2000);
                         } else {
                             render();
                         }
