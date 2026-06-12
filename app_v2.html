@@ -2831,13 +2831,11 @@
 
         function deleteAvailabilityEntry(idx) {
             const entry = instructorAway[idx];
-            if (confirm(`Remove unavailability period for "${entry.Instructor}"?`)) {
-                instructorAway.splice(idx, 1);
-                addLogEntry('remove', null, null, `Retired instructor unavailability: ${entry.Instructor}`, '', '', '', entry.Instructor);
-                saveToLocalStorage();
-                render();
-                showToast('Entry retired', 'success');
-            }
+            instructorAway.splice(idx, 1);
+            addLogEntry('remove', null, null, `Retired instructor unavailability: ${entry.Instructor}`, '', '', '', entry.Instructor);
+            saveToLocalStorage();
+            render();
+            showToast('Entry retired', 'success');
         }
 
         function toggleShowRetired() {
@@ -3247,14 +3245,12 @@
             }
             
             if (assignedRoom) {
-                // Course is assigned to a room - show confirmation dialog
-                if (confirm(`Remove "${course?.Course_Name || courseId}" from Room ${assignedRoom}?`)) {
-                    schedule[selectedEventId][assignedRoom] = schedule[selectedEventId][assignedRoom].filter(a => a.courseId !== courseId);
-                    addLogEntry('remove', selectedEventId, courseId, `Retired from Room ${assignedRoom}`, `Room ${assignedRoom}`, 'Unassigned');
-                    saveToLocalStorage();
-                    render();
-                    showToast('Course retired', 'success');
-                }
+                // Course is assigned to a room - remove directly
+                schedule[selectedEventId][assignedRoom] = schedule[selectedEventId][assignedRoom].filter(a => a.courseId !== courseId);
+                addLogEntry('remove', selectedEventId, courseId, `Retired from Room ${assignedRoom}`, `Room ${assignedRoom}`, 'Unassigned');
+                saveToLocalStorage();
+                render();
+                showToast('Course retired', 'success');
             } else if (shortlist.includes(courseId)) {
                 // Course is in draft picks but not assigned - remove without dialog
                 shortlists[selectedEventId] = shortlist.filter(id => id !== courseId);
@@ -3361,13 +3357,11 @@
 
         function confirmRemoveCourse(eventId, room, courseId) {
             const course = courses.find(c => c.Course_ID === courseId);
-            if (confirm(`Remove "${course?.Course_Name || courseId}" from Room ${room}?`)) {
-                schedule[eventId][room] = schedule[eventId][room].filter(a => a.courseId !== courseId);
-                addLogEntry('remove', eventId, courseId, `Retired from Room ${room}`, `Room ${room}`, 'Unassigned');
-                saveToLocalStorage();
-                render();
-                showToast('Course retired', 'success');
-            }
+            schedule[eventId][room] = schedule[eventId][room].filter(a => a.courseId !== courseId);
+            addLogEntry('remove', eventId, courseId, `Retired from Room ${room}`, `Room ${room}`, 'Unassigned');
+            saveToLocalStorage();
+            render();
+            showToast('Course retired', 'success');
         }
 
         function removeRoom(eventId, roomNum) {
@@ -3685,7 +3679,6 @@
         function clearDraftPicks() {
             const ev = events.find(e => e.Event_ID === selectedEventId);
             if (!ev) return;
-            if (!confirm(`Clear all draft picks for "${ev.Event}"?`)) return;
             shortlists[selectedEventId] = [];
             addLogEntry('clear', selectedEventId, null, 'Cleared draft picks');
             saveToLocalStorage();
@@ -3694,8 +3687,6 @@
         }
 
         function clearEventSchedule() {
-            const event = events.find(e => e.Event_ID === selectedEventId);
-            if (!confirm(`Clear all assignments for "${event?.Event}"?`)) return;
             schedule[selectedEventId] = {};
             addLogEntry('clear', selectedEventId, null, 'Cleared all');
             saveToLocalStorage();
@@ -4342,7 +4333,6 @@
         }
 
         function clearChangeLog() {
-            if (!confirm('Clear all log entries?')) return;
             changeLog = [];
             saveToLocalStorage();
             renderChangeLog();

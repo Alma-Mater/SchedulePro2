@@ -1907,10 +1907,7 @@
         }
 
         function showRemoveCourseConfirm(eventId, room, courseId) {
-            const course = courses.find(c => c.Course_ID === courseId);
-            if (confirm(`Remove "${course?.Course_Name || courseId}" from Room ${room}?`)) {
-                removeCourseFromSchedule(eventId, room, courseId);
-            }
+            removeCourseFromSchedule(eventId, room, courseId);
         }
 
         function removeCourseFromSchedule(eventId, room, courseId) {
@@ -1925,8 +1922,6 @@
         }
 
         function clearEventSchedule(eventId) {
-            const event = events.find(e => e.Event_ID === eventId);
-            if (!confirm(`Clear all assignments for "${event?.Event || eventId}"?`)) return;
             schedule[eventId] = {};
             addLogEntry('clear', eventId, null, null, `Cleared all assignments`);
             saveToLocalStorage();
@@ -2239,7 +2234,6 @@
         }
 
         function clearChangeLog() {
-            if (!confirm('Clear all change log entries?')) return;
             changeLog = [];
             saveToLocalStorage();
             renderChangeLog();
