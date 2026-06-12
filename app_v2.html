@@ -1448,6 +1448,7 @@
         </div>
         <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="loadExcelFile(event)">
         <input type="file" id="scheduleFileInput" accept=".xlsx,.xls,.csv" onchange="importExistingSchedule(event)">
+        <input type="file" id="availabilityImportInput" accept=".xlsx,.xls" onchange="handleAvailabilityImportFile(event)">
         <input type="file" id="loadSessionInput" accept=".json" onchange="loadSession(event)">
     </header>
 
@@ -1648,7 +1649,10 @@
                 <div class="tab-panel" id="tab-availability">
                     <div style="margin-bottom: 16px;">
                         <h2 style="margin-bottom: 12px; color: #374151;">Instructor Unavailability</h2>
-                        <button class="btn btn-primary btn-sm" onclick="addAvailabilityEntry()">+ Add Entry</button>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button class="btn btn-primary btn-sm" onclick="addAvailabilityEntry()">+ Add Entry</button>
+                            <button class="btn btn-sm" style="background:#f0fdf4;border:1px solid #86efac;color:#166534;" onclick="document.getElementById('availabilityImportInput').value=''; document.getElementById('availabilityImportInput').click()">⬆ Import 2027 Survey</button>
+                        </div>
                     </div>
                     <div id="availabilityTableContainer">
                         <div class="empty-state">No unavailability periods defined</div>
@@ -1759,6 +1763,41 @@
             <div class="modal-footer">
                 <button class="btn" onclick="closeModal('eventModal')">Cancel</button>
                 <button class="btn btn-primary" onclick="saveEvent()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AVAILABILITY IMPORT PREVIEW MODAL -->
+    <div class="modal-overlay" id="availImportModal">
+        <div class="modal" style="max-width: 760px; width: 96vw;">
+            <div class="modal-header">
+                <h2>Import 2027 Instructor Availability</h2>
+                <button class="modal-close" onclick="closeModal('availImportModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="availImportSummary" style="margin-bottom: 12px; font-size: 14px; color: #374151;"></p>
+                <div style="max-height: 380px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 6px;">
+                    <table class="data-table" id="availImportPreviewTable" style="margin: 0;">
+                        <thead>
+                            <tr>
+                                <th>Instructor</th>
+                                <th>Start</th>
+                                <th>End</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody id="availImportPreviewBody"></tbody>
+                    </table>
+                </div>
+                <div style="margin-top: 14px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                    <label style="font-size: 13px; font-weight: 500; color: #374151;">On import:</label>
+                    <label style="font-size: 13px; cursor: pointer;"><input type="radio" name="availImportMode" value="merge" checked> Merge with existing</label>
+                    <label style="font-size: 13px; cursor: pointer;"><input type="radio" name="availImportMode" value="replace"> Replace existing</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('availImportModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="confirmAvailabilityImport()">Import</button>
             </div>
         </div>
     </div>
@@ -2836,6 +2875,154 @@
             saveToLocalStorage();
             render();
             showToast('Entry retired', 'success');
+        }
+
+        // ==================== AVAILABILITY IMPORT ====================
+        let _pendingAvailImport = [];
+
+        const AVAIL_MONTHS = {
+            january:1, february:2, march:3, april:4, may:5, june:6,
+            july:7, august:8, september:9, october:10, november:11, december:12
+        };
+
+        function parseAvailabilityMultiSelect(name, raw, year) {
+            if (!raw || !raw.trim()) return [];
+            const s = raw.trim();
+            if (/available all dates/i.test(s)) return [];
+
+            // Split on commas that are immediately followed by a month name
+            const MONTH_RE = 'January|February|March|April|May|June|July|August|September|October|November|December';
+            const parts = s.split(new RegExp(`,\\s*(?=${MONTH_RE})`, 'i'));
+
+            const results = [];
+            for (const part of parts) {
+                const p = part.trim();
+                if (!p) continue;
+
+                // Match: Month [DD][ - ][Month ]DD : Notes
+                // e.g. "May 17-20: Chicago, IL"
+                //      "June 28- July 1: Tampa, FL"
+                //      "September: TBD - Virtual"
+                const m = p.match(/^(\w+)(?:\s+(\d+))?(?:\s*[-–]\s*(?:(\w+)\s+)?(\d+))?\s*:\s*(.*)$/i);
+                if (!m) {
+                    // fallback: just use the whole string as notes, no dates
+                    results.push({ Instructor: name, Unavailable_Start: '', Unavailable_End: '', Notes: p });
+                    continue;
+                }
+
+                const month1 = AVAIL_MONTHS[(m[1] || '').toLowerCase()];
+                const day1   = m[2] ? parseInt(m[2]) : 1;
+                const month2Key = (m[3] || '').toLowerCase();
+                const month2 = month2Key ? (AVAIL_MONTHS[month2Key] || month1) : month1;
+                const day2   = m[4] ? parseInt(m[4]) : new Date(year, (month2Key ? month2 : month1), 0).getDate();
+                const notes  = (m[5] || '').trim();
+
+                if (!month1) {
+                    results.push({ Instructor: name, Unavailable_Start: '', Unavailable_End: '', Notes: p });
+                    continue;
+                }
+
+                const pad = n => String(n).padStart(2, '0');
+                const startStr = `${pad(month1)}/${pad(day1)}/${year}`;
+                const endStr   = `${pad(month2)}/${pad(day2)}/${year}`;
+                results.push({ Instructor: name, Unavailable_Start: startStr, Unavailable_End: endStr, Notes: notes });
+            }
+            return results;
+        }
+
+        function handleAvailabilityImportFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    // Get raw rows to handle the 3-row header situation
+                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+                    // Find the header row (contains "Name" and "Multi select")
+                    let headerRowIdx = -1;
+                    for (let i = 0; i < Math.min(rows.length, 10); i++) {
+                        if (rows[i].some(c => String(c).toLowerCase() === 'name')) {
+                            headerRowIdx = i;
+                            break;
+                        }
+                    }
+                    if (headerRowIdx === -1) { showToast('Could not find Name column in file', 'error'); return; }
+
+                    const headers = rows[headerRowIdx].map(h => String(h).trim().toLowerCase());
+                    const nameIdx  = headers.indexOf('name');
+                    const multiIdx = headers.findIndex(h => h.includes('multi'));
+                    if (nameIdx === -1 || multiIdx === -1) { showToast('Missing Name or Multi select column', 'error'); return; }
+
+                    const year = 2027;
+                    const parsed = [];
+                    const seen = new Set();
+
+                    for (let r = headerRowIdx + 1; r < rows.length; r++) {
+                        const row = rows[r];
+                        const rawName  = String(row[nameIdx]  || '').trim();
+                        const rawMulti = String(row[multiIdx] || '').trim();
+                        if (!rawName) continue;
+
+                        const entries = parseAvailabilityMultiSelect(rawName, rawMulti, year);
+                        for (const entry of entries) {
+                            const key = `${entry.Instructor}|${entry.Unavailable_Start}|${entry.Unavailable_End}`;
+                            if (!seen.has(key)) {
+                                seen.add(key);
+                                parsed.push(entry);
+                            }
+                        }
+                    }
+
+                    _pendingAvailImport = parsed;
+
+                    // Populate preview
+                    const tbody = document.getElementById('availImportPreviewBody');
+                    tbody.innerHTML = parsed.length === 0
+                        ? '<tr><td colspan="4" style="text-align:center;color:#6b7280;">No unavailability periods found</td></tr>'
+                        : parsed.map(e => `<tr>
+                            <td>${e.Instructor}</td>
+                            <td>${e.Unavailable_Start}</td>
+                            <td>${e.Unavailable_End}</td>
+                            <td>${e.Notes}</td>
+                          </tr>`).join('');
+
+                    const instructorCount = new Set(parsed.map(e => e.Instructor)).size;
+                    document.getElementById('availImportSummary').textContent =
+                        `Found ${parsed.length} unavailability period${parsed.length !== 1 ? 's' : ''} across ${instructorCount} instructor${instructorCount !== 1 ? 's' : ''}.`;
+
+                    document.getElementById('availImportModal').classList.add('active');
+                } catch (err) {
+                    console.error(err);
+                    showToast('Error reading availability file', 'error');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function confirmAvailabilityImport() {
+            const mode = document.querySelector('input[name="availImportMode"]:checked')?.value || 'merge';
+            if (mode === 'replace') {
+                instructorAway = [..._pendingAvailImport];
+            } else {
+                // Merge: skip exact duplicates
+                const existing = new Set(instructorAway.map(e => `${e.Instructor}|${e.Unavailable_Start}|${e.Unavailable_End}`));
+                for (const entry of _pendingAvailImport) {
+                    const key = `${entry.Instructor}|${entry.Unavailable_Start}|${entry.Unavailable_End}`;
+                    if (!existing.has(key)) {
+                        instructorAway.push(entry);
+                        existing.add(key);
+                    }
+                }
+            }
+            addLogEntry('upload', null, null, `Imported ${_pendingAvailImport.length} availability entries (${mode})`);
+            saveToLocalStorage();
+            renderAvailabilityTable();
+            closeModal('availImportModal');
+            showToast(`Imported ${_pendingAvailImport.length} entries`, 'success');
+            _pendingAvailImport = [];
         }
 
         function toggleShowRetired() {
