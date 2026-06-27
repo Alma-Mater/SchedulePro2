@@ -2143,13 +2143,26 @@
                 const y = value.getFullYear();
                 return `${m}/${d}/${y}`;
             }
-            // Convert any dashes to slashes
-            return String(value).trim().replace(/-/g, '/');
+            const str = String(value).trim();
+            // Convert YYYY-MM-DD or YYYY/MM/DD → MM/DD/YYYY
+            const isoMatch = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+            if (isoMatch) {
+                return `${String(isoMatch[2]).padStart(2,'0')}/${String(isoMatch[3]).padStart(2,'0')}/${isoMatch[1]}`;
+            }
+            // Already MM/DD/YYYY or MM-DD-YYYY; normalise dashes
+            return str.replace(/-/g, '/');
         }
 
         function parseDate(dateStr) {
             if (!dateStr) return null;
-            const parts = dateStr.split('/');
+            const str = String(dateStr).trim();
+            // YYYY-MM-DD or YYYY/MM/DD
+            const isoMatch = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+            if (isoMatch) {
+                return new Date(parseInt(isoMatch[1]), parseInt(isoMatch[2]) - 1, parseInt(isoMatch[3]));
+            }
+            // MM/DD/YYYY or MM-DD-YYYY
+            const parts = str.replace(/-/g, '/').split('/');
             if (parts.length === 3) {
                 return new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
             }
@@ -4777,6 +4790,117 @@
             applyTemplateColors(ws3, retiredAoa.length - 1, maxEvents);
             ws3['!cols'] = ws1['!cols'];
             XLSX.utils.book_append_sheet(wb, ws3, 'Retired');
+
+            // ── Sheet 4: Schedule by Event (vertical, month-separated) ────
+            const MONTH_NAMES_FULL = ['January','February','March','April','May','June',
+                                      'July','August','September','October','November','December'];
+            const EVT_BG = [
+                'E2F0D9','DEEBF7','FFC000','FFF2CC','FBE5D6',
+                '9DC3E6','D0CECE','D8BEEC','A9D18E','00B0F0',
+                'FFD966','5B9BD5','44546A'
+            ];
+            const EVT_DARK = [false,false,false,false,false,false,false,false,false,false,false,true,true];
+
+            const evtSchedAoa = [];
+            const evtSchedRowStyles = [];
+            let seenEvtMonth = -1;
+
+            for (let evtI = 0; evtI < sortedEvents.length; evtI++) {
+                const ev = sortedEvents[evtI];
+                const evDate = parseDate(ev.First_Event_Day);
+                const evMonth = evDate ? evDate.getMonth() : -1;
+                const evYear = evDate ? evDate.getFullYear() : (activeYear || '');
+                const colorBg = EVT_BG[evtI % EVT_BG.length];
+                const colorDark = EVT_DARK[evtI % EVT_DARK.length];
+                const isVirtual = (ev.Location || '').toLowerCase().includes('virtual');
+                const modality = isVirtual ? '(V)' : '(IP)';
+                const monthAbbr = evMonth >= 0 ? MONTH_NAMES_FULL[evMonth].substring(0, 3) : '';
+                const monthTypeLabel = evMonth >= 0 ? `${monthAbbr} ${modality}` : '';
+
+                // Month separator row
+                if (evMonth >= 0 && evMonth !== seenEvtMonth) {
+                    seenEvtMonth = evMonth;
+                    evtSchedAoa.push([`${MONTH_NAMES_FULL[evMonth].toUpperCase()} ${evYear}`, '', '', '', '', '']);
+                    evtSchedRowStyles.push('month');
+                }
+
+                // Event header row
+                const locStr = ev.Location || '';
+                const evName = ev.Event || locStr;
+                const dateRange = (ev.First_Event_Day && ev.Last_Event_Day)
+                    ? `${ev.First_Event_Day} – ${ev.Last_Event_Day}`
+                    : (ev.First_Event_Day || '');
+                const evDesc = evName + (locStr && evName !== locStr ? ' – ' + locStr : '') + (dateRange ? ' – ' + dateRange : '');
+                evtSchedAoa.push([`EVENT #${evtI + 1}`, 'Course ID', evDesc, 'Instructor', 'Start Date', 'End Date']);
+                evtSchedRowStyles.push('eventHeader');
+
+                // Collect assignments (deduplicated by courseId)
+                const eventSched = schedule[ev.Event_ID] || {};
+                const eventDts = getEventDates(ev);
+                const seenCIds = new Set();
+                const cRows = [];
+                for (const room in eventSched) {
+                    for (const a of eventSched[room]) {
+                        if (seenCIds.has(a.courseId)) continue;
+                        seenCIds.add(a.courseId);
+                        const course = courses.find(c => c.Course_ID === a.courseId);
+                        const startDate = eventDts[a.startDay - 1] || '';
+                        const endIdx = Math.min(a.startDay + a.duration - 2, eventDts.length - 1);
+                        const endDate = eventDts[endIdx] || '';
+                        cRows.push({ label: monthTypeLabel, cid: a.courseId,
+                            name: course?.Course_Name || a.courseId,
+                            instr: course?.Instructor || '', startDate, endDate, day: a.startDay });
+                    }
+                }
+                cRows.sort((a, b) => a.day - b.day);
+
+                for (const cr of cRows) {
+                    evtSchedAoa.push([cr.label, cr.cid, cr.name, cr.instr, cr.startDate, cr.endDate]);
+                    evtSchedRowStyles.push({ type: 'course', bg: colorBg, dark: colorDark });
+                }
+
+                // Counts row
+                evtSchedAoa.push(['Course Counts by day', String(cRows.length), '', '', '', '']);
+                evtSchedRowStyles.push({ type: 'counts', bg: colorBg, dark: colorDark });
+
+                // Blank spacer
+                evtSchedAoa.push(['', '', '', '', '', '']);
+                evtSchedRowStyles.push('spacer');
+            }
+
+            const ws4 = XLSX.utils.aoa_to_sheet(evtSchedAoa);
+
+            // Apply styles to ws4
+            function sc4(r, c, bg, bold, dark) {
+                const ref = XLSX.utils.encode_cell({ r, c });
+                if (!ws4[ref]) ws4[ref] = { t: 's', v: '' };
+                ws4[ref].s = {
+                    fill: bg ? { patternType: 'solid', fgColor: { rgb: bg } } : { patternType: 'none' },
+                    font: { bold: !!bold, color: { rgb: dark ? 'FFFFFF' : '000000' } },
+                    alignment: { vertical: 'center', wrapText: false }
+                };
+            }
+            for (let r = 0; r < evtSchedRowStyles.length; r++) {
+                const s = evtSchedRowStyles[r];
+                if (s === 'month') {
+                    for (let c = 0; c < 6; c++) sc4(r, c, '1F2937', true, true);
+                } else if (s === 'eventHeader') {
+                    for (let c = 0; c < 6; c++) sc4(r, c, '000000', true, true);
+                } else if (s && s.type === 'course') {
+                    for (let c = 0; c < 6; c++) sc4(r, c, s.bg, false, s.dark);
+                } else if (s && s.type === 'counts') {
+                    for (let c = 0; c < 6; c++) sc4(r, c, s.bg, true, s.dark);
+                }
+            }
+            ws4['!cols'] = [
+                { wch: 14 }, // A: Month type
+                { wch: 10 }, // B: Course ID
+                { wch: 55 }, // C: Course Name
+                { wch: 25 }, // D: Instructor
+                { wch: 14 }, // E: Start Date
+                { wch: 14 }, // F: End Date
+            ];
+            XLSX.utils.book_append_sheet(wb, ws4, 'Schedule by Event');
 
             // Build human-readable timestamp for filename and log
             const _now = new Date();
