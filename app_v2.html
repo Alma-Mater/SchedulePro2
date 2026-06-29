@@ -1441,7 +1441,7 @@
                 <span id="syncText">Connecting...</span>
             </span>
             <button class="btn" onclick="document.getElementById('fileInput').click()">📁 Load Excel</button>
-            <button class="btn" onclick="document.getElementById('scheduleFileInput').click()">📅 Import Schedule</button>
+            <button class="btn" onclick="document.getElementById('catalogImportInput').value=''; document.getElementById('catalogImportInput').click()">📋 Import Course Catalog</button>
             <button class="btn" onclick="exportSchedule()">📤 Export</button>
             <button class="btn" onclick="exportContracts()">📄 Export Contracts</button>
             <button class="btn" id="trackingBtn" onclick="toggleTracking()" style="background:#16a34a;color:white;border-color:#15803d;font-weight:600;">💾 SAVE (Start Tracking Changes)</button>
@@ -1620,15 +1620,12 @@
 
                 <!-- ALL COURSES TAB -->
                 <div class="tab-panel" id="tab-courses">
-                    <div style="margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+                    <div style="margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
                         <p style="color: #6b7280; margin: 0;">Click any cell to edit. Changes save automatically. Click column headers to sort. Use the green row at the top to add a new course.</p>
-                        <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
-                            <button class="btn btn-sm" style="background:#f0fdf4;border:1px solid #86efac;color:#166534;" onclick="document.getElementById('catalogImportInput').value=''; document.getElementById('catalogImportInput').click()">&#8679; Import Course Catalog</button>
-                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; font-size: 14px; color: #6b7280;">
-                                <input type="checkbox" id="showRetiredCheckbox" onchange="toggleShowRetired()" style="cursor: pointer;">
-                                Show retired
-                            </label>
-                        </div>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; font-size: 14px; color: #6b7280;">
+                            <input type="checkbox" id="showRetiredCheckbox" onchange="toggleShowRetired()" style="cursor: pointer;">
+                            Show retired
+                        </label>
                     </div>
                     <div class="courses-table-wrapper">
                         <table class="data-table" id="coursesTable">
