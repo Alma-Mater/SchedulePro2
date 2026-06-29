@@ -1449,6 +1449,7 @@
         <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="loadExcelFile(event)">
         <input type="file" id="scheduleFileInput" accept=".xlsx,.xls,.csv" onchange="importExistingSchedule(event)">
         <input type="file" id="availabilityImportInput" accept=".xlsx,.xls" onchange="handleAvailabilityImportFile(event)">
+        <input type="file" id="catalogImportInput" accept=".xlsx,.xls" onchange="handleCatalogImportFile(event)" style="display:none;">
         <input type="file" id="loadSessionInput" accept=".json" onchange="loadSession(event)">
     </header>
 
@@ -1619,12 +1620,15 @@
 
                 <!-- ALL COURSES TAB -->
                 <div class="tab-panel" id="tab-courses">
-                    <div style="margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                    <div style="margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
                         <p style="color: #6b7280; margin: 0;">Click any cell to edit. Changes save automatically. Click column headers to sort. Use the green row at the top to add a new course.</p>
-                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; font-size: 14px; color: #6b7280;">
-                            <input type="checkbox" id="showRetiredCheckbox" onchange="toggleShowRetired()" style="cursor: pointer;">
-                            Show retired
-                        </label>
+                        <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
+                            <button class="btn btn-sm" style="background:#f0fdf4;border:1px solid #86efac;color:#166534;" onclick="document.getElementById('catalogImportInput').value=''; document.getElementById('catalogImportInput').click()">&#8679; Import Course Catalog</button>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; font-size: 14px; color: #6b7280;">
+                                <input type="checkbox" id="showRetiredCheckbox" onchange="toggleShowRetired()" style="cursor: pointer;">
+                                Show retired
+                            </label>
+                        </div>
                     </div>
                     <div class="courses-table-wrapper">
                         <table class="data-table" id="coursesTable">
@@ -1798,6 +1802,63 @@
             <div class="modal-footer">
                 <button class="btn" onclick="closeModal('availImportModal')">Cancel</button>
                 <button class="btn btn-primary" onclick="confirmAvailabilityImport()">Import</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CATALOG IMPORT MODAL -->
+    <div class="modal-overlay" id="catalogImportModal">
+        <div class="modal" style="max-width: 900px; width: 96vw;">
+            <div class="modal-header">
+                <h2>Import Course Catalog</h2>
+                <button class="modal-close" onclick="closeModal('catalogImportModal')">&times;</button>
+            </div>
+            <div class="modal-body" style="max-height: 68vh; overflow-y: auto;">
+                <div>
+                    <div style="display:flex; align-items:center; gap:12px; margin-bottom:6px;">
+                        <h3 style="margin:0; font-size:15px; color:#374151;">Field Differences (<span id="catalogChangeCount">0</span>)</h3>
+                        <label style="font-size:13px; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                            <input type="checkbox" id="catalogChangesHeaderCheck" checked onchange="toggleAllCatalogChanges(this.checked)"> Select all
+                        </label>
+                    </div>
+                    <p style="font-size:13px; color:#6b7280; margin-bottom:8px;">Courses where the import differs from SchedulePro. Checked rows will be updated.</p>
+                    <div style="max-height:200px; overflow-y:auto; border:1px solid #e5e7eb; border-radius:6px;">
+                        <table class="data-table" id="catalogChangesTable" style="margin:0; font-size:13px;">
+                            <thead><tr>
+                                <th style="width:36px; text-align:center;"></th>
+                                <th>Course ID</th><th>Field</th>
+                                <th style="color:#dc2626;">Current (SchedulePro)</th>
+                                <th style="color:#16a34a;">New (Import)</th>
+                            </tr></thead>
+                            <tbody id="catalogChangesBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div style="margin-top:18px;">
+                    <h3 style="margin:0 0 6px; font-size:15px; color:#374151;">New Courses to Add (<span id="catalogNewCount">0</span>)</h3>
+                    <p style="font-size:13px; color:#6b7280; margin-bottom:8px;">In the import file but not in SchedulePro &mdash; all will be added automatically.</p>
+                    <div style="max-height:150px; overflow-y:auto; border:1px solid #e5e7eb; border-radius:6px;">
+                        <table class="data-table" id="catalogNewTable" style="margin:0; font-size:13px;">
+                            <thead><tr><th>Course ID</th><th>Course Name</th><th>Instructor</th><th style="text-align:center;">Days</th></tr></thead>
+                            <tbody id="catalogNewBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div style="margin-top:18px;">
+                    <h3 style="margin:0 0 6px; font-size:15px; color:#374151;">New Retirements for 2027 (<span id="catalogRetireCount">0</span>)</h3>
+                    <p style="font-size:13px; color:#6b7280; margin-bottom:8px;">On the Retired sheet (new for 2027). Will be marked retired and removed from all scheduled events.</p>
+                    <div style="max-height:150px; overflow-y:auto; border:1px solid #e5e7eb; border-radius:6px;">
+                        <table class="data-table" id="catalogRetireTable" style="margin:0; font-size:13px;">
+                            <thead><tr><th>Course ID</th><th>Course Name</th><th>Schedule Impact</th></tr></thead>
+                            <tbody id="catalogRetireBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <span id="catalogImportFileName" style="font-size:12px; color:#6b7280; margin-right:auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:320px;"></span>
+                <button class="btn" onclick="closeModal('catalogImportModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="applyCatalogImport()">Apply Changes</button>
             </div>
         </div>
     </div>
@@ -3040,6 +3101,258 @@
 
         function toggleShowRetired() {
             renderCoursesTable();
+        }
+
+        // ==================== CATALOG IMPORT ====================
+
+        let _pendingCatalogImport = null;
+
+        function escapeHtml(str) {
+            return String(str == null ? '' : str)
+                .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        function handleCatalogImportFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+                    const activeSheetName = wb.SheetNames.find(n => /course info/i.test(n)) || wb.SheetNames[0];
+                    const retiredSheetName = wb.SheetNames.find(n => /retired/i.test(n));
+                    const activeRows = XLSX.utils.sheet_to_json(wb.Sheets[activeSheetName], { header: 1, defval: '' });
+
+                    // Locate header row and map columns
+                    let headerIdx = -1;
+                    const colMap = {};
+                    for (let i = 0; i < activeRows.length; i++) {
+                        if (String(activeRows[i][0]).trim() === 'Course ID') {
+                            headerIdx = i;
+                            activeRows[i].forEach((cell, j) => {
+                                const c = String(cell).trim();
+                                if (c === 'Course ID') colMap.id = j;
+                                else if (c === 'Course Length') colMap.duration = j;
+                                else if (c === 'Course Title') colMap.name = j;
+                                else if (c === 'Course Leader 1') colMap.leader1 = j;
+                                else if (c === 'Course Leader 2') colMap.leader2 = j;
+                            });
+                            break;
+                        }
+                    }
+                    if (headerIdx === -1) { showToast('Could not find "Course ID" header in import file', 'error'); return; }
+
+                    // Parse active courses
+                    const importedCourses = {};
+                    for (let i = headerIdx + 1; i < activeRows.length; i++) {
+                        const row = activeRows[i];
+                        const id = String(row[colMap.id] || '').trim();
+                        if (!id) continue;
+                        const leader1 = String(row[colMap.leader1] || '').trim();
+                        const leader2 = String(row[colMap.leader2] || '').trim();
+                        importedCourses[id] = {
+                            Course_ID: id,
+                            Course_Name: String(row[colMap.name] || '').trim(),
+                            Instructor: leader2 ? `${leader1} and ${leader2}` : leader1,
+                            Duration_Days: parseFloat(row[colMap.duration]) || 1
+                        };
+                    }
+
+                    // Parse Retired sheet – only "NEW Retirement for 2027" section
+                    const newRetirements = new Set();
+                    if (retiredSheetName) {
+                        const retiredRows = XLSX.utils.sheet_to_json(wb.Sheets[retiredSheetName], { header: 1, defval: '' });
+                        let inNewSection = false;
+                        let retIdCol = 0;
+                        for (const row of retiredRows) {
+                            if (String(row[0]).trim() === 'Course ID') {
+                                row.forEach((cell, j) => { if (String(cell).trim() === 'Course ID') retIdCol = j; });
+                                continue;
+                            }
+                            // Section header: text in col 0, no Course Length (col 3) or Course Title (col 4)
+                            if (row[retIdCol] && !row[1] && !row[3] && !row[4]) {
+                                const lbl = String(row[retIdCol]).toLowerCase();
+                                inNewSection = lbl.includes('new') || lbl.includes('2027');
+                                continue;
+                            }
+                            if (inNewSection && row[retIdCol]) {
+                                newRetirements.add(String(row[retIdCol]).trim());
+                            }
+                        }
+                    }
+
+                    // Compute diff
+                    const changes = [], newCourses = [], retirements = [];
+                    const existingMap = {};
+                    for (const c of courses) existingMap[c.Course_ID] = c;
+
+                    for (const [id, imp] of Object.entries(importedCourses)) {
+                        const ex = existingMap[id];
+                        if (!ex) {
+                            newCourses.push(imp);
+                        } else {
+                            if (imp.Course_Name !== ex.Course_Name)
+                                changes.push({ courseId: id, field: 'Course_Name', label: 'Course Name', oldVal: ex.Course_Name, newVal: imp.Course_Name });
+                            if (imp.Instructor !== ex.Instructor)
+                                changes.push({ courseId: id, field: 'Instructor', label: 'Instructor', oldVal: ex.Instructor, newVal: imp.Instructor });
+                            if (imp.Duration_Days !== ex.Duration_Days)
+                                changes.push({ courseId: id, field: 'Duration_Days', label: 'Duration', oldVal: String(ex.Duration_Days), newVal: String(imp.Duration_Days) });
+                        }
+                    }
+
+                    for (const courseId of newRetirements) {
+                        const ex = existingMap[courseId];
+                        if (!ex || ex.retired) continue;
+                        const scheduledEvents = [];
+                        for (const eventId in schedule) {
+                            for (const room in schedule[eventId]) {
+                                if ((schedule[eventId][room] || []).some(s => s.courseId === courseId)) {
+                                    const ev = events.find(e => e.Event_ID === eventId);
+                                    const label = ev ? (ev.Event || eventId) : eventId;
+                                    if (!scheduledEvents.includes(label)) scheduledEvents.push(label);
+                                }
+                            }
+                        }
+                        retirements.push({ courseId, courseName: ex.Course_Name || courseId, scheduledEvents });
+                    }
+
+                    _pendingCatalogImport = { filename: file.name, changes, newCourses, retirements };
+                    showCatalogImportPreview();
+                } catch (err) {
+                    showToast('Error reading catalog file: ' + err.message, 'error');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function showCatalogImportPreview() {
+            const { filename, changes, newCourses, retirements } = _pendingCatalogImport;
+            document.getElementById('catalogImportFileName').textContent = filename;
+            document.getElementById('catalogChangeCount').textContent = changes.length;
+            document.getElementById('catalogNewCount').textContent = newCourses.length;
+            document.getElementById('catalogRetireCount').textContent = retirements.length;
+
+            const changesBody = document.getElementById('catalogChangesBody');
+            changesBody.innerHTML = changes.length === 0
+                ? '<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:14px;">No field differences — all matching courses are up to date.</td></tr>' : '';
+            changes.forEach((ch, i) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td style="text-align:center;"><input type="checkbox" class="catalog-change-cb" data-idx="${i}" checked></td>
+                    <td><code style="font-size:12px;">${escapeHtml(ch.courseId)}</code></td>
+                    <td style="font-size:12px;color:#6b7280;">${escapeHtml(ch.label)}</td>
+                    <td style="color:#dc2626;word-break:break-word;">${escapeHtml(ch.oldVal)}</td>
+                    <td style="color:#16a34a;word-break:break-word;">${escapeHtml(ch.newVal)}</td>`;
+                changesBody.appendChild(tr);
+            });
+
+            const newBody = document.getElementById('catalogNewBody');
+            newBody.innerHTML = newCourses.length === 0
+                ? '<tr><td colspan="4" style="text-align:center;color:#6b7280;padding:14px;">No new courses to add.</td></tr>' : '';
+            newCourses.forEach(c => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td><code style="font-size:12px;">${escapeHtml(c.Course_ID)}</code></td>
+                    <td>${escapeHtml(c.Course_Name)}</td>
+                    <td style="color:#6b7280;">${escapeHtml(c.Instructor)}</td>
+                    <td style="text-align:center;">${c.Duration_Days}d</td>`;
+                newBody.appendChild(tr);
+            });
+
+            const retireBody = document.getElementById('catalogRetireBody');
+            retireBody.innerHTML = retirements.length === 0
+                ? '<tr><td colspan="3" style="text-align:center;color:#6b7280;padding:14px;">No new retirements.</td></tr>' : '';
+            retirements.forEach(r => {
+                const hasImpact = r.scheduledEvents.length > 0;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td><code style="font-size:12px;">${escapeHtml(r.courseId)}</code></td>
+                    <td>${escapeHtml(r.courseName)}</td>
+                    <td style="${hasImpact ? 'color:#dc2626;font-weight:600;' : 'color:#6b7280;'}">
+                        ${hasImpact ? '&#9888; In: ' + escapeHtml(r.scheduledEvents.join(', ')) : 'Not scheduled'}</td>`;
+                retireBody.appendChild(tr);
+            });
+
+            document.getElementById('catalogImportModal').classList.add('active');
+        }
+
+        function toggleAllCatalogChanges(checked) {
+            document.querySelectorAll('.catalog-change-cb').forEach(cb => cb.checked = checked);
+            document.getElementById('catalogChangesHeaderCheck').checked = checked;
+        }
+
+        function applyCatalogImport() {
+            if (!_pendingCatalogImport) return;
+            const { filename, changes, newCourses, retirements } = _pendingCatalogImport;
+            const now = new Date();
+            const ts = now.toLocaleString();
+            const tsMs = now.getTime();
+            let appliedChanges = 0, addedCourses = 0, retiredCount = 0, removedFromEvents = 0;
+
+            // Apply selected field changes
+            document.querySelectorAll('.catalog-change-cb').forEach((cb, i) => {
+                if (!cb.checked) return;
+                const ch = changes[i];
+                const course = courses.find(c => c.Course_ID === ch.courseId);
+                if (!course) return;
+                const oldVal = course[ch.field];
+                course[ch.field] = ch.field === 'Duration_Days' ? parseFloat(ch.newVal) : ch.newVal;
+                changeLog.push({ timestamp: ts, timestampMs: tsMs, action: 'catalog_update',
+                    eventId: null, courseId: ch.courseId, courseName: course.Course_Name,
+                    instructor: course.Instructor, description: `Catalog: ${ch.label} updated`,
+                    before: String(oldVal), after: String(ch.newVal), notes: '', tracked: true });
+                appliedChanges++;
+            });
+
+            // Add new courses
+            for (const nc of newCourses) {
+                if (courses.find(c => c.Course_ID === nc.Course_ID)) continue;
+                courses.push({ Course_ID: nc.Course_ID, Course_Name: nc.Course_Name,
+                    Instructor: nc.Instructor, Duration_Days: nc.Duration_Days, Topic: '', Notes: '' });
+                changeLog.push({ timestamp: ts, timestampMs: tsMs, action: 'catalog_add',
+                    eventId: null, courseId: nc.Course_ID, courseName: nc.Course_Name,
+                    instructor: nc.Instructor, description: 'Catalog: new course added',
+                    before: '', after: '', notes: '', tracked: true });
+                addedCourses++;
+            }
+
+            // Retire courses
+            for (const r of retirements) {
+                const course = courses.find(c => c.Course_ID === r.courseId);
+                if (!course) continue;
+                course.retired = true;
+                for (const eventId in schedule) {
+                    for (const room in schedule[eventId]) {
+                        const before = (schedule[eventId][room] || []).length;
+                        schedule[eventId][room] = (schedule[eventId][room] || []).filter(s => s.courseId !== r.courseId);
+                        removedFromEvents += before - schedule[eventId][room].length;
+                    }
+                }
+                for (const eventId in shortlists) {
+                    shortlists[eventId] = (shortlists[eventId] || []).filter(id => id !== r.courseId);
+                }
+                changeLog.push({ timestamp: ts, timestampMs: tsMs, action: 'catalog_retire',
+                    eventId: null, courseId: r.courseId, courseName: r.courseName,
+                    instructor: course.Instructor || '',
+                    description: r.scheduledEvents.length > 0
+                        ? `Catalog: retired — removed from ${r.scheduledEvents.length} event(s): ${r.scheduledEvents.join(', ')}`
+                        : 'Catalog: retired',
+                    before: 'active', after: 'retired', notes: '', tracked: true });
+                retiredCount++;
+            }
+
+            // Summary entry
+            changeLog.push({ timestamp: ts, timestampMs: tsMs, action: 'catalog_import',
+                eventId: null, courseId: null, courseName: '', instructor: '',
+                description: `Catalog import: "${filename}" — ${appliedChanges} field(s) updated, ${addedCourses} course(s) added, ${retiredCount} retired (${removedFromEvents} removed from events)`,
+                before: '', after: '', notes: '', tracked: true });
+
+            saveToLocalStorage();
+            renderCoursesTable();
+            renderSidebar();
+            updateTopicFilter();
+            if (selectedEventId) render();
+            renderChangeLog();
+            closeModal('catalogImportModal');
+            _pendingCatalogImport = null;
+            showToast(`Catalog applied: ${appliedChanges} updated, ${addedCourses} added, ${retiredCount} retired`, 'success');
         }
 
         function isCourseScheduled(courseId) {
@@ -4901,6 +5214,71 @@
                 { wch: 14 }, // F: End Date
             ];
             XLSX.utils.book_append_sheet(wb, ws4, 'Schedule by Event');
+
+            // ── Sheets 5+6: Catalog Diff & Import Log (only when imports exist) ──
+            const _catActions = new Set(['catalog_update','catalog_add','catalog_retire','catalog_import']);
+            const _catEntries = changeLog.filter(e => e && _catActions.has(e.action));
+            if (_catEntries.length > 0) {
+                const _lastImport = [..._catEntries].reverse().find(e => e.action === 'catalog_import');
+                const _lastImportMs = _lastImport ? _lastImport.timestampMs : 0;
+
+                // Sheet 5: Catalog Diff – most recent import run
+                const _diffAoa = [
+                    ['Catalog Diff — Most Recent Import', '', '', '', ''],
+                    ['Imported:', _lastImport ? _lastImport.timestamp : 'N/A', '', '', ''],
+                    ['Summary:', _lastImport ? _lastImport.description : '', '', '', ''],
+                    ['', '', '', '', ''],
+                    ['Course ID', 'Change Type', 'Field / Detail', 'Before', 'After']
+                ];
+                _catEntries
+                    .filter(e => e.timestampMs === _lastImportMs && e.action !== 'catalog_import')
+                    .forEach(e => _diffAoa.push([
+                        e.courseId || '',
+                        e.action === 'catalog_update' ? 'Field Updated'
+                            : e.action === 'catalog_add' ? 'New Course Added'
+                            : e.action === 'catalog_retire' ? 'Retired' : e.action,
+                        e.action === 'catalog_update' ? e.description.replace('Catalog: ', '') : (e.courseName || ''),
+                        e.before || '', e.after || ''
+                    ]));
+                const _ws5 = XLSX.utils.aoa_to_sheet(_diffAoa);
+                function _sc5(r, c, bg, bold, white) {
+                    const ref = XLSX.utils.encode_cell({ r, c });
+                    if (!_ws5[ref]) _ws5[ref] = { t: 's', v: '' };
+                    _ws5[ref].s = {
+                        fill: bg ? { patternType: 'solid', fgColor: { rgb: bg } } : { patternType: 'none' },
+                        font: { bold: !!bold, color: { rgb: white ? 'FFFFFF' : '000000' } },
+                        alignment: { wrapText: false }
+                    };
+                }
+                for (let c = 0; c < 5; c++) { _sc5(0, c, '7C3AED', true, true); _sc5(4, c, 'E5E7EB', true, false); }
+                for (let r = 5; r < _diffAoa.length; r++) {
+                    const t = _diffAoa[r][1];
+                    const bg = t === 'Field Updated' ? 'FFF7ED' : t === 'New Course Added' ? 'F0FDF4' : t === 'Retired' ? 'FEF2F2' : null;
+                    if (bg) for (let c = 0; c < 5; c++) _sc5(r, c, bg, false, false);
+                }
+                _ws5['!cols'] = [{ wch: 12 }, { wch: 18 }, { wch: 30 }, { wch: 50 }, { wch: 50 }];
+                XLSX.utils.book_append_sheet(wb, _ws5, 'Catalog Diff');
+
+                // Sheet 6: Catalog Import Log – full history newest-first
+                const _logAoa = [['Timestamp', 'Action', 'Course ID', 'Course Name', 'Detail', 'Before', 'After']];
+                [..._catEntries].sort((a, b) => (b.timestampMs || 0) - (a.timestampMs || 0))
+                    .forEach(e => _logAoa.push([
+                        e.timestamp || '', e.action || '', e.courseId || '',
+                        e.courseName || '', e.description || '', e.before || '', e.after || ''
+                    ]));
+                const _ws6 = XLSX.utils.aoa_to_sheet(_logAoa);
+                function _sc6(r, c, bg, bold) {
+                    const ref = XLSX.utils.encode_cell({ r, c });
+                    if (!_ws6[ref]) _ws6[ref] = { t: 's', v: '' };
+                    _ws6[ref].s = {
+                        fill: bg ? { patternType: 'solid', fgColor: { rgb: bg } } : { patternType: 'none' },
+                        font: { bold: !!bold }, alignment: { wrapText: false }
+                    };
+                }
+                for (let c = 0; c < 7; c++) _sc6(0, c, 'E5E7EB', true);
+                _ws6['!cols'] = [{ wch: 22 }, { wch: 16 }, { wch: 12 }, { wch: 30 }, { wch: 60 }, { wch: 40 }, { wch: 20 }];
+                XLSX.utils.book_append_sheet(wb, _ws6, 'Catalog Import Log');
+            }
 
             // Build human-readable timestamp for filename and log
             const _now = new Date();
