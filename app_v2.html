@@ -3109,6 +3109,12 @@
                 .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
         }
 
+        function parseCatalogDuration(val) {
+            const s = String(val == null ? '' : val).trim().toLowerCase();
+            if (s.includes('hr') || s.includes('hour')) return 0.5;
+            return parseFloat(s) || 1;
+        }
+
         function handleCatalogImportFile(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -3151,7 +3157,7 @@
                             Course_ID: id,
                             Course_Name: String(row[colMap.name] || '').trim(),
                             Instructor: leader2 ? `${leader1} and ${leader2}` : leader1,
-                            Duration_Days: parseFloat(row[colMap.duration]) || 1
+                            Duration_Days: parseCatalogDuration(row[colMap.duration])
                         };
                     }
 
