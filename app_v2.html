@@ -3297,55 +3297,66 @@
                 if (!course) return;
                 const oldVal = course[ch.field];
                 course[ch.field] = ch.field === 'Duration_Days' ? parseFloat(ch.newVal) : ch.newVal;
-                changeLog.push({ timestamp: ts, timestampMs: tsMs, action: 'catalog_update',
+                // Same format as manual inline edit
+                changeLog.push({ timestamp: ts, timestampMs: tsMs, action: 'edit',
                     eventId: null, courseId: ch.courseId, courseName: course.Course_Name,
-                    instructor: course.Instructor, description: `Catalog: ${ch.label} updated`,
-                    before: String(oldVal), after: String(ch.newVal), notes: '', tracked: true });
+                    instructor: course.Instructor, description: `Changed ${ch.field}`,
+                    before: String(oldVal), after: String(ch.newVal),
+                    notes: '[catalog import]', tracked: true });
                 appliedChanges++;
             });
 
-            // Add new courses
+            // Add new courses — same format as manual "Course added"
             for (const nc of newCourses) {
                 if (courses.find(c => c.Course_ID === nc.Course_ID)) continue;
                 courses.push({ Course_ID: nc.Course_ID, Course_Name: nc.Course_Name,
                     Instructor: nc.Instructor, Duration_Days: nc.Duration_Days, Topic: '', Notes: '' });
-                changeLog.push({ timestamp: ts, timestampMs: tsMs, action: 'catalog_add',
+                changeLog.push({ timestamp: ts, timestampMs: tsMs, action: 'add',
                     eventId: null, courseId: nc.Course_ID, courseName: nc.Course_Name,
-                    instructor: nc.Instructor, description: 'Catalog: new course added',
-                    before: '', after: '', notes: '', tracked: true });
+                    instructor: nc.Instructor, description: 'Course added',
+                    before: '', after: '', notes: '[catalog import]', tracked: true });
                 addedCourses++;
             }
 
-            // Retire courses
+            // Retire courses — log retirement then per-room removals, matching manual format
             for (const r of retirements) {
                 const course = courses.find(c => c.Course_ID === r.courseId);
                 if (!course) continue;
                 course.retired = true;
+                // Log retirement — same as retireCourse()
+                changeLog.push({ timestamp: ts, timestampMs: tsMs, action: 'edit',
+                    eventId: null, courseId: r.courseId, courseName: r.courseName,
+                    instructor: course.Instructor || '', description: 'Course retired',
+                    before: '', after: '', notes: '[catalog import]', tracked: true });
+                retiredCount++;
+
+                // Remove from each scheduled room — log each removal same as manual unassign
                 for (const eventId in schedule) {
                     for (const room in schedule[eventId]) {
-                        const before = (schedule[eventId][room] || []).length;
-                        schedule[eventId][room] = (schedule[eventId][room] || []).filter(s => s.courseId !== r.courseId);
-                        removedFromEvents += before - schedule[eventId][room].length;
+                        const slots = schedule[eventId][room] || [];
+                        const hadIt = slots.some(s => s.courseId === r.courseId);
+                        if (hadIt) {
+                            schedule[eventId][room] = slots.filter(s => s.courseId !== r.courseId);
+                            changeLog.push({ timestamp: ts, timestampMs: tsMs, action: 'remove',
+                                eventId, courseId: r.courseId, courseName: r.courseName,
+                                instructor: course.Instructor || '',
+                                description: `Retired from Room ${room}`,
+                                before: `Room ${room}`, after: 'Unassigned',
+                                notes: '[catalog import]', tracked: true });
+                            removedFromEvents++;
+                        }
                     }
                 }
                 for (const eventId in shortlists) {
                     shortlists[eventId] = (shortlists[eventId] || []).filter(id => id !== r.courseId);
                 }
-                changeLog.push({ timestamp: ts, timestampMs: tsMs, action: 'catalog_retire',
-                    eventId: null, courseId: r.courseId, courseName: r.courseName,
-                    instructor: course.Instructor || '',
-                    description: r.scheduledEvents.length > 0
-                        ? `Catalog: retired — removed from ${r.scheduledEvents.length} event(s): ${r.scheduledEvents.join(', ')}`
-                        : 'Catalog: retired',
-                    before: 'active', after: 'retired', notes: '', tracked: true });
-                retiredCount++;
             }
 
-            // Summary entry
-            changeLog.push({ timestamp: ts, timestampMs: tsMs, action: 'catalog_import',
+            // Summary entry — same style as schedule import (action: 'upload')
+            changeLog.push({ timestamp: ts, timestampMs: tsMs, action: 'upload',
                 eventId: null, courseId: null, courseName: '', instructor: '',
                 description: `Catalog import: "${filename}" — ${appliedChanges} field(s) updated, ${addedCourses} course(s) added, ${retiredCount} retired (${removedFromEvents} removed from events)`,
-                before: '', after: '', notes: '', tracked: true });
+                before: '', after: '', notes: '[catalog import]', tracked: true });
 
             saveToLocalStorage();
             renderCoursesTable();
@@ -5219,10 +5230,11 @@
             XLSX.utils.book_append_sheet(wb, ws4, 'Schedule by Event');
 
             // ── Sheets 5+6: Catalog Diff & Import Log (only when imports exist) ──
-            const _catActions = new Set(['catalog_update','catalog_add','catalog_retire','catalog_import']);
-            const _catEntries = changeLog.filter(e => e && _catActions.has(e.action));
+            const _catEntries = changeLog.filter(e => e && e.notes === '[catalog import]');
+            const _catImportSummaries = changeLog.filter(e => e && e.action === 'upload' && e.notes === '[catalog import]');
             if (_catEntries.length > 0) {
-                const _lastImport = [..._catEntries].reverse().find(e => e.action === 'catalog_import');
+                const _lastImport = _catImportSummaries.length > 0
+                    ? _catImportSummaries[_catImportSummaries.length - 1] : null;
                 const _lastImportMs = _lastImport ? _lastImport.timestampMs : 0;
 
                 // Sheet 5: Catalog Diff – most recent import run
@@ -5234,13 +5246,15 @@
                     ['Course ID', 'Change Type', 'Field / Detail', 'Before', 'After']
                 ];
                 _catEntries
-                    .filter(e => e.timestampMs === _lastImportMs && e.action !== 'catalog_import')
+                    .filter(e => e.timestampMs === _lastImportMs && e.action !== 'upload')
                     .forEach(e => _diffAoa.push([
                         e.courseId || '',
-                        e.action === 'catalog_update' ? 'Field Updated'
-                            : e.action === 'catalog_add' ? 'New Course Added'
-                            : e.action === 'catalog_retire' ? 'Retired' : e.action,
-                        e.action === 'catalog_update' ? e.description.replace('Catalog: ', '') : (e.courseName || ''),
+                        e.action === 'edit' && e.description.startsWith('Changed') ? 'Field Updated'
+                            : e.action === 'add' ? 'New Course Added'
+                            : e.action === 'edit' && e.description === 'Course retired' ? 'Retired'
+                            : e.action === 'remove' ? 'Removed from Event'
+                            : e.action,
+                        e.action === 'edit' && e.description.startsWith('Changed') ? e.description : (e.courseName || ''),
                         e.before || '', e.after || ''
                     ]));
                 const _ws5 = XLSX.utils.aoa_to_sheet(_diffAoa);
@@ -5256,7 +5270,7 @@
                 for (let c = 0; c < 5; c++) { _sc5(0, c, '7C3AED', true, true); _sc5(4, c, 'E5E7EB', true, false); }
                 for (let r = 5; r < _diffAoa.length; r++) {
                     const t = _diffAoa[r][1];
-                    const bg = t === 'Field Updated' ? 'FFF7ED' : t === 'New Course Added' ? 'F0FDF4' : t === 'Retired' ? 'FEF2F2' : null;
+                    const bg = t === 'Field Updated' ? 'FFF7ED' : t === 'New Course Added' ? 'F0FDF4' : t === 'Retired' ? 'FEF2F2' : t === 'Removed from Event' ? 'FEF2F2' : null;
                     if (bg) for (let c = 0; c < 5; c++) _sc5(r, c, bg, false, false);
                 }
                 _ws5['!cols'] = [{ wch: 12 }, { wch: 18 }, { wch: 30 }, { wch: 50 }, { wch: 50 }];
