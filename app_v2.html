@@ -785,6 +785,26 @@
             background: #fffbeb;
         }
 
+        .course-block.has-instr-overlap {
+            border-color: #f97316;
+            background: #fff7ed;
+            outline: 2px solid #f97316;
+        }
+
+        .instr-overlap-badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: #f97316;
+            color: white;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            pointer-events: none;
+            z-index: 10;
+        }
+
         /* Half-day variants */
         .course-block.half-day-am {
             border-left: 5px solid #16a34a;
@@ -2550,6 +2570,7 @@
             document.getElementById('scheduleHead').innerHTML = headHtml;
 
             // Body
+            const instrDoubleBooked = getInstructorDoubleBooks(selectedEventId);
             let bodyHtml = '';
             for (let room = 1; room <= roomCount; room++) {
                 bodyHtml += `<tr><td class="room-cell">R${room}<button class="room-remove-btn" onclick="removeRoom('${selectedEventId}', ${room})" title="Remove this room">✕</button></td>`;
@@ -2561,6 +2582,7 @@
                     if (assignment && assignment.startDay === day) {
                         const course = courses.find(c => c.Course_ID === assignment.courseId);
                         const hasConflict = course && checkInstructorConflict(course.Instructor, selectedEventId);
+                        const hasInstrOverlap = instrDoubleBooked.has(assignment.courseId);
                         const hasNote = assignment.note && assignment.note.trim().length > 0;
                         const isHalfDay = course && parseFloat(course.Duration_Days) === 0.5;
                         const halfDaySlot = isHalfDay ? (assignment.slot || 'AM') : null;
@@ -2571,12 +2593,13 @@
                         
                         bodyHtml += `
                             <td colspan="${assignment.duration}">
-                                <div class="course-block ${hasConflict ? 'has-conflict' : ''} ${halfDayClass}" 
+                                <div class="course-block ${hasConflict ? 'has-conflict' : ''} ${hasInstrOverlap ? 'has-instr-overlap' : ''} ${halfDayClass}" 
                                      draggable="true"
                                      ondragstart="handleDragStart(event, '${selectedEventId}', ${room}, '${assignment.courseId}', ${assignment.startDay}, ${assignment.duration})"
                                      ondragend="handleDragEnd(event)"
                                      onclick="showCourseBlockMenu(event, '${selectedEventId}', ${room}, '${assignment.courseId}')"
-                                     title="Drag to move or click for options">
+                                     title="${hasInstrOverlap ? '⚠ Instructor is double-booked in this event' : 'Drag to move or click for options'}">
+                                    ${hasInstrOverlap ? '<div class="instr-overlap-badge">&#9888; Overlap</div>' : ''}
                                     ${hasNote ? `<div class="course-block-note-indicator" onclick="event.stopPropagation(); addEditBlockNote('${selectedEventId}', ${room}, '${assignment.courseId}')">Note</div>` : ''}
                                     <div class="course-block-name">${course?.Course_Name || assignment.courseId}</div>
                                     <div class="course-block-instructor">${course?.Instructor || ''}</div>
@@ -3858,6 +3881,13 @@
                 return;
             }
 
+            const instrConflicts = checkNewInstructorDoubleBook(course.Instructor, selectedEventId, startDay, duration, null);
+            if (instrConflicts.length > 0) {
+                const names = instrConflicts.map(c => `"${c.courseName}" (Room ${c.room})`).join(', ');
+                showToast(`Cannot assign — ${course.Instructor} is already scheduled on those days: ${names}`, 'error');
+                return;
+            }
+
             if (!schedule[selectedEventId]) schedule[selectedEventId] = {};
             if (!schedule[selectedEventId][room]) schedule[selectedEventId][room] = [];
 
@@ -3994,6 +4024,18 @@
                 draggedCourse = null;
                 render();
                 return;
+            }
+
+            const movedCourse = courses.find(c => c.Course_ID === courseId);
+            if (movedCourse?.Instructor) {
+                const instrConflicts = checkNewInstructorDoubleBook(movedCourse.Instructor, targetEventId, targetDay, duration, courseId);
+                if (instrConflicts.length > 0) {
+                    const names = instrConflicts.map(c => `"${c.courseName}" (Room ${c.room})`).join(', ');
+                    showToast(`Cannot move — ${movedCourse.Instructor} is already scheduled on those days: ${names}`, 'error');
+                    draggedCourse = null;
+                    render();
+                    return;
+                }
             }
 
             // Find and preserve the original assignment before removing it
@@ -4489,6 +4531,69 @@
                 if (!(eventEnd < awayStart || eventStart > awayEnd)) return true;
             }
             return false;
+        }
+
+        // ── Instructor double-booking helpers ─────────────────────────────
+
+        function getInstructorNames(instructor) {
+            if (!instructor) return [];
+            return instructor.split(/\s+and\s+|,/i).map(s => s.trim().toLowerCase()).filter(Boolean);
+        }
+
+        function instructorsOverlap(instrA, instrB) {
+            const a = getInstructorNames(instrA);
+            const b = getInstructorNames(instrB);
+            return a.some(n => b.includes(n));
+        }
+
+        function daysOverlap(start1, dur1, start2, dur2) {
+            return start1 <= (start2 + Math.ceil(dur2) - 1) && (start1 + Math.ceil(dur1) - 1) >= start2;
+        }
+
+        // Returns Set of courseIds that are instructor-overlapping within an event
+        function getInstructorDoubleBooks(eventId) {
+            const eventSched = schedule[eventId] || {};
+            const assignments = [];
+            for (const room in eventSched) {
+                for (const a of eventSched[room]) {
+                    const course = courses.find(c => c.Course_ID === a.courseId);
+                    if (!course?.Instructor) continue;
+                    assignments.push({ courseId: a.courseId, instructor: course.Instructor,
+                        startDay: a.startDay, duration: Math.ceil(a.duration) });
+                }
+            }
+            const conflicted = new Set();
+            for (let i = 0; i < assignments.length; i++) {
+                for (let j = i + 1; j < assignments.length; j++) {
+                    const a = assignments[i], b = assignments[j];
+                    if (instructorsOverlap(a.instructor, b.instructor) &&
+                            daysOverlap(a.startDay, a.duration, b.startDay, b.duration)) {
+                        conflicted.add(a.courseId);
+                        conflicted.add(b.courseId);
+                    }
+                }
+            }
+            return conflicted;
+        }
+
+        // Returns conflicting existing assignments for a proposed new placement
+        function checkNewInstructorDoubleBook(instructor, eventId, startDay, duration, excludeCourseId) {
+            if (!instructor) return [];
+            const eventSched = schedule[eventId] || {};
+            const conflicts = [];
+            for (const room in eventSched) {
+                for (const a of eventSched[room]) {
+                    if (a.courseId === excludeCourseId) continue;
+                    const course = courses.find(c => c.Course_ID === a.courseId);
+                    if (!course?.Instructor) continue;
+                    if (instructorsOverlap(instructor, course.Instructor) &&
+                            daysOverlap(startDay, duration, a.startDay, Math.ceil(a.duration))) {
+                        conflicts.push({ courseId: a.courseId, courseName: course.Course_Name,
+                            room, startDay: a.startDay });
+                    }
+                }
+            }
+            return conflicts;
         }
 
         // ==================== EDIT CELL ====================
