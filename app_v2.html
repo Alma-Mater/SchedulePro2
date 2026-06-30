@@ -2368,6 +2368,7 @@
             container.innerHTML = validEvents.map(ev => {
                 const avail = getEventAvailability(ev);
                 const isVirtual = (ev.Location || '').toLowerCase().includes('virtual');
+                const hasInstrConflict = getInstructorDoubleBooks(ev.Event_ID).size > 0;
                 let availHtml = '';
                 if (!isVirtual && avail.totalSlots > 0) {
                     if (avail.openSlots > 0) {
@@ -2376,10 +2377,13 @@
                         availHtml = `<div class="event-list-item-availability" style="color:#9ca3af;"><span class="availability-dot full"></span>Full</div>`;
                     }
                 }
+                const conflictDot = hasInstrConflict
+                    ? `<span title="Instructor overlap detected" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#f97316;margin-left:5px;vertical-align:middle;flex-shrink:0;"></span>`
+                    : '';
                 return `
                 <div class="event-list-item ${selectedEventId === ev.Event_ID ? 'selected' : ''}" onclick="selectEvent('${ev.Event_ID}')">
                     <button class="event-list-item-edit" onclick="event.stopPropagation(); showEditEventModalForEvent('${ev.Event_ID}')">✏️</button>
-                    <div class="event-list-item-name">${ev.Event}</div>
+                    <div class="event-list-item-name" style="display:flex;align-items:center;gap:2px;">${ev.Event}${conflictDot}</div>
                     <div class="event-list-item-dates">${ev.First_Event_Day || ''} – ${ev.Last_Event_Day || ''}</div>
                     ${availHtml}
                 </div>
