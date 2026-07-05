@@ -3166,7 +3166,7 @@
             reader.onload = function(e) {
                 try {
                     const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-                    const activeSheetName = wb.SheetNames.find(n => /course info/i.test(n)) || wb.SheetNames[0];
+                    const activeSheetName = wb.SheetNames.find(n => /(course info|course catalog)/i.test(n)) || wb.SheetNames[0];
                     const retiredSheetName = wb.SheetNames.find(n => /retired/i.test(n));
                     const activeRows = XLSX.utils.sheet_to_json(wb.Sheets[activeSheetName], { header: 1, defval: '' });
 
@@ -3181,6 +3181,7 @@
                         'PMI-PBA': 'pdu_pba', 'PMI-RMP': 'pdu_rmp', 'PMI-SP': 'pdu_sp',
                         'PMI-PfMP': 'pdu_pfmp', 'Power Skills': 'pdu_ps', 'Business Acumen': 'pdu_ba',
                         'Assessment Pricing (does not change)': 'assessment_pricing',
+                        'Assessment Pricing\nif applies (does not change)': 'assessment_pricing',
                         'Testimonial to be added?': 'testimonial_flag',
                         'Learner Testimonial 1': 'testimonial_1', 'Learner Testimonial 2': 'testimonial_2',
                         'Learner Testimonial 3': 'testimonial_3',
@@ -5605,21 +5606,40 @@
                 XLSX.utils.book_append_sheet(wb, _ws6, 'Catalog Import Log');
             }
 
-            // ── Course Catalog Export (mirrors source catalog format exactly) ──
+            // ── Course Catalog Export (matches "Course Catalog for Schedule Pro" source format) ──
+            // Columns A–Y (25 cols): Course ID, Length, Title, Leaders, Capacity, PDUs×8, Pricing, Description, Objectives, Prework, Agenda, Level, Topic, blank, Topic#1, Topic#2
             const _catHeaders = [
-                'Course ID', 'Full day course?', 'Course Length', 'Course Title',
-                'Course Leader 1', 'Course Leader 2', 'Course Capacity', 'PDUs',
-                'CAPM/PMI-CP/PMP/PgMP', 'PMI-ACP (all agile certs)', 'PMI-PBA',
-                'PMI-RMP', 'PMI-SP', 'PMI-PfMP', 'Power Skills', 'Business Acumen',
-                'Assessment Pricing (does not change)', 'Testimonial to be added?',
-                'Learner Testimonial 1', 'Learner Testimonial 2', 'Learner Testimonial 3',
-                'Description w/html (as needed)', 'Description', 'Learning Objectives',
-                'Prework Description (if applicable)', 'Agenda',
+                'Course ID',
+                'Course Length',
+                'Course Title',
+                'Course Leader 1',
+                'Course Leader 2',
+                'Course Capacity',
+                'PDUs',
+                'CAPM/PMI-CP/PMP/PgMP',
+                'PMI-ACP (all agile certs)',
+                'PMI-PBA',
+                'PMI-RMP',
+                'PMI-SP',
+                'PMI-PfMP',
+                'Power Skills',
+                'Business Acumen',
+                'Assessment Pricing\nif applies (does not change)',
+                'Description',
+                'Learning Objectives',
+                'Prework Description (if applicable)',
+                'Agenda',
                 'Level (Core, Intermediate, Advanced)',
                 'Training Topic (Main Topic on the CSI upload file)',
-                '', 'Topic #1', 'Topic #2'
+                '',
+                'Topic #1',
+                'Topic #2'
             ];
-            const _catAoa = [_catHeaders];
+            // Row 0 = blank (Excel row 1), Row 1 = headers (Excel row 2), Row 2+ = data
+            const _catAoa = [
+                new Array(_catHeaders.length).fill(''),
+                _catHeaders
+            ];
             const _activeCourses = courses.filter(c => !c.retired);
             const _sortedCat = [..._activeCourses].sort((a, b) =>
                 (a.Course_Name || '').localeCompare(b.Course_Name || ''));
@@ -5628,7 +5648,6 @@
                 const _l2 = c.Leader_2 || (c.Instructor ? (c.Instructor.split(' and ')[1] || '').trim() : '');
                 _catAoa.push([
                     c.Course_ID,
-                    c.Full_Day || '',
                     c.Duration_Days !== undefined ? c.Duration_Days : '',
                     c.Course_Name || '',
                     _l1,
@@ -5644,11 +5663,6 @@
                     c.PDU_PS || '',
                     c.PDU_BA || '',
                     c.Assessment_Pricing || '',
-                    c.Testimonial_Flag || '',
-                    c.Testimonial_1 || '',
-                    c.Testimonial_2 || '',
-                    c.Testimonial_3 || '',
-                    c.Desc_HTML || '',
                     c.Description || '',
                     c.Learning_Objectives || '',
                     c.Prework || '',
@@ -5661,49 +5675,53 @@
                 ]);
             }
             const _wsCat = XLSX.utils.aoa_to_sheet(_catAoa);
-            // Style header row
+            // Header row (r=1): bold text, no background
             for (let _ci = 0; _ci < _catHeaders.length; _ci++) {
-                const _addr = XLSX.utils.encode_cell({ r: 0, c: _ci });
-                if (_wsCat[_addr]) {
-                    _wsCat[_addr].s = {
-                        fill: { fgColor: { rgb: '1F2937' } },
-                        font: { bold: true, color: { rgb: 'FFFFFF' } },
-                        alignment: { wrapText: false }
-                    };
+                const _addr = XLSX.utils.encode_cell({ r: 1, c: _ci });
+                if (_wsCat[_addr]) _wsCat[_addr].s = { font: { bold: true }, alignment: { wrapText: false } };
+            }
+            // Per-column fills on data rows (r=2+)
+            const _catColFills = {
+                0:  'FFC000',  // Course ID — orange-yellow
+                7:  'BDD7EE', 8: 'BDD7EE', 9: 'BDD7EE',  // CAPM, ACP, PBA — light blue
+                10: 'BDD7EE', 11: 'BDD7EE', 12: 'BDD7EE', // RMP, SP, PfMP
+                13: 'C6E0B4', // Power Skills — light green
+                14: 'D8BEEC', // Business Acumen — light purple
+                21: 'FFFF00', 23: 'FFFF00', 24: 'FFFF00'  // Training Topic, Topic #1, Topic #2 — yellow
+            };
+            for (let _ri = 2; _ri < _catAoa.length; _ri++) {
+                for (const [_ci, _rgb] of Object.entries(_catColFills)) {
+                    const _addr = XLSX.utils.encode_cell({ r: _ri, c: Number(_ci) });
+                    if (!_wsCat[_addr]) _wsCat[_addr] = { t: 'z', v: '' };
+                    _wsCat[_addr].s = { ...(_wsCat[_addr].s || {}), fill: { fgColor: { rgb: _rgb } } };
                 }
             }
             _wsCat['!cols'] = [
-                { wch: 10 },  // Course ID
-                { wch: 12 },  // Full day?
-                { wch: 10 },  // Length
-                { wch: 50 },  // Title
-                { wch: 28 },  // Leader 1
-                { wch: 28 },  // Leader 2
-                { wch: 10 },  // Capacity
-                { wch: 8  },  // PDUs
-                { wch: 10 },  // CAPM
-                { wch: 10 },  // ACP
-                { wch: 8  },  // PBA
-                { wch: 8  },  // RMP
-                { wch: 8  },  // SP
-                { wch: 8  },  // PfMP
-                { wch: 12 },  // Power Skills
-                { wch: 14 },  // Business Acumen
-                { wch: 20 },  // Assessment Pricing
-                { wch: 16 },  // Testimonial flag
-                { wch: 40 },  // Testimonial 1
-                { wch: 40 },  // Testimonial 2
-                { wch: 40 },  // Testimonial 3
-                { wch: 50 },  // Desc HTML
-                { wch: 50 },  // Description
-                { wch: 50 },  // Learning Objectives
-                { wch: 40 },  // Prework
-                { wch: 50 },  // Agenda
-                { wch: 20 },  // Level
-                { wch: 30 },  // Training Topic
-                { wch: 4  },  // blank
-                { wch: 22 },  // Topic 1
-                { wch: 22 },  // Topic 2
+                { wch: 10 }, // A Course ID
+                { wch: 10 }, // B Length
+                { wch: 50 }, // C Title
+                { wch: 28 }, // D Leader 1
+                { wch: 28 }, // E Leader 2
+                { wch: 10 }, // F Capacity
+                { wch:  8 }, // G PDUs
+                { wch: 12 }, // H CAPM
+                { wch: 14 }, // I ACP
+                { wch:  8 }, // J PBA
+                { wch:  8 }, // K RMP
+                { wch:  8 }, // L SP
+                { wch:  8 }, // M PfMP
+                { wch: 14 }, // N Power Skills
+                { wch: 16 }, // O Business Acumen
+                { wch: 24 }, // P Assessment Pricing
+                { wch: 50 }, // Q Description
+                { wch: 50 }, // R Learning Objectives
+                { wch: 40 }, // S Prework
+                { wch: 50 }, // T Agenda
+                { wch: 22 }, // U Level
+                { wch: 32 }, // V Training Topic
+                { wch:  4 }, // W blank
+                { wch: 24 }, // X Topic 1
+                { wch: 24 }, // Y Topic 2
             ];
             XLSX.utils.book_append_sheet(wb, _wsCat, 'Course Catalog Export');
 
