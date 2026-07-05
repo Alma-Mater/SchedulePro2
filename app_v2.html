@@ -1877,6 +1877,7 @@
                         <span style="font-size:11px; background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:10px; font-weight:600;">Auto-applied</span>
                     </div>
                     <p style="font-size:13px; color:#6b7280; margin-bottom:8px;">Changes to PDUs, topics, level, descriptions, testimonials, etc. in existing courses. Applied automatically — no action needed.</p>
+                    <div id="catalogNewPopNotice" style="display:none; font-size:12px; background:#fef9c3; border:1px solid #fde047; border-radius:6px; padding:8px 12px; margin-bottom:8px; color:#713f12;"></div>
                     <div style="max-height:170px; overflow-y:auto; border:1px solid #e5e7eb; border-radius:6px;">
                         <table class="data-table" id="catalogDataChangesTable" style="margin:0; font-size:12px;">
                             <thead><tr>
@@ -3337,20 +3338,24 @@
                         { field: 'Testimonial_3',       label: 'Testimonial 3' },
                     ];
                     const catalogDataChanges = [];
+                    let _newPopCourses = 0, _newPopFields = 0;
                     for (const [id, imp] of Object.entries(importedCourses)) {
                         const ex = existingMap[id];
                         if (!ex) continue;
+                        let _fieldsForThis = 0;
                         for (const { field, label } of _CATALOG_DIFF_FIELDS) {
                             const oldStr = String(ex[field] ?? '').trim();
                             const newStr = String(imp[field] ?? '').trim();
-                            // Only surface if the course already had a value and it changed
                             if (oldStr !== '' && newStr !== '' && oldStr !== newStr) {
                                 catalogDataChanges.push({ courseId: id, courseName: ex.Course_Name || id, label, oldVal: oldStr, newVal: newStr });
+                            } else if (oldStr === '' && newStr !== '') {
+                                _fieldsForThis++;
                             }
                         }
+                        if (_fieldsForThis > 0) { _newPopCourses++; _newPopFields += _fieldsForThis; }
                     }
 
-                    _pendingCatalogImport = { filename: file.name, importedCourses, changes, catalogDataChanges, newCourses, retirements };
+                    _pendingCatalogImport = { filename: file.name, importedCourses, changes, catalogDataChanges, newPopCourses: _newPopCourses, newPopFields: _newPopFields, newCourses, retirements };
                     showCatalogImportPreview();
                 } catch (err) {
                     showToast('Error reading catalog file: ' + err.message, 'error');
@@ -3360,7 +3365,7 @@
         }
 
         function showCatalogImportPreview() {
-            const { filename, changes, catalogDataChanges, newCourses, retirements } = _pendingCatalogImport;
+            const { filename, changes, catalogDataChanges, newPopCourses, newPopFields, newCourses, retirements } = _pendingCatalogImport;
             document.getElementById('catalogImportFileName').textContent = filename;
             document.getElementById('catalogChangeCount').textContent = changes.length;
             document.getElementById('catalogNewCount').textContent = newCourses.length;
@@ -3407,8 +3412,20 @@
 
             const dataChangesBody = document.getElementById('catalogDataChangesBody');
             const _cdc = catalogDataChanges || [];
+            const _npc = newPopCourses || 0;
+            const _npf = newPopFields || 0;
+            // Show first-population notice if applicable
+            const _newPopNotice = document.getElementById('catalogNewPopNotice');
+            if (_newPopNotice) {
+                if (_npc > 0) {
+                    _newPopNotice.style.display = 'block';
+                    _newPopNotice.innerHTML = `<strong>${_npf} fields</strong> across <strong>${_npc} course${_npc !== 1 ? 's' : ''}</strong> will be populated for the first time (PDUs, descriptions, topics, etc.) — this is why the CSI export may currently appear blank for those columns.`;
+                } else {
+                    _newPopNotice.style.display = 'none';
+                }
+            }
             if (_cdc.length === 0) {
-                dataChangesBody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#6b7280;padding:14px;">No catalog data changes detected in existing courses.</td></tr>';
+                dataChangesBody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#6b7280;padding:14px;">${_npc > 0 ? 'No existing values changed — see note above.' : 'No catalog data changes detected in existing courses.'}</td></tr>`;
             } else {
                 const _trunc = (s, n) => s.length > n ? s.substring(0, n) + '\u2026' : s;
                 dataChangesBody.innerHTML = '';
