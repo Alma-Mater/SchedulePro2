@@ -1702,7 +1702,7 @@
                         </div>
                         <label style="margin-left: auto; display: flex; align-items: center; gap: 6px; cursor: pointer;">
                             <input type="checkbox" id="showDraftUndraftCheckbox" onchange="toggleShowDraftUndraft()" style="cursor: pointer;">
-                            <span>Show Draft/Undraft</span>
+                            <span>Show Draft/Undraft and Catalog Imports</span>
                         </label>
                     </div>
                     <div class="log-table-container" id="logTableContainer">
@@ -3711,28 +3711,19 @@
             const checkbox = document.getElementById('showDraftUndraftCheckbox');
             const showDraftUndraft = checkbox ? checkbox.checked : false;
 
-            // Filter: if showDraftUndraft is false, hide ONLY draft and undraft actions
-            // All other actions (edit, remove, assign, upload, load, etc.) should always be visible
+            // Filter: if showDraftUndraft is false, hide draft/undraft AND catalog import entries
             let filteredLog = changeLog.filter(entry => {
-                // Safety check for malformed entries - show them when checkbox is checked
-                if (!entry || !entry.action) {
-                    return showDraftUndraft;
-                }
-
-                // Never show ghost (untracked) entries in the UI
+                if (!entry || !entry.action) return showDraftUndraft;
                 if (!entry.tracked) return false;
-
-                if (showDraftUndraft) {
-                    return true; // Show everything when checked
-                }
-                // When unchecked, hide only draft and undraft (case-insensitive)
+                if (showDraftUndraft) return true;
                 const action = String(entry.action).toLowerCase().trim();
-                return action !== 'draft' && action !== 'undraft';
+                const isCatalogImport = entry.notes === '[catalog import]';
+                return action !== 'draft' && action !== 'undraft' && !isCatalogImport;
             });
             
             if (filteredLog.length === 0) {
-                const draftCount = trackedEntries.filter(e => e.action && (e.action.toLowerCase() === 'draft' || e.action.toLowerCase() === 'undraft')).length;
-                container.innerHTML = `<div class="empty-state">No changes recorded yet${trackedEntries.length > 0 ? ` (${draftCount} draft/undraft entries hidden - enable "Show Draft/Undraft" to see them)` : ''}</div>`;
+                const hiddenCount = trackedEntries.filter(e => e.action && (e.action.toLowerCase() === 'draft' || e.action.toLowerCase() === 'undraft' || e.notes === '[catalog import]')).length;
+                container.innerHTML = `<div class="empty-state">No changes recorded yet${hiddenCount > 0 ? ` (${hiddenCount} draft/undraft/catalog import entries hidden)` : ''}</div>`;
                 return;
             }
 
@@ -5741,8 +5732,9 @@
 
             XLSX.writeFile(wb, _filename);
             // Always add export log entry (force tracked:true so it always appears)
+            const _tsExport = `${_now.getMonth()+1}/${String(_now.getDate()).padStart(2,'0')}/${_now.getFullYear()}, ${_now.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true})}`;
             changeLog.push({
-                timestamp: _now.toLocaleString(),
+                timestamp: _tsExport,
                 timestampMs: _now.getTime(),
                 action: 'export',
                 eventId: null,
