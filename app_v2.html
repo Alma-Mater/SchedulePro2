@@ -5605,6 +5605,108 @@
                 XLSX.utils.book_append_sheet(wb, _ws6, 'Catalog Import Log');
             }
 
+            // ── Course Catalog Export (mirrors source catalog format exactly) ──
+            const _catHeaders = [
+                'Course ID', 'Full day course?', 'Course Length', 'Course Title',
+                'Course Leader 1', 'Course Leader 2', 'Course Capacity', 'PDUs',
+                'CAPM/PMI-CP/PMP/PgMP', 'PMI-ACP (all agile certs)', 'PMI-PBA',
+                'PMI-RMP', 'PMI-SP', 'PMI-PfMP', 'Power Skills', 'Business Acumen',
+                'Assessment Pricing (does not change)', 'Testimonial to be added?',
+                'Learner Testimonial 1', 'Learner Testimonial 2', 'Learner Testimonial 3',
+                'Description w/html (as needed)', 'Description', 'Learning Objectives',
+                'Prework Description (if applicable)', 'Agenda',
+                'Level (Core, Intermediate, Advanced)',
+                'Training Topic (Main Topic on the CSI upload file)',
+                '', 'Topic #1', 'Topic #2'
+            ];
+            const _catAoa = [_catHeaders];
+            const _activeCourses = courses.filter(c => !c.retired);
+            const _sortedCat = [..._activeCourses].sort((a, b) =>
+                (a.Course_Name || '').localeCompare(b.Course_Name || ''));
+            for (const c of _sortedCat) {
+                const _l1 = c.Leader_1 || (c.Instructor ? c.Instructor.split(' and ')[0].trim() : '');
+                const _l2 = c.Leader_2 || (c.Instructor ? (c.Instructor.split(' and ')[1] || '').trim() : '');
+                _catAoa.push([
+                    c.Course_ID,
+                    c.Full_Day || '',
+                    c.Duration_Days !== undefined ? c.Duration_Days : '',
+                    c.Course_Name || '',
+                    _l1,
+                    _l2,
+                    c.Capacity || '',
+                    c.PDUs || '',
+                    c.PDU_CAPM || '',
+                    c.PDU_ACP || '',
+                    c.PDU_PBA || '',
+                    c.PDU_RMP || '',
+                    c.PDU_SP || '',
+                    c.PDU_PfMP || '',
+                    c.PDU_PS || '',
+                    c.PDU_BA || '',
+                    c.Assessment_Pricing || '',
+                    c.Testimonial_Flag || '',
+                    c.Testimonial_1 || '',
+                    c.Testimonial_2 || '',
+                    c.Testimonial_3 || '',
+                    c.Desc_HTML || '',
+                    c.Description || '',
+                    c.Learning_Objectives || '',
+                    c.Prework || '',
+                    c.Agenda || '',
+                    c.Level || '',
+                    c.Training_Topic || c.Topic || '',
+                    '',
+                    c.Topic_1 || '',
+                    c.Topic_2 || ''
+                ]);
+            }
+            const _wsCat = XLSX.utils.aoa_to_sheet(_catAoa);
+            // Style header row
+            for (let _ci = 0; _ci < _catHeaders.length; _ci++) {
+                const _addr = XLSX.utils.encode_cell({ r: 0, c: _ci });
+                if (_wsCat[_addr]) {
+                    _wsCat[_addr].s = {
+                        fill: { fgColor: { rgb: '1F2937' } },
+                        font: { bold: true, color: { rgb: 'FFFFFF' } },
+                        alignment: { wrapText: false }
+                    };
+                }
+            }
+            _wsCat['!cols'] = [
+                { wch: 10 },  // Course ID
+                { wch: 12 },  // Full day?
+                { wch: 10 },  // Length
+                { wch: 50 },  // Title
+                { wch: 28 },  // Leader 1
+                { wch: 28 },  // Leader 2
+                { wch: 10 },  // Capacity
+                { wch: 8  },  // PDUs
+                { wch: 10 },  // CAPM
+                { wch: 10 },  // ACP
+                { wch: 8  },  // PBA
+                { wch: 8  },  // RMP
+                { wch: 8  },  // SP
+                { wch: 8  },  // PfMP
+                { wch: 12 },  // Power Skills
+                { wch: 14 },  // Business Acumen
+                { wch: 20 },  // Assessment Pricing
+                { wch: 16 },  // Testimonial flag
+                { wch: 40 },  // Testimonial 1
+                { wch: 40 },  // Testimonial 2
+                { wch: 40 },  // Testimonial 3
+                { wch: 50 },  // Desc HTML
+                { wch: 50 },  // Description
+                { wch: 50 },  // Learning Objectives
+                { wch: 40 },  // Prework
+                { wch: 50 },  // Agenda
+                { wch: 20 },  // Level
+                { wch: 30 },  // Training Topic
+                { wch: 4  },  // blank
+                { wch: 22 },  // Topic 1
+                { wch: 22 },  // Topic 2
+            ];
+            XLSX.utils.book_append_sheet(wb, _wsCat, 'Course Catalog Export');
+
             // Build human-readable timestamp for filename and log
             const _now = new Date();
             const _mm = String(_now.getMonth() + 1).padStart(2, '0');
