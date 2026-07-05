@@ -1871,6 +1871,23 @@
                         </table>
                     </div>
                 </div>
+                <div style="margin-top:18px;">
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+                        <h3 style="margin:0; font-size:15px; color:#374151;">Other Catalog Data Changes (<span id="catalogDataChangeCount">0</span>)</h3>
+                        <span style="font-size:11px; background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:10px; font-weight:600;">Auto-applied</span>
+                    </div>
+                    <p style="font-size:13px; color:#6b7280; margin-bottom:8px;">Changes to PDUs, topics, level, descriptions, testimonials, etc. in existing courses. Applied automatically — no action needed.</p>
+                    <div style="max-height:170px; overflow-y:auto; border:1px solid #e5e7eb; border-radius:6px;">
+                        <table class="data-table" id="catalogDataChangesTable" style="margin:0; font-size:12px;">
+                            <thead><tr>
+                                <th>Course</th><th>Field</th>
+                                <th style="color:#9ca3af;">Current</th>
+                                <th style="color:#16a34a;">New</th>
+                            </tr></thead>
+                            <tbody id="catalogDataChangesBody"></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <span id="catalogImportFileName" style="font-size:12px; color:#6b7280; margin-right:auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:320px;"></span>
@@ -3288,7 +3305,51 @@
                         retirements.push({ courseId, courseName: ex.Course_Name || courseId, scheduledEvents });
                     }
 
-                    _pendingCatalogImport = { filename: file.name, importedCourses, changes, newCourses, retirements };
+                    // Catalog data field changes (auto-applied, informational only)
+                    const _CATALOG_DIFF_FIELDS = [
+                        { field: 'Full_Day',            label: 'Full Day?' },
+                        { field: 'Capacity',            label: 'Capacity' },
+                        { field: 'PDUs',                label: 'PDUs' },
+                        { field: 'PDU_CAPM',            label: 'CAPM/PMP PDUs' },
+                        { field: 'PDU_ACP',             label: 'Agile PDUs' },
+                        { field: 'PDU_PBA',             label: 'PMI-PBA PDUs' },
+                        { field: 'PDU_RMP',             label: 'PMI-RMP PDUs' },
+                        { field: 'PDU_SP',              label: 'PMI-SP PDUs' },
+                        { field: 'PDU_PfMP',            label: 'PfMP PDUs' },
+                        { field: 'PDU_PS',              label: 'Power Skills PDUs' },
+                        { field: 'PDU_BA',              label: 'Business Acumen PDUs' },
+                        { field: 'Assessment_Pricing',  label: 'Assessment Pricing' },
+                        { field: 'Level',               label: 'Level' },
+                        { field: 'Training_Topic',      label: 'Main Topic' },
+                        { field: 'Topic_1',             label: 'Keyword 1' },
+                        { field: 'Topic_2',             label: 'Keyword 2' },
+                        { field: 'Leader_1',            label: 'Leader 1' },
+                        { field: 'Leader_2',            label: 'Leader 2' },
+                        { field: 'Testimonial_Flag',    label: 'Testimonial Flag' },
+                        { field: 'Desc_HTML',           label: 'Description (HTML)' },
+                        { field: 'Description',         label: 'Description' },
+                        { field: 'Learning_Objectives', label: 'Learning Objectives' },
+                        { field: 'Prework',             label: 'Prework' },
+                        { field: 'Agenda',              label: 'Agenda' },
+                        { field: 'Testimonial_1',       label: 'Testimonial 1' },
+                        { field: 'Testimonial_2',       label: 'Testimonial 2' },
+                        { field: 'Testimonial_3',       label: 'Testimonial 3' },
+                    ];
+                    const catalogDataChanges = [];
+                    for (const [id, imp] of Object.entries(importedCourses)) {
+                        const ex = existingMap[id];
+                        if (!ex) continue;
+                        for (const { field, label } of _CATALOG_DIFF_FIELDS) {
+                            const oldStr = String(ex[field] ?? '').trim();
+                            const newStr = String(imp[field] ?? '').trim();
+                            // Only surface if the course already had a value and it changed
+                            if (oldStr !== '' && newStr !== '' && oldStr !== newStr) {
+                                catalogDataChanges.push({ courseId: id, courseName: ex.Course_Name || id, label, oldVal: oldStr, newVal: newStr });
+                            }
+                        }
+                    }
+
+                    _pendingCatalogImport = { filename: file.name, importedCourses, changes, catalogDataChanges, newCourses, retirements };
                     showCatalogImportPreview();
                 } catch (err) {
                     showToast('Error reading catalog file: ' + err.message, 'error');
@@ -3298,11 +3359,12 @@
         }
 
         function showCatalogImportPreview() {
-            const { filename, changes, newCourses, retirements } = _pendingCatalogImport;
+            const { filename, changes, catalogDataChanges, newCourses, retirements } = _pendingCatalogImport;
             document.getElementById('catalogImportFileName').textContent = filename;
             document.getElementById('catalogChangeCount').textContent = changes.length;
             document.getElementById('catalogNewCount').textContent = newCourses.length;
             document.getElementById('catalogRetireCount').textContent = retirements.length;
+            document.getElementById('catalogDataChangeCount').textContent = (catalogDataChanges || []).length;
 
             const changesBody = document.getElementById('catalogChangesBody');
             changesBody.innerHTML = changes.length === 0
@@ -3341,6 +3403,23 @@
                         ${hasImpact ? '&#9888; In: ' + escapeHtml(r.scheduledEvents.join(', ')) : 'Not scheduled'}</td>`;
                 retireBody.appendChild(tr);
             });
+
+            const dataChangesBody = document.getElementById('catalogDataChangesBody');
+            const _cdc = catalogDataChanges || [];
+            if (_cdc.length === 0) {
+                dataChangesBody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#6b7280;padding:14px;">No catalog data changes detected in existing courses.</td></tr>';
+            } else {
+                const _trunc = (s, n) => s.length > n ? s.substring(0, n) + '\u2026' : s;
+                dataChangesBody.innerHTML = '';
+                _cdc.forEach(ch => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td><code style="font-size:11px;">${escapeHtml(ch.courseId)}</code><div style="font-size:10px;color:#9ca3af;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(ch.courseName)}</div></td>
+                        <td style="color:#6b7280;white-space:nowrap;">${escapeHtml(ch.label)}</td>
+                        <td style="color:#9ca3af;max-width:160px;">${escapeHtml(_trunc(ch.oldVal, 55))}</td>
+                        <td style="color:#16a34a;max-width:160px;">${escapeHtml(_trunc(ch.newVal, 55))}</td>`;
+                    dataChangesBody.appendChild(tr);
+                });
+            }
 
             document.getElementById('catalogImportModal').classList.add('active');
         }
