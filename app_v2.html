@@ -3536,14 +3536,14 @@
                 description: `Catalog import: "${filename}" — ${appliedChanges} field(s) updated, ${addedCourses} course(s) added, ${retiredCount} retired (${removedFromEvents} removed from events)`,
                 before: '', after: '', notes: '[catalog import]', tracked: true });
 
+            closeModal('catalogImportModal');
+            _pendingCatalogImport = null;
             saveToLocalStorage();
             renderCoursesTable();
             renderSidebar();
             updateTopicFilter();
             if (selectedEventId) render();
             renderChangeLog();
-            closeModal('catalogImportModal');
-            _pendingCatalogImport = null;
             showToast(`Catalog applied: ${appliedChanges} updated, ${addedCourses} added, ${retiredCount} retired`, 'success');
         }
 
