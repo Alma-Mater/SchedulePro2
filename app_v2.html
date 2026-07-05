@@ -3156,16 +3156,30 @@
                     // Locate header row and map columns
                     let headerIdx = -1;
                     const colMap = {};
+                    const _CATALOG_COL_KEYS = {
+                        'Course ID': 'id', 'Full day course?': 'full_day', 'Course Length': 'duration',
+                        'Course Title': 'name', 'Course Leader 1': 'leader1', 'Course Leader 2': 'leader2',
+                        'Course Capacity': 'capacity', 'PDUs': 'pdus',
+                        'CAPM/PMI-CP/PMP/PgMP': 'pdu_capm', 'PMI-ACP (all agile certs)': 'pdu_acp',
+                        'PMI-PBA': 'pdu_pba', 'PMI-RMP': 'pdu_rmp', 'PMI-SP': 'pdu_sp',
+                        'PMI-PfMP': 'pdu_pfmp', 'Power Skills': 'pdu_ps', 'Business Acumen': 'pdu_ba',
+                        'Assessment Pricing (does not change)': 'assessment_pricing',
+                        'Testimonial to be added?': 'testimonial_flag',
+                        'Learner Testimonial 1': 'testimonial_1', 'Learner Testimonial 2': 'testimonial_2',
+                        'Learner Testimonial 3': 'testimonial_3',
+                        'Description w/html (as needed)': 'desc_html', 'Description': 'desc',
+                        'Learning Objectives': 'learning_obj',
+                        'Prework Description (if applicable)': 'prework',
+                        'Agenda': 'agenda', 'Level (Core, Intermediate, Advanced)': 'level',
+                        'Training Topic (Main Topic on the CSI upload file)': 'training_topic',
+                        'Topic #1': 'topic_1', 'Topic #2': 'topic_2'
+                    };
                     for (let i = 0; i < activeRows.length; i++) {
                         if (String(activeRows[i][0]).trim() === 'Course ID') {
                             headerIdx = i;
                             activeRows[i].forEach((cell, j) => {
                                 const c = String(cell).trim();
-                                if (c === 'Course ID') colMap.id = j;
-                                else if (c === 'Course Length') colMap.duration = j;
-                                else if (c === 'Course Title') colMap.name = j;
-                                else if (c === 'Course Leader 1') colMap.leader1 = j;
-                                else if (c === 'Course Leader 2') colMap.leader2 = j;
+                                if (_CATALOG_COL_KEYS[c]) colMap[_CATALOG_COL_KEYS[c]] = j;
                             });
                             break;
                         }
@@ -3178,13 +3192,41 @@
                         const row = activeRows[i];
                         const id = String(row[colMap.id] || '').trim();
                         if (!id) continue;
-                        const leader1 = String(row[colMap.leader1] || '').trim();
-                        const leader2 = String(row[colMap.leader2] || '').trim();
+                        const _s = k => colMap[k] !== undefined ? String(row[colMap[k]] ?? '').trim() : '';
+                        const leader1 = _s('leader1');
+                        const leader2 = _s('leader2');
                         importedCourses[id] = {
                             Course_ID: id,
-                            Course_Name: String(row[colMap.name] || '').trim(),
+                            Course_Name: _s('name'),
                             Instructor: leader2 ? `${leader1} and ${leader2}` : leader1,
-                            Duration_Days: parseCatalogDuration(row[colMap.duration])
+                            Leader_1: leader1,
+                            Leader_2: leader2,
+                            Duration_Days: parseCatalogDuration(row[colMap.duration]),
+                            Full_Day: _s('full_day'),
+                            Capacity: _s('capacity'),
+                            PDUs: _s('pdus'),
+                            PDU_CAPM: _s('pdu_capm'),
+                            PDU_ACP: _s('pdu_acp'),
+                            PDU_PBA: _s('pdu_pba'),
+                            PDU_RMP: _s('pdu_rmp'),
+                            PDU_SP: _s('pdu_sp'),
+                            PDU_PfMP: _s('pdu_pfmp'),
+                            PDU_PS: _s('pdu_ps'),
+                            PDU_BA: _s('pdu_ba'),
+                            Assessment_Pricing: _s('assessment_pricing'),
+                            Testimonial_Flag: _s('testimonial_flag'),
+                            Testimonial_1: _s('testimonial_1'),
+                            Testimonial_2: _s('testimonial_2'),
+                            Testimonial_3: _s('testimonial_3'),
+                            Desc_HTML: _s('desc_html'),
+                            Description: _s('desc'),
+                            Learning_Objectives: _s('learning_obj'),
+                            Prework: _s('prework'),
+                            Agenda: _s('agenda'),
+                            Level: _s('level'),
+                            Training_Topic: _s('training_topic'),
+                            Topic_1: _s('topic_1'),
+                            Topic_2: _s('topic_2')
                         };
                     }
 
@@ -3246,7 +3288,7 @@
                         retirements.push({ courseId, courseName: ex.Course_Name || courseId, scheduledEvents });
                     }
 
-                    _pendingCatalogImport = { filename: file.name, changes, newCourses, retirements };
+                    _pendingCatalogImport = { filename: file.name, importedCourses, changes, newCourses, retirements };
                     showCatalogImportPreview();
                 } catch (err) {
                     showToast('Error reading catalog file: ' + err.message, 'error');
@@ -3316,6 +3358,19 @@
             const tsMs = now.getTime();
             let appliedChanges = 0, addedCourses = 0, retiredCount = 0, removedFromEvents = 0;
 
+            const { importedCourses: _impMap } = _pendingCatalogImport;
+            // Silently update all catalog metadata fields for every existing course
+            const _CATALOG_BULK_FIELDS = ['Full_Day','Capacity','PDUs','PDU_CAPM','PDU_ACP','PDU_PBA','PDU_RMP','PDU_SP','PDU_PfMP','PDU_PS','PDU_BA','Assessment_Pricing','Testimonial_Flag','Testimonial_1','Testimonial_2','Testimonial_3','Desc_HTML','Description','Learning_Objectives','Prework','Agenda','Level','Training_Topic','Topic_1','Topic_2','Leader_1','Leader_2'];
+            if (_impMap) {
+                for (const [_id, _imp] of Object.entries(_impMap)) {
+                    const _c = courses.find(c => c.Course_ID === _id);
+                    if (!_c) continue;
+                    for (const _f of _CATALOG_BULK_FIELDS) {
+                        if (_imp[_f] !== undefined && _imp[_f] !== '') _c[_f] = _imp[_f];
+                    }
+                }
+            }
+
             // Apply selected field changes
             document.querySelectorAll('.catalog-change-cb').forEach((cb, i) => {
                 if (!cb.checked) return;
@@ -3336,8 +3391,7 @@
             // Add new courses — same format as manual "Course added"
             for (const nc of newCourses) {
                 if (courses.find(c => c.Course_ID === nc.Course_ID)) continue;
-                courses.push({ Course_ID: nc.Course_ID, Course_Name: nc.Course_Name,
-                    Instructor: nc.Instructor, Duration_Days: nc.Duration_Days, Topic: '', Notes: '' });
+                courses.push({ ...nc, Topic: nc.Training_Topic || '', Notes: '' });
                 changeLog.push({ timestamp: ts, timestampMs: tsMs, action: 'add',
                     eventId: null, courseId: nc.Course_ID, courseName: nc.Course_Name,
                     instructor: nc.Instructor, description: 'Course added',
@@ -5015,7 +5069,7 @@
 
             // ── Sheet 1: Schedule ──────────────────────────────────────────
             // Columns A(0)…AO(40). Event pairs start at col 4 (E).
-            const NUM_COLS = 41;
+            const NUM_COLS = 57;
 
             // Header row
             const headerRow = new Array(NUM_COLS).fill('');
@@ -5040,6 +5094,22 @@
             headerRow[38] = 'PDUs';
             headerRow[39] = 'Speaker(s) Last Name(s), comma separated';
             headerRow[40] = 'Change Log \nChanges in this column relate to this file only.';
+            headerRow[41] = 'Description';
+            headerRow[42] = 'Learning Objectives';
+            headerRow[43] = 'Prework Description';
+            headerRow[44] = 'Agenda';
+            headerRow[45] = 'CAPM/PMI-CP/PMP/PgMP';
+            headerRow[46] = 'PMI-ACP (all agile certs)';
+            headerRow[47] = 'PMI-PBA';
+            headerRow[48] = 'PMI-RMP';
+            headerRow[49] = 'PMI-SP';
+            headerRow[50] = 'PMI-PfMP';
+            headerRow[51] = 'Power Skills';
+            headerRow[52] = 'Business Acumen';
+            headerRow[53] = 'Testimonial to be added?';
+            headerRow[54] = 'Learner Testimonial 1';
+            headerRow[55] = 'Learner Testimonial 2';
+            headerRow[56] = 'Learner Testimonial 3';
 
             // Build per-course PMI-format change log notes
             // Identify new courses (ever had an 'add' action)
@@ -5122,13 +5192,36 @@
                 row[0]  = course.Course_ID;
                 row[1]  = course.Course_Name;
                 row[2]  = course.Duration_Days;
-                row[3]  = 'N/A';
-                row[33] = course.Topic || '';
-                row[36] = course.Instructor || '';
-                // Extract last name(s) from instructor string
-                const nameParts = (course.Instructor || '').trim().split(/\s+/);
-                row[39] = nameParts.length > 1 ? nameParts[nameParts.length - 1] : nameParts[0] || '';
+                row[3]  = course.Assessment_Pricing || 'N/A';
+                row[30] = course.Capacity || '';
+                row[31] = course.Desc_HTML || '';
+                row[32] = course.Level || '';
+                row[33] = course.Training_Topic || course.Topic || '';
+                row[34] = course.Topic_1 || '';
+                row[35] = course.Topic_2 || '';
+                row[36] = course.Leader_1 || (course.Instructor ? course.Instructor.split(' and ')[0].trim() : '');
+                row[37] = course.Leader_2 || (course.Instructor ? (course.Instructor.split(' and ')[1] || '').trim() : '');
+                row[38] = course.PDUs || '';
+                { const _ln1 = row[36] ? row[36].trim().split(/\s+/).pop() : '';
+                  const _ln2 = row[37] ? row[37].trim().split(/\s+/).pop() : '';
+                  row[39] = [_ln1, _ln2].filter(Boolean).join(', '); }
                 row[40] = (courseLogNotes[course.Course_ID] || []).join('\n');
+                row[41] = course.Description || '';
+                row[42] = course.Learning_Objectives || '';
+                row[43] = course.Prework || '';
+                row[44] = course.Agenda || '';
+                row[45] = course.PDU_CAPM || '';
+                row[46] = course.PDU_ACP || '';
+                row[47] = course.PDU_PBA || '';
+                row[48] = course.PDU_RMP || '';
+                row[49] = course.PDU_SP || '';
+                row[50] = course.PDU_PfMP || '';
+                row[51] = course.PDU_PS || '';
+                row[52] = course.PDU_BA || '';
+                row[53] = course.Testimonial_Flag || '';
+                row[54] = course.Testimonial_1 || '';
+                row[55] = course.Testimonial_2 || '';
+                row[56] = course.Testimonial_3 || '';
 
                 // Event date columns
                 for (let i = 0; i < maxEvents; i++) {
@@ -5216,9 +5309,36 @@
                 row[0]  = cid;
                 row[1]  = course ? course.Course_Name : cid;
                 row[2]  = course ? course.Duration_Days : '';
-                row[3]  = 'N/A';
-                row[36] = course ? course.Instructor : '';
+                row[3]  = course ? (course.Assessment_Pricing || 'N/A') : 'N/A';
+                row[30] = course ? (course.Capacity || '') : '';
+                row[31] = course ? (course.Desc_HTML || '') : '';
+                row[32] = course ? (course.Level || '') : '';
+                row[33] = course ? (course.Training_Topic || course.Topic || '') : '';
+                row[34] = course ? (course.Topic_1 || '') : '';
+                row[35] = course ? (course.Topic_2 || '') : '';
+                row[36] = course ? (course.Leader_1 || (course.Instructor ? course.Instructor.split(' and ')[0].trim() : '')) : '';
+                row[37] = course ? (course.Leader_2 || (course.Instructor ? (course.Instructor.split(' and ')[1] || '').trim() : '')) : '';
+                row[38] = course ? (course.PDUs || '') : '';
+                { const _ln1 = row[36] ? row[36].trim().split(/\s+/).pop() : '';
+                  const _ln2 = row[37] ? row[37].trim().split(/\s+/).pop() : '';
+                  row[39] = [_ln1, _ln2].filter(Boolean).join(', '); }
                 row[40] = (courseLogNotes[cid] || []).join('\n');
+                row[41] = course ? (course.Description || '') : '';
+                row[42] = course ? (course.Learning_Objectives || '') : '';
+                row[43] = course ? (course.Prework || '') : '';
+                row[44] = course ? (course.Agenda || '') : '';
+                row[45] = course ? (course.PDU_CAPM || '') : '';
+                row[46] = course ? (course.PDU_ACP || '') : '';
+                row[47] = course ? (course.PDU_PBA || '') : '';
+                row[48] = course ? (course.PDU_RMP || '') : '';
+                row[49] = course ? (course.PDU_SP || '') : '';
+                row[50] = course ? (course.PDU_PfMP || '') : '';
+                row[51] = course ? (course.PDU_PS || '') : '';
+                row[52] = course ? (course.PDU_BA || '') : '';
+                row[53] = course ? (course.Testimonial_Flag || '') : '';
+                row[54] = course ? (course.Testimonial_1 || '') : '';
+                row[55] = course ? (course.Testimonial_2 || '') : '';
+                row[56] = course ? (course.Testimonial_3 || '') : '';
                 retiredAoa.push(row);
             }
 
