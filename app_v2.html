@@ -5964,24 +5964,25 @@
             showToast('CSI Ticket exported successfully', 'success');
         }
 
+        // 6-char RRGGBB palette – 13 event colors shared by Schedule tab and Web Ticket tab
+        const EVENT_COLORS = [
+            { bg: 'E2F0D9', dark: false }, // Event 1  – green light
+            { bg: 'DEEBF7', dark: false }, // Event 2  – blue light
+            { bg: 'FFC000', dark: false }, // Event 3  – gold
+            { bg: 'FFF2CC', dark: false }, // Event 4  – amber light
+            { bg: 'FBE5D6', dark: false }, // Event 5  – orange light
+            { bg: '9DC3E6', dark: false }, // Event 6  – blue medium
+            { bg: '404040', dark: true  }, // Event 7  – dark charcoal
+            { bg: 'D8BEEC', dark: false }, // Event 8  – purple light
+            { bg: 'A9D18E', dark: false }, // Event 9  – green medium
+            { bg: '00B0F0', dark: false }, // Event 10 – cyan
+            { bg: 'FFD966', dark: false }, // Event 11 – yellow
+            { bg: '5B9BD5', dark: true  }, // Event 12 – blue
+            { bg: '44546A', dark: true  }, // Event 13 – dark blue-gray
+        ];
+
         // Cell-color helper for CSI Ticket Export – matches the 13-event PMI template palette
         function applyTemplateColors(ws, numDataRows, numEvents) {
-            // 6-char RRGGBB format required by xlsx-js-style
-            const EVENT_COLORS = [
-                { bg: 'E2F0D9', dark: false }, // Event 1  – green light
-                { bg: 'DEEBF7', dark: false }, // Event 2  – blue light
-                { bg: 'FFC000', dark: false }, // Event 3  – gold
-                { bg: 'FFF2CC', dark: false }, // Event 4  – amber light
-                { bg: 'FBE5D6', dark: false }, // Event 5  – orange light
-                { bg: '9DC3E6', dark: false }, // Event 6  – blue medium
-                { bg: '404040', dark: true  }, // Event 7  – dark charcoal
-                { bg: 'D8BEEC', dark: false }, // Event 8  – purple light
-                { bg: 'A9D18E', dark: false }, // Event 9  – green medium
-                { bg: '00B0F0', dark: false }, // Event 10 – cyan
-                { bg: 'FFD966', dark: false }, // Event 11 – yellow
-                { bg: '5B9BD5', dark: true  }, // Event 12 – blue
-                { bg: '44546A', dark: true  }, // Event 13 – dark blue-gray
-            ];
 
             function sc(r, c, bg, bold, whiteText) {
                 const ref = XLSX.utils.encode_cell({ r, c });
