@@ -5855,6 +5855,20 @@
                     _wsWt[_a].s = { alignment: { wrapText: true, vertical: 'top' }, ...(_ci === 0 ? { fill: _wtOrangeFill } : {}) };
                 }
             }
+            // Apply event colors to event date column pairs (same palette as Schedule tab)
+            for (let _ei = 0; _ei < Math.min(_wtNumEvents, EVENT_COLORS.length); _ei++) {
+                const { bg: _ecBg, dark: _ecDark } = EVENT_COLORS[_ei];
+                const _ecFill = { patternType: 'solid', fgColor: { rgb: _ecBg } };
+                const _ecFont = { color: { rgb: _ecDark ? 'FFFFFF' : '000000' } };
+                const _ecFontBold = { bold: true, color: { rgb: _ecDark ? 'FFFFFF' : '000000' } };
+                for (let _rr = 1; _rr < _wtAoa.length; _rr++) {
+                    for (const _cc of [_wtEvBase + _ei * 2, _wtEvBase + _ei * 2 + 1]) {
+                        const _ea = XLSX.utils.encode_cell({ r: _rr, c: _cc });
+                        if (!_wsWt[_ea]) _wsWt[_ea] = { t: 'z', v: '' };
+                        _wsWt[_ea].s = { fill: _ecFill, font: _rr === 1 ? _ecFontBold : _ecFont, alignment: { wrapText: true, vertical: 'top' } };
+                    }
+                }
+            }
             const _wtRowArr = [{ hpt: 20 }, { hpt: 50 }];
             for (let _ri = 2; _ri < _wtAoa.length; _ri++) _wtRowArr.push({ hpt: 20 });
             _wsWt['!rows'] = _wtRowArr;
