@@ -1,0 +1,108 @@
+=====================================================
+  SCHEDULEPRO — BROWSER DATA BACKUP & RESTORE GUIDE
+=====================================================
+
+NOTE: SchedulePro stores data in two places:
+  1. Supabase (cloud) — primary, syncs across devices
+  2. Browser localStorage — local copy, per-browser
+
+This guide backs up the localStorage copy via the browser
+console. Do this before re-importing catalog files or
+making large changes.
+
+-----------------------------------------------------
+  STEP 1 — OPEN THE APP AND SET THE YEAR
+-----------------------------------------------------
+1. Open SchedulePro in your browser (GitHub Pages URL).
+2. Make sure the year dropdown shows the year you want
+   to back up (e.g. 2027). Each year's data is stored
+   separately — back up each year you care about.
+3. Wait for the "Synced" indicator (confirms Supabase
+   data has loaded into the browser).
+
+-----------------------------------------------------
+  STEP 2 — OPEN THE BROWSER CONSOLE
+-----------------------------------------------------
+Mac:    Cmd + Option + I   (then click "Console" tab)
+Windows: F12               (then click "Console" tab)
+
+-----------------------------------------------------
+  STEP 3 — RUN THE BACKUP SCRIPT
+-----------------------------------------------------
+Paste the following into the Console and press Enter.
+It will immediately download a .json backup file.
+
+(function(){
+  var keys = Object.keys(localStorage).filter(function(k){ return k.indexOf('sp_') !== -1; });
+  var backup = { timestamp: new Date().toISOString(), data: {} };
+  keys.forEach(function(k){
+    try { backup.data[k] = JSON.parse(localStorage.getItem(k)); }
+    catch(e) { backup.data[k] = localStorage.getItem(k); }
+  });
+  var blob = new Blob([JSON.stringify(backup, null, 2)], {type: 'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'schedulepro_backup_' + new Date().toISOString().slice(0,10) + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  console.log('Backup complete. Keys saved:', Object.keys(backup.data).join(', '));
+})();
+
+The file will download as:  schedulepro_backup_YYYY-MM-DD.json
+The console will print which keys were included.
+
+You should see keys like:
+  2027_sp_courses, 2027_sp_events, 2027_sp_schedule,
+  2027_sp_log, 2027_sp_away, 2027_sp_shortlists,
+  2027_sp_slotNotes, 2027_sp_shortlistNotes,
+  2027_sp_eventNotes, 2027_sp_tracking, 2027_sp_round
+
+If you see 2026_ keys and you expected 2027_, you are
+on the wrong year — switch the year dropdown first.
+
+-----------------------------------------------------
+  STEP 4 — STORE THE BACKUP FILE SAFELY
+-----------------------------------------------------
+Save the downloaded .json file somewhere safe (e.g. in
+the SchedulePro2/Data folder or a cloud folder).
+Rename it to include a note, e.g.:
+  schedulepro_backup_2026-07-06_before_catalog_reimport.json
+
+-----------------------------------------------------
+  HOW TO RESTORE FROM BACKUP (if needed)
+-----------------------------------------------------
+1. Open SchedulePro in the browser.
+2. Open the Console (Cmd+Option+I or F12).
+3. First, open the backup .json file in a text editor
+   and copy ALL its contents.
+4. In the Console, type:  var _b =
+   then paste the entire JSON contents after it,
+   then press Enter.  Example:
+     var _b = { "timestamp": "...", "data": { ... } };
+5. Then paste and run this restore script:
+
+Object.entries(_b.data).forEach(function(entry){
+  var k = entry[0], v = entry[1];
+  localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v));
+});
+location.reload();
+
+The page will reload with the restored data.
+
+-----------------------------------------------------
+  ABOUT SUPABASE (CLOUD) DATA
+-----------------------------------------------------
+Your data is also saved to Supabase automatically.
+Supabase acts as the source of truth and syncs when
+you open the app. If localStorage is wiped (e.g. you
+clear browser data), reopening the app will re-sync
+from Supabase.
+
+To view/export Supabase data directly:
+  - Go to: https://supabase.com
+  - Sign in and open your project
+  - Table Editor > schedulepro_state
+  - You can download rows as CSV from there
+
+=====================================================
