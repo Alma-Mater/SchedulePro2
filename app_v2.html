@@ -5747,6 +5747,132 @@
             const _exportId = `${_mm}_${_dd}_${_yyyy}_${_h}${_min}${_ampm}`;
             const _filename = `CSI_Ticket${_roundPart}_${_exportId}.xlsx`;
 
+            // ── Web Ticket sheet ──────────────────────────────────────────────
+            const _wtSheetName = `Web Ticket ${_mm}-${_dd}-${_yyyy} ${_h}.${_min} ${_ampm}`;
+            const _wtHeaders = [
+                'Course ID',
+                'Full day course?',
+                'Course Length',
+                'Course Title',
+                'Course Leader 1',
+                'Course Leader 2',
+                'Course Capacity',
+                'PDUs',
+                'CAPM/PMI-CP/PMP/PgMP',
+                'PMI-ACP (all agile certs)',
+                'PMI-PBA',
+                'PMI-RMP',
+                'PMI-SP',
+                'PMI-PfMP',
+                'Power Skills',
+                'Business Acumen',
+                'Assessment Pricing if applies (does not change)',
+                'Description w/ html (as needed)',
+                'Description',
+                'Learning Objectives',
+                'Learning Objectives w/ html',
+                'Prework Description (if applicable)',
+                'Agenda',
+                'Level (Core, Intermediate, Advanced)',
+                'Training Topic (Main Topic on the CSI upload file)',
+                'CSI Upload Topic',
+                'Topic #1',
+                'Topic #2',
+                'Change Log\nChanges in this column relate to this file only.'
+            ];
+            // Auto-generate HTML Learning Objectives: wrap each non-empty line in <p> tags
+            const _loToHtml = s => s
+                ? s.split('\n').map(l => l.trim()).filter(l => l.length > 0).map(l => `<p>${l}</p>`).join('\n')
+                : '';
+            const _wtAoa = [
+                new Array(_wtHeaders.length).fill(''),
+                _wtHeaders
+            ];
+            const _wtSorted = [...courses.filter(c => !c.retired)]
+                .sort((a, b) => (a.Course_Name || '').localeCompare(b.Course_Name || ''));
+            for (const _c of _wtSorted) {
+                const _wl1 = _c.Leader_1 || (_c.Instructor ? _c.Instructor.split(' and ')[0].trim() : '');
+                const _wl2 = _c.Leader_2 || (_c.Instructor ? (_c.Instructor.split(' and ')[1] || '').trim() : '');
+                _wtAoa.push([
+                    _c.Course_ID,
+                    _c.Full_Day || '',
+                    _c.Duration_Days !== undefined ? _c.Duration_Days : '',
+                    _c.Course_Name || '',
+                    _wl1,
+                    _wl2,
+                    _c.Capacity || '',
+                    _c.PDUs || '',
+                    _c.PDU_CAPM || '',
+                    _c.PDU_ACP || '',
+                    _c.PDU_PBA || '',
+                    _c.PDU_RMP || '',
+                    _c.PDU_SP || '',
+                    _c.PDU_PfMP || '',
+                    _c.PDU_PS || '',
+                    _c.PDU_BA || '',
+                    _c.Assessment_Pricing || '',
+                    _c.Desc_HTML || '',
+                    _c.Description || '',
+                    _c.Learning_Objectives || '',
+                    _loToHtml(_c.Learning_Objectives),
+                    _c.Prework || '',
+                    _c.Agenda || '',
+                    _c.Level || '',
+                    _c.Training_Topic || _c.Topic || '',
+                    '',
+                    _c.Topic_1 || '',
+                    _c.Topic_2 || '',
+                    (courseLogNotes[_c.Course_ID] || []).join('\n')
+                ]);
+            }
+            const _wsWt = XLSX.utils.aoa_to_sheet(_wtAoa);
+            // Row 1 blank already. Row 2 (r=1): bold headers with wrap
+            for (let _ci = 0; _ci < _wtHeaders.length; _ci++) {
+                const _wAddr = XLSX.utils.encode_cell({ r: 1, c: _ci });
+                if (!_wsWt[_wAddr]) _wsWt[_wAddr] = { t: 's', v: _wtHeaders[_ci] };
+                _wsWt[_wAddr].s = { font: { bold: true }, alignment: { wrapText: true, vertical: 'top' } };
+            }
+            // Data rows (r=2+): wrap text, top-align
+            for (let _ri = 2; _ri < _wtAoa.length; _ri++) {
+                for (let _ci = 0; _ci < _wtHeaders.length; _ci++) {
+                    const _wAddr = XLSX.utils.encode_cell({ r: _ri, c: _ci });
+                    if (!_wsWt[_wAddr]) _wsWt[_wAddr] = { t: 'z', v: '' };
+                    _wsWt[_wAddr].s = { ...(_wsWt[_wAddr].s || {}), alignment: { wrapText: true, vertical: 'top' } };
+                }
+            }
+            _wsWt['!cols'] = [
+                { wch: 10 }, // Course ID
+                { wch: 12 }, // Full day course?
+                { wch: 12 }, // Course Length
+                { wch: 50 }, // Course Title
+                { wch: 28 }, // Leader 1
+                { wch: 28 }, // Leader 2
+                { wch: 12 }, // Capacity
+                { wch:  8 }, // PDUs
+                { wch: 12 }, // CAPM
+                { wch: 14 }, // ACP
+                { wch:  8 }, // PBA
+                { wch:  8 }, // RMP
+                { wch:  8 }, // SP
+                { wch:  8 }, // PfMP
+                { wch: 14 }, // Power Skills
+                { wch: 16 }, // Business Acumen
+                { wch: 26 }, // Assessment Pricing
+                { wch: 50 }, // Desc w/ html
+                { wch: 50 }, // Description
+                { wch: 50 }, // Learning Objectives
+                { wch: 50 }, // Learning Objectives w/ html
+                { wch: 40 }, // Prework
+                { wch: 50 }, // Agenda
+                { wch: 22 }, // Level
+                { wch: 32 }, // Training Topic
+                { wch: 16 }, // CSI Upload Topic
+                { wch: 24 }, // Topic 1
+                { wch: 24 }, // Topic 2
+                { wch: 40 }, // Change Log
+            ];
+            XLSX.utils.book_append_sheet(wb, _wsWt, _wtSheetName);
+
             XLSX.writeFile(wb, _filename);
             // Always add export log entry (force tracked:true so it always appears)
             const _tsExport = `${_now.getMonth()+1}/${String(_now.getDate()).padStart(2,'0')}/${_now.getFullYear()}, ${_now.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true})}`;
