@@ -5747,13 +5747,19 @@
             const _exportId = `${_mm}_${_dd}_${_yyyy}_${_h}${_min}${_ampm}`;
             const _filename = `CSI_Ticket${_roundPart}_${_exportId}.xlsx`;
 
-            // ── Web Ticket sheet (catalog data, no schedule columns) ──────────
+            // ── Web Ticket sheet (with event schedule columns) ────────────────
             const _wtSheetName = `Web Ticket ${_mm}-${_dd}-${_yyyy} ${_h}.${_min} ${_ampm}`;
-            const _wtHeaders = [
-                'Course ID',
+            const _wtNumEvents = sortedEvents.length;
+
+            const _wtEventHeaders = [];
+            for (let _ei = 0; _ei < _wtNumEvents; _ei++) {
+                const _ev = sortedEvents[_ei];
+                _wtEventHeaders.push(`Event ${_ei + 1} - First Day  ${_ev.Location || ''}  ${_ev.First_Event_Day || ''}`);
+                _wtEventHeaders.push(`Event ${_ei + 1} - Last Day  ${_ev.Last_Event_Day || ''}`);
+            }
+            const _wtCatalogCols = [
                 'Full day course?',
                 'Course Length',
-                'Course Title that will appear on website',
                 'Course Leader 1',
                 'Course Leader 2',
                 'Course Capacity',
@@ -5780,107 +5786,149 @@
                 'Topic #2',
                 'Change Log\nChanges in this column relate to this file only.'
             ];
+            const _wtHeaders = ['Course ID', 'Course Title that will appear on website', ..._wtEventHeaders, ..._wtCatalogCols];
+            const _wtTotalCols = _wtHeaders.length;
+            const _wtEvBase = 2;
+            const _wtCatBase = 2 + _wtNumEvents * 2;
+
             const _loToHtml = s => s
                 ? s.split('\n').map(l => l.trim()).filter(l => l.length > 0).map(l => `<p>${l}</p>`).join('\n')
                 : '';
-            const _wtAoa = [
-                new Array(_wtHeaders.length).fill(''),
-                _wtHeaders
-            ];
+
+            const _wtAoa = [new Array(_wtTotalCols).fill(''), _wtHeaders];
             const _wtSorted = [...courses.filter(c => !c.retired)]
                 .sort((a, b) => (a.Course_Name || '').localeCompare(b.Course_Name || ''));
+
             for (const _c of _wtSorted) {
                 const _wl1 = _c.Leader_1 || (_c.Instructor ? _c.Instructor.split(' and ')[0].trim() : '');
                 const _wl2 = _c.Leader_2 || (_c.Instructor ? (_c.Instructor.split(' and ')[1] || '').trim() : '');
-                _wtAoa.push([
-                    _c.Course_ID,
-                    _c.Full_Day || '',
-                    _c.Duration_Days !== undefined ? _c.Duration_Days : '',
-                    _c.Course_Name || '',
-                    _wl1,
-                    _wl2,
-                    _c.Capacity || '',
-                    _c.PDUs || '',
-                    _c.PDU_CAPM || '',
-                    _c.PDU_ACP || '',
-                    _c.PDU_PBA || '',
-                    _c.PDU_RMP || '',
-                    _c.PDU_SP || '',
-                    _c.PDU_PfMP || '',
-                    _c.PDU_PS || '',
-                    _c.PDU_BA || '',
-                    _c.Assessment_Pricing || '',
-                    _c.Desc_HTML || '',
-                    _c.Description || '',
-                    _c.Learning_Objectives || '',
-                    _loToHtml(_c.Learning_Objectives),
-                    _c.Prework || '',
-                    _c.Agenda || '',
-                    _c.Level || '',
-                    _c.Training_Topic || _c.Topic || '',
-                    '',
-                    _c.Topic_1 || '',
-                    _c.Topic_2 || '',
-                    (courseLogNotes[_c.Course_ID] || []).join('\n')
-                ]);
+                const _wtRow = new Array(_wtTotalCols).fill('');
+                _wtRow[0] = _c.Course_ID;
+                _wtRow[1] = _c.Course_Name || '';
+                // Event date cols
+                for (let _ei = 0; _ei < _wtNumEvents; _ei++) {
+                    const _ev = sortedEvents[_ei];
+                    const _evSched = schedule[_ev.Event_ID] || {};
+                    const _evDates = getEventDates(_ev);
+                    const _bc = _wtEvBase + _ei * 2;
+                    let _fds = null, _lds = null;
+                    for (const _room in _evSched) {
+                        for (const _a of _evSched[_room]) {
+                            if (_a.courseId === _c.Course_ID) {
+                                const _sd = _evDates[_a.startDay - 1];
+                                const _eidx = Math.min(_a.startDay + _a.duration - 2, _evDates.length - 1);
+                                const _ed = _evDates[_eidx];
+                                if (_sd && (!_fds || _sd < _fds)) { _fds = _sd; _lds = _ed; }
+                            }
+                        }
+                    }
+                    if (_fds) { _wtRow[_bc] = toYMD(_fds); _wtRow[_bc + 1] = toYMD(_lds); }
+                }
+                // Catalog cols
+                const _cb = _wtCatBase;
+                _wtRow[_cb+0]=_c.Full_Day||''; _wtRow[_cb+1]=_c.Duration_Days!==undefined?_c.Duration_Days:'';
+                _wtRow[_cb+2]=_wl1; _wtRow[_cb+3]=_wl2; _wtRow[_cb+4]=_c.Capacity||'';
+                _wtRow[_cb+5]=_c.PDUs||''; _wtRow[_cb+6]=_c.PDU_CAPM||''; _wtRow[_cb+7]=_c.PDU_ACP||'';
+                _wtRow[_cb+8]=_c.PDU_PBA||''; _wtRow[_cb+9]=_c.PDU_RMP||''; _wtRow[_cb+10]=_c.PDU_SP||'';
+                _wtRow[_cb+11]=_c.PDU_PfMP||''; _wtRow[_cb+12]=_c.PDU_PS||''; _wtRow[_cb+13]=_c.PDU_BA||'';
+                _wtRow[_cb+14]=_c.Assessment_Pricing||''; _wtRow[_cb+15]=_c.Desc_HTML||'';
+                _wtRow[_cb+16]=_c.Description||''; _wtRow[_cb+17]=_c.Learning_Objectives||'';
+                _wtRow[_cb+18]=_loToHtml(_c.Learning_Objectives); _wtRow[_cb+19]=_c.Prework||'';
+                _wtRow[_cb+20]=_c.Agenda||''; _wtRow[_cb+21]=_c.Level||'';
+                _wtRow[_cb+22]=_c.Training_Topic||_c.Topic||''; _wtRow[_cb+23]='';
+                _wtRow[_cb+24]=_c.Topic_1||''; _wtRow[_cb+25]=_c.Topic_2||'';
+                _wtRow[_cb+26]=(courseLogNotes[_c.Course_ID]||[]).join('\n');
+                _wtAoa.push(_wtRow);
             }
+
             const _wsWt = XLSX.utils.aoa_to_sheet(_wtAoa);
             const _wtOrangeFill = { patternType: 'solid', fgColor: { rgb: 'FFC000' } };
-            // Header row (r=1): bold, wrap
-            for (let _ci = 0; _ci < _wtHeaders.length; _ci++) {
-                const _wAddr = XLSX.utils.encode_cell({ r: 1, c: _ci });
-                if (!_wsWt[_wAddr]) _wsWt[_wAddr] = { t: 's', v: _wtHeaders[_ci] };
-                _wsWt[_wAddr].s = { font: { bold: true }, alignment: { wrapText: true, vertical: 'top' } };
+            for (let _ci = 0; _ci < _wtTotalCols; _ci++) {
+                const _a = XLSX.utils.encode_cell({ r: 1, c: _ci });
+                if (!_wsWt[_a]) _wsWt[_a] = { t: 's', v: _wtHeaders[_ci] };
+                _wsWt[_a].s = { font: { bold: true }, alignment: { wrapText: true, vertical: 'top' } };
             }
-            // Data rows (r=2+): orange Course ID col, wrap all
             for (let _ri = 2; _ri < _wtAoa.length; _ri++) {
-                for (let _ci = 0; _ci < _wtHeaders.length; _ci++) {
-                    const _wAddr = XLSX.utils.encode_cell({ r: _ri, c: _ci });
-                    if (!_wsWt[_wAddr]) _wsWt[_wAddr] = { t: 'z', v: '' };
-                    _wsWt[_wAddr].s = {
-                        alignment: { wrapText: true, vertical: 'top' },
-                        ...(_ci === 0 ? { fill: _wtOrangeFill } : {})
-                    };
+                for (let _ci = 0; _ci < _wtTotalCols; _ci++) {
+                    const _a = XLSX.utils.encode_cell({ r: _ri, c: _ci });
+                    if (!_wsWt[_a]) _wsWt[_a] = { t: 'z', v: '' };
+                    _wsWt[_a].s = { alignment: { wrapText: true, vertical: 'top' }, ...(_ci === 0 ? { fill: _wtOrangeFill } : {}) };
                 }
             }
-            // Row heights: blank=20pt, header=50pt, data=20pt
-            const _wtRows = [{ hpt: 20 }, { hpt: 50 }];
-            for (let _ri = 2; _ri < _wtAoa.length; _ri++) _wtRows.push({ hpt: 20 });
-            _wsWt['!rows'] = _wtRows;
+            const _wtRowArr = [{ hpt: 20 }, { hpt: 50 }];
+            for (let _ri = 2; _ri < _wtAoa.length; _ri++) _wtRowArr.push({ hpt: 20 });
+            _wsWt['!rows'] = _wtRowArr;
+            const _wtEvWidths = [];
+            for (let _ei = 0; _ei < _wtNumEvents; _ei++) { _wtEvWidths.push({ wch: 18 }); _wtEvWidths.push({ wch: 16 }); }
             _wsWt['!cols'] = [
-                { wch: 10 }, // Course ID
-                { wch: 12 }, // Full day course?
-                { wch: 12 }, // Course Length
-                { wch: 50 }, // Course Title
-                { wch: 28 }, // Leader 1
-                { wch: 28 }, // Leader 2
-                { wch: 12 }, // Capacity
-                { wch:  8 }, // PDUs
-                { wch: 12 }, // CAPM
-                { wch: 14 }, // ACP
-                { wch:  8 }, // PBA
-                { wch:  8 }, // RMP
-                { wch:  8 }, // SP
-                { wch:  8 }, // PfMP
-                { wch: 14 }, // Power Skills
-                { wch: 16 }, // Business Acumen
-                { wch: 26 }, // Assessment Pricing
-                { wch: 50 }, // Desc w/ html
-                { wch: 50 }, // Description
-                { wch: 50 }, // Learning Objectives
-                { wch: 50 }, // Learning Objectives w/ html
-                { wch: 40 }, // Prework
-                { wch: 50 }, // Agenda
-                { wch: 22 }, // Level
-                { wch: 32 }, // Training Topic
-                { wch: 16 }, // CSI Upload Topic
-                { wch: 24 }, // Topic 1
-                { wch: 24 }, // Topic 2
-                { wch: 40 }, // Change Log
+                { wch: 10 }, { wch: 50 }, ..._wtEvWidths,
+                { wch: 12 }, { wch: 12 }, { wch: 28 }, { wch: 28 }, { wch: 12 }, { wch: 8 },
+                { wch: 12 }, { wch: 14 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 },
+                { wch: 14 }, { wch: 16 }, { wch: 26 }, { wch: 50 }, { wch: 50 }, { wch: 50 },
+                { wch: 50 }, { wch: 40 }, { wch: 50 }, { wch: 22 }, { wch: 32 }, { wch: 16 },
+                { wch: 24 }, { wch: 24 }, { wch: 40 }
             ];
             XLSX.utils.book_append_sheet(wb, _wsWt, _wtSheetName);
-            // Move Web Ticket to first tab position
-            wb.SheetNames = [_wtSheetName, ...wb.SheetNames.slice(0, -1)];
+
+            // ── Web Ticket Catalog tab (catalog-only backup, no event columns) ──
+            const _wtcName = `WT Catalog ${_mm}-${_dd}-${_yyyy} ${_h}.${_min}${_ampm}`;
+            const _wtcHeaders = [
+                'Course ID', 'Full day course?', 'Course Length',
+                'Course Title that will appear on website',
+                'Course Leader 1', 'Course Leader 2', 'Course Capacity', 'PDUs',
+                'CAPM/PMI-CP/PMP/PgMP', 'PMI-ACP (all agile certs)', 'PMI-PBA', 'PMI-RMP',
+                'PMI-SP', 'PMI-PfMP', 'Power Skills', 'Business Acumen',
+                'Assessment Pricing if applies (does not change)',
+                'Description w/ html (as needed)', 'Description', 'Learning Objectives',
+                'Learning Objectives w/ html', 'Prework Description (if applicable)', 'Agenda',
+                'Level (Core, Intermediate, Advanced)',
+                'Training Topic (Main Topic on the CSI upload file)',
+                'CSI Upload Topic', 'Topic #1', 'Topic #2',
+                'Change Log\nChanges in this column relate to this file only.'
+            ];
+            const _wtcAoa = [new Array(_wtcHeaders.length).fill(''), _wtcHeaders];
+            for (const _c of _wtSorted) {
+                const _wl1 = _c.Leader_1 || (_c.Instructor ? _c.Instructor.split(' and ')[0].trim() : '');
+                const _wl2 = _c.Leader_2 || (_c.Instructor ? (_c.Instructor.split(' and ')[1] || '').trim() : '');
+                _wtcAoa.push([
+                    _c.Course_ID, _c.Full_Day||'', _c.Duration_Days!==undefined?_c.Duration_Days:'',
+                    _c.Course_Name||'', _wl1, _wl2, _c.Capacity||'', _c.PDUs||'',
+                    _c.PDU_CAPM||'', _c.PDU_ACP||'', _c.PDU_PBA||'', _c.PDU_RMP||'',
+                    _c.PDU_SP||'', _c.PDU_PfMP||'', _c.PDU_PS||'', _c.PDU_BA||'',
+                    _c.Assessment_Pricing||'', _c.Desc_HTML||'', _c.Description||'',
+                    _c.Learning_Objectives||'', _loToHtml(_c.Learning_Objectives),
+                    _c.Prework||'', _c.Agenda||'', _c.Level||'',
+                    _c.Training_Topic||_c.Topic||'', '', _c.Topic_1||'', _c.Topic_2||'',
+                    (courseLogNotes[_c.Course_ID]||[]).join('\n')
+                ]);
+            }
+            const _wsWtc = XLSX.utils.aoa_to_sheet(_wtcAoa);
+            for (let _ci = 0; _ci < _wtcHeaders.length; _ci++) {
+                const _a = XLSX.utils.encode_cell({ r: 1, c: _ci });
+                if (!_wsWtc[_a]) _wsWtc[_a] = { t: 's', v: _wtcHeaders[_ci] };
+                _wsWtc[_a].s = { font: { bold: true }, alignment: { wrapText: true, vertical: 'top' } };
+            }
+            for (let _ri = 2; _ri < _wtcAoa.length; _ri++) {
+                for (let _ci = 0; _ci < _wtcHeaders.length; _ci++) {
+                    const _a = XLSX.utils.encode_cell({ r: _ri, c: _ci });
+                    if (!_wsWtc[_a]) _wsWtc[_a] = { t: 'z', v: '' };
+                    _wsWtc[_a].s = { alignment: { wrapText: true, vertical: 'top' }, ...(_ci === 0 ? { fill: _wtOrangeFill } : {}) };
+                }
+            }
+            const _wtcRowArr = [{ hpt: 20 }, { hpt: 50 }];
+            for (let _ri = 2; _ri < _wtcAoa.length; _ri++) _wtcRowArr.push({ hpt: 20 });
+            _wsWtc['!rows'] = _wtcRowArr;
+            _wsWtc['!cols'] = [
+                { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 50 }, { wch: 28 }, { wch: 28 },
+                { wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 14 }, { wch: 8 }, { wch: 8 },
+                { wch: 8 }, { wch: 8 }, { wch: 14 }, { wch: 16 }, { wch: 26 }, { wch: 50 },
+                { wch: 50 }, { wch: 50 }, { wch: 50 }, { wch: 40 }, { wch: 50 }, { wch: 22 },
+                { wch: 32 }, { wch: 16 }, { wch: 24 }, { wch: 24 }, { wch: 40 }
+            ];
+            XLSX.utils.book_append_sheet(wb, _wsWtc, _wtcName);
+
+            // Move both Web Ticket tabs to the front (leftmost positions)
+            wb.SheetNames = [_wtSheetName, _wtcName, ...wb.SheetNames.filter(n => n !== _wtSheetName && n !== _wtcName)];
 
             XLSX.writeFile(wb, _filename);
             // Always add export log entry (force tracked:true so it always appears)
