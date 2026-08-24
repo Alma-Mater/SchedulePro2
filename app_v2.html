@@ -1309,6 +1309,7 @@
         .toast.success { background: #10b981; }
         .toast.error { background: #ef4444; }
         .toast.warning { background: #f59e0b; }
+        .toast.confirm { background: #3b82f6; }
 
         .toast-confirm-btns {
             display: flex;
@@ -4030,10 +4031,11 @@
             const instrConflicts = checkNewInstructorDoubleBook(course.Instructor, selectedEventId, startDay, duration, null);
             if (instrConflicts.length > 0) {
                 const names = instrConflicts.map(c => `"${c.courseName}" (Room ${c.room})`).join(', ');
+                closeModal('assignModal');
                 showConfirmToast(
                     `${course.Instructor} is already scheduled on those days: ${names}. Double-book this trainer anyway?`,
                     'Double-Book',
-                    'error',
+                    'confirm',
                     () => finalizeAssignment(courseId, room, startDay, duration, course)
                 );
                 return;
@@ -4192,7 +4194,7 @@
                     showConfirmToast(
                         `${movedCourse.Instructor} is already scheduled on those days: ${names}. Double-book this trainer anyway?`,
                         'Double-Book',
-                        'error',
+                        'confirm',
                         () => finalizeMove(pendingMove, targetEventId, targetRoom, targetDay)
                     );
                     return;
@@ -4995,17 +4997,6 @@
                 }
                 if (maxRoom > (parseInt(ev.Room_Count) || 0)) ev.Room_Count = maxRoom;
             });
-        }
-
-        // Flags leftover duplicate Event_IDs (e.g. from before edit-time uniqueness was enforced)
-        function warnDuplicateEventIds() {
-            const counts = new Map();
-            events.forEach(ev => counts.set(ev.Event_ID, (counts.get(ev.Event_ID) || 0) + 1));
-            const dupes = [...counts.entries()].filter(([, n]) => n > 1).map(([id]) => id);
-            if (dupes.length > 0) {
-                console.warn('Duplicate Event_ID(s) detected:', dupes);
-                showToast(`Duplicate Event ID(s) found: ${dupes.join(', ')} \u2014 see browser console for details, fix before editing those events`, 'error', 10000);
-            }
         }
 
         function deleteEventRow(idx) {
@@ -6285,7 +6276,6 @@
                     Total_Days: ev.Total_Days || 0
                 }));
                 reconcileRoomCounts();
-                warnDuplicateEventIds();
                 
                 updateTopicFilter();
                 updateTrackingButton();
@@ -6399,7 +6389,6 @@
                         Total_Days: ev.Total_Days || 0
                     }));
                     reconcileRoomCounts();
-                    warnDuplicateEventIds();
 
                     // Normalize courses — preserve all fields, just coerce core types
                     courses = courses.map(c => ({
