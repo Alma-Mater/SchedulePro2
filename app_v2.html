@@ -1816,7 +1816,7 @@
         <div class="modal" style="max-width: 860px; width: 96vw;">
             <div class="modal-header">
                 <h2>Compare Events</h2>
-                <button class="modal-close" onclick="closeModal('compareEventsModal')">&times;</button>
+                <button class="modal-close" onclick="handleCompareModalClose()">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="form-row">
@@ -1835,7 +1835,7 @@
                 <div id="compareResultsContainer" style="margin-top:16px;"></div>
             </div>
             <div class="modal-footer">
-                <button class="btn" onclick="closeModal('compareEventsModal')">Cancel</button>
+                <button class="btn" onclick="handleCompareModalClose()">Cancel</button>
                 <button class="btn btn-primary" id="compareApplyBtn" style="display:none;" onclick="applyEventComparisonChanges()">Apply Selected Changes</button>
             </div>
         </div>
@@ -5189,6 +5189,73 @@
             compareState = null;
             compareSelectedBlocks.clear();
             document.getElementById('compareEventsModal').classList.add('active');
+
+            const draft = loadCompareDraft();
+            const draftValid = draft && draft.idA && draft.idB &&
+                events.some(e => e.Event_ID === draft.idA) && events.some(e => e.Event_ID === draft.idB);
+            if (draftValid) {
+                document.getElementById('compareEventASelect').value = draft.idA;
+                document.getElementById('compareEventBSelect').value = draft.idB;
+                runEventComparison();
+                (draft.selections || []).forEach(s => compareSelectedBlocks.set(s.key, { room: s.room, assignment: s.assignment }));
+                renderCompareGrids();
+                const targetSel = document.getElementById('compareTargetSelect');
+                if (targetSel && draft.targetId) targetSel.value = draft.targetId;
+                showToast('Resumed your saved comparison draft', 'confirm');
+            }
+        }
+
+        function saveCompareDraft() {
+            if (!compareState) return;
+            const targetSel = document.getElementById('compareTargetSelect');
+            const draft = {
+                idA: compareState.idA,
+                idB: compareState.idB,
+                targetId: targetSel ? targetSel.value : compareState.idA,
+                selections: [...compareSelectedBlocks.entries()].map(([key, val]) => ({ key, room: val.room, assignment: val.assignment }))
+            };
+            localStorage.setItem(yearKey('sp_compareDraft'), JSON.stringify(draft));
+        }
+
+        function loadCompareDraft() {
+            try { return JSON.parse(localStorage.getItem(yearKey('sp_compareDraft'))); }
+            catch (e) { return null; }
+        }
+
+        function clearCompareDraft() {
+            localStorage.removeItem(yearKey('sp_compareDraft'));
+        }
+
+        // Guards the modal's close paths (X, Cancel, click-outside) when there are unapplied selections
+        function handleCompareModalClose() {
+            if (compareSelectedBlocks.size === 0) {
+                closeModal('compareEventsModal');
+                return;
+            }
+            const t = document.getElementById('toast');
+            clearTimeout(t._hideTimer);
+            t.className = 'toast confirm show';
+            t.innerHTML = `
+                <div style="max-width: 280px; line-height: 1.4;">You have ${compareSelectedBlocks.size} unsaved course selection(s) in Compare Events. What would you like to do?</div>
+                <div class="toast-confirm-btns" style="flex-wrap:wrap;">
+                    <button class="toast-btn-confirm" onclick="_cmpApplyAndClose()">Apply Now</button>
+                    <button class="toast-btn-confirm" onclick="_cmpSaveDraftAndClose()">Save for Later</button>
+                    <button class="toast-btn-cancel" onclick="_cmpDiscardAndClose()">Discard</button>
+                </div>
+            `;
+            window._cmpApplyAndClose = () => { t.classList.remove('show'); applyEventComparisonChanges(); };
+            window._cmpSaveDraftAndClose = () => {
+                t.classList.remove('show');
+                saveCompareDraft();
+                closeModal('compareEventsModal');
+                showToast('Comparison saved \u2014 reopen Compare Events to resume', 'confirm');
+            };
+            window._cmpDiscardAndClose = () => {
+                t.classList.remove('show');
+                compareSelectedBlocks.clear();
+                clearCompareDraft();
+                closeModal('compareEventsModal');
+            };
         }
 
         function runEventComparison() {
@@ -5325,6 +5392,7 @@
             });
 
             compareSelectedBlocks.clear();
+            clearCompareDraft();
             reconcileRoomCounts();
             saveToLocalStorage();
             render();
@@ -6546,7 +6614,9 @@
         }
 
         document.addEventListener('click', e => {
-            if (e.target.classList.contains('modal-overlay')) e.target.classList.remove('active');
+            if (!e.target.classList.contains('modal-overlay')) return;
+            if (e.target.id === 'compareEventsModal') { handleCompareModalClose(); return; }
+            e.target.classList.remove('active');
         });
 
         document.addEventListener('keydown', e => {
