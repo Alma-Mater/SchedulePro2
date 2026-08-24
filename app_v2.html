@@ -4030,10 +4030,19 @@
             const instrConflicts = checkNewInstructorDoubleBook(course.Instructor, selectedEventId, startDay, duration, null);
             if (instrConflicts.length > 0) {
                 const names = instrConflicts.map(c => `"${c.courseName}" (Room ${c.room})`).join(', ');
-                showToast(`Cannot assign — ${course.Instructor} is already scheduled on those days: ${names}`, 'error');
+                showConfirmToast(
+                    `${course.Instructor} is already scheduled on those days: ${names}. Double-book this trainer anyway?`,
+                    'Double-Book',
+                    'error',
+                    () => finalizeAssignment(courseId, room, startDay, duration, course)
+                );
                 return;
             }
 
+            finalizeAssignment(courseId, room, startDay, duration, course);
+        }
+
+        function finalizeAssignment(courseId, room, startDay, duration, course) {
             if (!schedule[selectedEventId]) schedule[selectedEventId] = {};
             if (!schedule[selectedEventId][room]) schedule[selectedEventId][room] = [];
 
@@ -4177,12 +4186,25 @@
                 const instrConflicts = checkNewInstructorDoubleBook(movedCourse.Instructor, targetEventId, targetDay, duration, courseId);
                 if (instrConflicts.length > 0) {
                     const names = instrConflicts.map(c => `"${c.courseName}" (Room ${c.room})`).join(', ');
-                    showToast(`Cannot move — ${movedCourse.Instructor} is already scheduled on those days: ${names}`, 'error');
+                    const pendingMove = { eventId, sourceRoom, courseId, sourceDay, duration };
                     draggedCourse = null;
                     render();
+                    showConfirmToast(
+                        `${movedCourse.Instructor} is already scheduled on those days: ${names}. Double-book this trainer anyway?`,
+                        'Double-Book',
+                        'error',
+                        () => finalizeMove(pendingMove, targetEventId, targetRoom, targetDay)
+                    );
                     return;
                 }
             }
+
+            finalizeMove({ eventId, sourceRoom, courseId, sourceDay, duration }, targetEventId, targetRoom, targetDay);
+            draggedCourse = null;
+        }
+
+        function finalizeMove(moved, targetEventId, targetRoom, targetDay) {
+            const { eventId, sourceRoom, courseId, sourceDay, duration } = moved;
 
             // Find and preserve the original assignment before removing it
             const originalAssignment = schedule[eventId][sourceRoom].find(a => a.courseId === courseId);
@@ -4207,7 +4229,6 @@
             }
 
             saveToLocalStorage();
-            draggedCourse = null;
             render();
             showToast(`Moved "${course?.Course_Name || courseId}"`, 'success');
         }
@@ -4983,7 +5004,7 @@
             const dupes = [...counts.entries()].filter(([, n]) => n > 1).map(([id]) => id);
             if (dupes.length > 0) {
                 console.warn('Duplicate Event_ID(s) detected:', dupes);
-                showToast(`Duplicate Event ID(s) found: ${dupes.join(', ')} \u2014 fix in console before editing those events`, 'error');
+                showToast(`Duplicate Event ID(s) found: ${dupes.join(', ')} \u2014 see browser console for details, fix before editing those events`, 'error', 10000);
             }
         }
 
@@ -6297,11 +6318,12 @@
             document.getElementById(id).classList.remove('active');
         }
 
-        function showToast(msg, type = 'info') {
+        function showToast(msg, type = 'info', duration = 3000) {
             const t = document.getElementById('toast');
+            clearTimeout(t._hideTimer);
             t.textContent = msg;
             t.className = 'toast ' + type + ' show';
-            setTimeout(() => t.classList.remove('show'), 3000);
+            t._hideTimer = setTimeout(() => t.classList.remove('show'), duration);
         }
 
         function downloadFile(content, filename, mime) {
