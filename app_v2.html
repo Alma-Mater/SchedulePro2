@@ -1465,6 +1465,7 @@
             <button class="btn" onclick="document.getElementById('catalogImportInput').value=''; document.getElementById('catalogImportInput').click()">📋 Import Course Catalog</button>
             <button class="btn" onclick="exportSchedule()">📤 Export</button>
             <button class="btn" onclick="exportContracts()">📄 Export Contracts</button>
+            <button class="btn" onclick="showCompareEventsModal()">⇄ Compare Events</button>
             <button class="btn" id="trackingBtn" onclick="toggleTracking()" style="background:#16a34a;color:white;border-color:#15803d;font-weight:600;">💾 SAVE (Start Tracking Changes)</button>
         </div>
         <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="loadExcelFile(event)">
@@ -1789,6 +1790,36 @@
         </div>
     </div>
 
+    <!-- COMPARE EVENTS MODAL -->
+    <div class="modal-overlay" id="compareEventsModal">
+        <div class="modal" style="max-width: 860px; width: 96vw;">
+            <div class="modal-header">
+                <h2>Compare Events</h2>
+                <button class="modal-close" onclick="closeModal('compareEventsModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Event A</label>
+                        <select id="compareEventASelect"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Event B</label>
+                        <select id="compareEventBSelect"></select>
+                    </div>
+                </div>
+                <div style="margin-top:10px;">
+                    <button class="btn btn-primary" onclick="runEventComparison()">Compare</button>
+                </div>
+                <div id="compareResultsContainer" style="margin-top:16px;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('compareEventsModal')">Cancel</button>
+                <button class="btn btn-primary" id="compareApplyBtn" style="display:none;" onclick="applyEventComparisonChanges()">Apply Selected Changes</button>
+            </div>
+        </div>
+    </div>
+
     <!-- AVAILABILITY IMPORT PREVIEW MODAL -->
     <div class="modal-overlay" id="availImportModal">
         <div class="modal" style="max-width: 760px; width: 96vw;">
@@ -1915,6 +1946,7 @@
         let changeLog = [];
         let trackingEnabled = false;
         let selectedEventId = null;
+        let compareState = null; // { idA, idB, evA, evB } for the active Compare Events session
         let selectedDurations = [];
         let coursesSortColumn = null;
         let coursesSortDirection = 'asc';
@@ -5123,6 +5155,116 @@
             saveToLocalStorage();
             render();
             showToast('Event saved', 'success');
+        }
+
+        // ==================== COMPARE EVENTS ====================
+        function showCompareEventsModal() {
+            const options = events.map(e => `<option value="${e.Event_ID}">${e.Event} (${e.Event_ID})</option>`).join('');
+            document.getElementById('compareEventASelect').innerHTML = options;
+            document.getElementById('compareEventBSelect').innerHTML = options;
+            document.getElementById('compareResultsContainer').innerHTML = '';
+            document.getElementById('compareApplyBtn').style.display = 'none';
+            compareState = null;
+            document.getElementById('compareEventsModal').classList.add('active');
+        }
+
+        function runEventComparison() {
+            const idA = document.getElementById('compareEventASelect').value;
+            const idB = document.getElementById('compareEventBSelect').value;
+            const container = document.getElementById('compareResultsContainer');
+            const applyBtn = document.getElementById('compareApplyBtn');
+            applyBtn.style.display = 'none';
+            compareState = null;
+
+            if (!idA || !idB || idA === idB) {
+                container.innerHTML = '<p style="color:#ef4444;">Pick two different events to compare.</p>';
+                return;
+            }
+
+            const evA = events.find(e => e.Event_ID === idA);
+            const evB = events.find(e => e.Event_ID === idB);
+            const nameOf = id => { const c = courses.find(c => c.Course_ID === id); return c ? c.Course_Name : id; };
+            const describe = list => (list && list.length)
+                ? list.map(x => `${nameOf(x.courseId)} (Day ${x.startDay}-${x.startDay + x.duration - 1})`).join('<br>')
+                : '<em style="color:#9ca3af;">empty</em>';
+            const key = list => JSON.stringify((list || []).map(x => ({ c: x.courseId, d: x.startDay, len: x.duration })));
+
+            const roomsA = schedule[idA] || {};
+            const roomsB = schedule[idB] || {};
+            const allRooms = new Set([...Object.keys(roomsA), ...Object.keys(roomsB)].map(Number));
+
+            let rows = '';
+            let diffCount = 0;
+            [...allRooms].sort((a, b) => a - b).forEach(r => {
+                const a = roomsA[r] || [];
+                const b = roomsB[r] || [];
+                if (key(a) === key(b)) return;
+                diffCount++;
+                rows += `
+                    <tr>
+                        <td style="font-weight:600;">Room ${r}</td>
+                        <td>${describe(a)}</td>
+                        <td>${describe(b)}</td>
+                        <td style="text-align:center;">
+                            <input type="checkbox" class="cmp-room-checkbox" data-room="${r}">
+                        </td>
+                    </tr>`;
+            });
+
+            if (diffCount === 0) {
+                container.innerHTML = '<p>No differences found between these two events\' schedules.</p>';
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="form-group" style="margin-bottom:10px;">
+                    <label>Which event should be modified? (the other stays untouched)</label>
+                    <select id="compareTargetSelect">
+                        <option value="${idA}">${evA.Event} (${idA})</option>
+                        <option value="${idB}">${evB.Event} (${idB})</option>
+                    </select>
+                </div>
+                <p style="font-size:13px;color:#6b7280;margin-bottom:8px;">Check a room to copy the <strong>other</strong> event's version of that room into the event you're modifying.</p>
+                <table class="data-table" style="margin:0;">
+                    <thead><tr><th>Room</th><th>${evA.Event}</th><th>${evB.Event}</th><th>Copy other's version?</th></tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            `;
+
+            compareState = { idA, idB, evA, evB };
+            applyBtn.style.display = '';
+        }
+
+        function applyEventComparisonChanges() {
+            if (!compareState) return;
+            const { idA, idB, evA, evB } = compareState;
+            const targetId = document.getElementById('compareTargetSelect').value;
+            const otherId = targetId === idA ? idB : idA;
+            const otherName = targetId === idA ? evB.Event : evA.Event;
+            const targetName = targetId === idA ? evA.Event : evB.Event;
+            const roomsOther = schedule[otherId] || {};
+
+            let appliedCount = 0;
+            document.querySelectorAll('#compareResultsContainer .cmp-room-checkbox:checked').forEach(cb => {
+                const room = parseInt(cb.dataset.room);
+                if (!schedule[targetId]) schedule[targetId] = {};
+                const before = (schedule[targetId][room] || []).map(x => x.courseId).join(', ') || 'empty';
+                schedule[targetId][room] = JSON.parse(JSON.stringify(roomsOther[room] || []));
+                const after = schedule[targetId][room].map(x => x.courseId).join(', ') || 'empty';
+                addLogEntry('edit', targetId, null, `Room ${room} updated via Compare Events (copied from ${otherName})`, before, after);
+                appliedCount++;
+            });
+
+            if (appliedCount === 0) {
+                showToast('No rooms selected to apply', 'error');
+                return;
+            }
+
+            reconcileRoomCounts();
+            saveToLocalStorage();
+            render();
+            closeModal('compareEventsModal');
+            showToast(`Applied ${appliedCount} room update(s) to "${targetName}" \u2014 "${otherName}" was left untouched`, 'success');
         }
 
         // ==================== CHANGE LOG ====================
