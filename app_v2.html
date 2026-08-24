@@ -886,24 +886,49 @@
         }
 
         /* ========== COMPARE EVENTS GRID ========== */
-        .cmp-block {
-            cursor: pointer !important;
+        .cmp-compact-table th, .cmp-compact-table td {
+            padding: 4px 6px;
+            font-size: 12px;
+            text-align: center;
+            border-bottom: 1px solid #f3f4f6;
         }
-        .cmp-block-selected {
-            border-color: #2563eb !important;
-            background: #eff6ff !important;
-            box-shadow: 0 0 0 2px #2563eb;
+        .cmp-compact-table td.room-cell {
+            background: #f9fafb;
+            font-weight: 600;
+            color: #6b7280;
         }
-        .cmp-selected-badge {
-            position: absolute;
-            top: 4px;
-            right: 4px;
-            background: #2563eb;
-            color: white;
+        .cmp-compact-table td.cmp-diff-cell {
+            background: #fffbeb;
+        }
+        .cmp-chip {
+            display: inline-block;
             padding: 2px 6px;
             border-radius: 4px;
-            font-size: 10px;
-            font-weight: 700;
+            font-size: 11px;
+            font-weight: 600;
+            margin: 1px 0;
+        }
+        .cmp-chip-match {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+        .cmp-chip-a, .cmp-chip-b {
+            cursor: pointer;
+        }
+        .cmp-chip-a {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+        }
+        .cmp-chip-b {
+            background: #faf5ff;
+            color: #7c3aed;
+            border: 1px solid #e9d5ff;
+        }
+        .cmp-chip-selected {
+            outline: 2px solid #16a34a;
+            background: #dcfce7 !important;
+            color: #166534 !important;
         }
 
         .empty-slot {
@@ -5297,47 +5322,66 @@
             const maxRooms = Math.max(parseInt(evA.Room_Count) || 0, parseInt(evB.Room_Count) || 0);
             const maxDays = Math.max(parseInt(evA.Total_Days) || 0, parseInt(evB.Total_Days) || 0);
             const nameOf = id => courses.find(c => c.Course_ID === id);
+            const shortLabel = id => { const c = nameOf(id); return c ? c.Course_ID : id; };
+            const fullLabel = id => { const c = nameOf(id); return c ? `${c.Course_Name} (${c.Instructor || ''})` : id; };
 
-            const buildGrid = (source, eventId) => {
-                let head = '<tr><th class="room-col">Room</th>';
-                for (let d = 1; d <= maxDays; d++) head += `<th>Day ${d}</th>`;
-                head += '</tr>';
+            // --- Event metadata diff (dates, location, rooms) ---
+            const metaFields = [
+                ['Location', 'Location'],
+                ['Room_Count', 'Rooms'],
+                ['First_Event_Day', 'First Day'],
+                ['Last_Event_Day', 'Last Day'],
+                ['Total_Days', 'Total Days']
+            ];
+            const metaRows = metaFields.map(([f, label]) => {
+                const va = evA[f] ?? '';
+                const vb = evB[f] ?? '';
+                const style = String(va) !== String(vb) ? 'color:#ef4444;font-weight:700;' : '';
+                return `<tr><td style="font-weight:600;color:#374151;">${label}</td><td style="${style}">${va}</td><td style="${style}">${vb}</td></tr>`;
+            }).join('');
 
-                let body = '';
-                for (let room = 1; room <= maxRooms; room++) {
-                    body += `<tr><td class="room-cell">R${room}</td>`;
-                    let day = 1;
-                    while (day <= maxDays) {
-                        const a = findAssignment(eventId, room, day);
-                        if (a && a.startDay === day) {
-                            const course = nameOf(a.courseId);
-                            const key = `${source}|${room}|${a.startDay}`;
-                            const selected = compareSelectedBlocks.has(key);
-                            body += `
-                                <td colspan="${a.duration}">
-                                    <div class="course-block cmp-block ${selected ? 'cmp-block-selected' : ''}"
-                                         onclick="toggleCompareBlock('${source}', ${room}, ${a.startDay})"
-                                         title="Click to ${selected ? 'unselect' : 'select'} this course">
-                                        ${selected ? '<div class="cmp-selected-badge">\u2713</div>' : ''}
-                                        <div class="course-block-name">${course?.Course_Name || a.courseId}</div>
-                                        <div class="course-block-instructor">${course?.Instructor || ''}</div>
-                                    </div>
-                                </td>`;
-                            day += a.duration;
-                        } else if (!a) {
-                            body += '<td></td>';
-                            day++;
-                        } else {
-                            day++;
-                        }
+            // --- Compact room/day grid: one row per room, differing slots show both versions ---
+            let head = '<tr><th class="room-col">Room</th>';
+            for (let d = 1; d <= maxDays; d++) head += `<th style="min-width:70px;">Day ${d}</th>`;
+            head += '</tr>';
+
+            let body = '';
+            for (let room = 1; room <= maxRooms; room++) {
+                body += `<tr><td class="room-cell">R${room}</td>`;
+                for (let day = 1; day <= maxDays; day++) {
+                    const aAsn = findAssignment(idA, room, day);
+                    const bAsn = findAssignment(idB, room, day);
+                    const same = !!aAsn && !!bAsn && aAsn.courseId === bAsn.courseId && aAsn.startDay === bAsn.startDay;
+
+                    if (!aAsn && !bAsn) { body += '<td></td>'; continue; }
+
+                    if (same) {
+                        body += `<td><div class="cmp-chip cmp-chip-match" title="${fullLabel(aAsn.courseId)}">${shortLabel(aAsn.courseId)}</div></td>`;
+                        continue;
                     }
-                    body += '</tr>';
+
+                    body += '<td class="cmp-diff-cell">';
+                    if (aAsn) {
+                        const key = `A|${room}|${aAsn.startDay}`;
+                        const sel = compareSelectedBlocks.has(key);
+                        body += `<div class="cmp-chip cmp-chip-a ${sel ? 'cmp-chip-selected' : ''}" onclick="toggleCompareBlock('A', ${room}, ${aAsn.startDay})" title="${fullLabel(aAsn.courseId)}">A: ${shortLabel(aAsn.courseId)}</div>`;
+                    }
+                    if (bAsn) {
+                        const key = `B|${room}|${bAsn.startDay}`;
+                        const sel = compareSelectedBlocks.has(key);
+                        body += `<div class="cmp-chip cmp-chip-b ${sel ? 'cmp-chip-selected' : ''}" onclick="toggleCompareBlock('B', ${room}, ${bAsn.startDay})" title="${fullLabel(bAsn.courseId)}">B: ${shortLabel(bAsn.courseId)}</div>`;
+                    }
+                    body += '</td>';
                 }
-                return `<table class="data-table schedule-table" style="margin:0 0 16px 0;"><thead>${head}</thead><tbody>${body}</tbody></table>`;
-            };
+                body += '</tr>';
+            }
 
             const container = document.getElementById('compareResultsContainer');
             container.innerHTML = `
+                <table class="data-table" style="margin:0 0 14px 0;max-width:420px;">
+                    <thead><tr><th></th><th>${evA.Event}</th><th>${evB.Event}</th></tr></thead>
+                    <tbody>${metaRows}</tbody>
+                </table>
                 <div class="form-group" style="margin-bottom:10px;">
                     <label>Which event should be modified? (the other stays untouched)</label>
                     <select id="compareTargetSelect">
@@ -5345,11 +5389,13 @@
                         <option value="${idB}">${evB.Event} (${idB})</option>
                     </select>
                 </div>
-                <p style="font-size:13px;color:#6b7280;margin-bottom:10px;">Click individual course blocks below to select them. Only rooms with at least one selection change on the event you modify — that room becomes exactly the selected blocks (from either grid). Untouched rooms and the other event stay exactly as they are.</p>
-                <div style="font-weight:600;margin-bottom:6px;color:#7c3aed;">${evA.Event} (${idA})</div>
-                <div style="overflow-x:auto;">${buildGrid('A', idA)}</div>
-                <div style="font-weight:600;margin:14px 0 6px;color:#7c3aed;">${evB.Event} (${idB})</div>
-                <div style="overflow-x:auto;">${buildGrid('B', idB)}</div>
+                <p style="font-size:13px;color:#6b7280;margin-bottom:8px;">Gray = same in both events. Where they differ, click "A:" or "B:" to select which course to keep. Only rooms with at least one selection change on the event you modify.</p>
+                <div style="overflow-x:auto;">
+                    <table class="data-table cmp-compact-table" style="margin:0;">
+                        <thead>${head}</thead>
+                        <tbody>${body}</tbody>
+                    </table>
+                </div>
             `;
 
             document.getElementById('compareApplyBtn').style.display = compareSelectedBlocks.size > 0 ? '' : 'none';
