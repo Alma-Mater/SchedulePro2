@@ -4963,6 +4963,30 @@
             });
         }
 
+        // Grows Room_Count to cover any room key already present in the schedule (never shrinks it)
+        function reconcileRoomCounts() {
+            events.forEach(ev => {
+                const eventSchedule = schedule[ev.Event_ID] || {};
+                let maxRoom = parseInt(ev.Room_Count) || 0;
+                for (const r in eventSchedule) {
+                    const rNum = parseInt(r);
+                    if (rNum > maxRoom) maxRoom = rNum;
+                }
+                if (maxRoom > (parseInt(ev.Room_Count) || 0)) ev.Room_Count = maxRoom;
+            });
+        }
+
+        // Flags leftover duplicate Event_IDs (e.g. from before edit-time uniqueness was enforced)
+        function warnDuplicateEventIds() {
+            const counts = new Map();
+            events.forEach(ev => counts.set(ev.Event_ID, (counts.get(ev.Event_ID) || 0) + 1));
+            const dupes = [...counts.entries()].filter(([, n]) => n > 1).map(([id]) => id);
+            if (dupes.length > 0) {
+                console.warn('Duplicate Event_ID(s) detected:', dupes);
+                showToast(`Duplicate Event ID(s) found: ${dupes.join(', ')} \u2014 fix in console before editing those events`, 'error');
+            }
+        }
+
         function deleteEventRow(idx) {
             const event = events[idx];
             if (!confirm(`Delete event "${event.Event || event.Event_ID}"?`)) return;
@@ -5043,8 +5067,21 @@
             if (editId) {
                 const idx = events.findIndex(e => e.Event_ID === editId);
                 if (idx !== -1) {
+                    const newId = eventData.Event_ID;
+                    // Block renaming onto an ID already used by another event
+                    if (newId !== editId && events.some((e, i) => i !== idx && e.Event_ID === newId)) {
+                        showToast('Event ID exists', 'error');
+                        return;
+                    }
                     // Preserve fields not editable in the modal
                     events[idx] = Object.assign({}, events[idx], eventData);
+                    // Migrate keyed data (schedule/shortlists/notes) to the new ID so nothing is orphaned or shared
+                    if (newId !== editId) {
+                        if (schedule[editId] !== undefined) { schedule[newId] = schedule[editId]; delete schedule[editId]; }
+                        if (shortlists[editId] !== undefined) { shortlists[newId] = shortlists[editId]; delete shortlists[editId]; }
+                        if (eventNotes[editId] !== undefined) { eventNotes[newId] = eventNotes[editId]; delete eventNotes[editId]; }
+                        if (selectedEventId === editId) selectedEventId = newId;
+                    }
                 }
             } else {
                 if (events.find(e => e.Event_ID === eventData.Event_ID)) {
@@ -6226,6 +6263,8 @@
                     Notes: ev.Notes || '',
                     Total_Days: ev.Total_Days || 0
                 }));
+                reconcileRoomCounts();
+                warnDuplicateEventIds();
                 
                 updateTopicFilter();
                 updateTrackingButton();
@@ -6337,6 +6376,8 @@
                         Notes: ev.Notes || '',
                         Total_Days: ev.Total_Days || 0
                     }));
+                    reconcileRoomCounts();
+                    warnDuplicateEventIds();
 
                     // Normalize courses — preserve all fields, just coerce core types
                     courses = courses.map(c => ({
