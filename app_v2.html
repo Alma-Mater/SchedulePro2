@@ -4879,7 +4879,7 @@
                 const input = currentEditingCell.cell.querySelector('input');
                 if (input) {
                     const prevWasBlankRow = currentEditingCell.wasBlankRow;
-                    currentEditingCell.saveData();
+                    const saved = currentEditingCell.saveData();
                     if (prevWasBlankRow) {
                         // Blank row needs a real render so the DOM reflects the new event
                         currentEditingCell = null;
@@ -4890,7 +4890,7 @@
                         );
                         if (!cell) return;
                     } else {
-                        currentEditingCell.cell.textContent = input.value.trim();
+                        currentEditingCell.cell.textContent = saved ? input.value.trim() : (currentEditingCell.displayValue || '');
                     }
                 }
             }
@@ -4942,14 +4942,21 @@
                 
                 if (field === 'Room_Count') {
                     event[field] = parseInt(newVal) || 10;
-                } else if (field === 'First_Event_Day' || field === 'Last_Event_Day') {
+                } else if (field === 'First_Event_Day' || field === 'Last_Event_Day' || field === 'EarlyBird_End_Date') {
+                    if (newVal && !hasFourDigitYear(newVal)) {
+                        showToast('Please use a full 4-digit year (e.g., 2027, not 27)', 'error');
+                        return false;
+                    }
                     event[field] = newVal;
-                    event.Total_Days = calculateDays(event.First_Event_Day, event.Last_Event_Day);
+                    if (field !== 'EarlyBird_End_Date') {
+                        event.Total_Days = calculateDays(event.First_Event_Day, event.Last_Event_Day);
+                    }
                 } else {
                     event[field] = newVal;
                 }
                 
                 saveToLocalStorage();
+                return true;
             };
             
             const save = () => {
@@ -5068,6 +5075,11 @@
                 Last_Event_Day: document.getElementById('eventLastDayInput').value.trim(),
                 Total_Days: 0
             };
+
+            if (!hasFourDigitYear(eventData.First_Event_Day) || !hasFourDigitYear(eventData.Last_Event_Day)) {
+                showToast('Please use a full 4-digit year (e.g., 2027, not 27)', 'error');
+                return;
+            }
 
             eventData.Total_Days = calculateDays(eventData.First_Event_Day, eventData.Last_Event_Day);
 
