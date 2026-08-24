@@ -885,6 +885,27 @@
             margin-top: 2px;
         }
 
+        /* ========== COMPARE EVENTS GRID ========== */
+        .cmp-block {
+            cursor: pointer !important;
+        }
+        .cmp-block-selected {
+            border-color: #2563eb !important;
+            background: #eff6ff !important;
+            box-shadow: 0 0 0 2px #2563eb;
+        }
+        .cmp-selected-badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: #2563eb;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
         .empty-slot {
             height: 100%;
             min-height: 60px;
@@ -1947,6 +1968,7 @@
         let trackingEnabled = false;
         let selectedEventId = null;
         let compareState = null; // { idA, idB, evA, evB } for the active Compare Events session
+        let compareSelectedBlocks = new Map(); // key "A|room|startDay" -> { room, assignment }
         let selectedDurations = [];
         let coursesSortColumn = null;
         let coursesSortDirection = 'asc';
@@ -5165,6 +5187,7 @@
             document.getElementById('compareResultsContainer').innerHTML = '';
             document.getElementById('compareApplyBtn').style.display = 'none';
             compareState = null;
+            compareSelectedBlocks.clear();
             document.getElementById('compareEventsModal').classList.add('active');
         }
 
@@ -5172,9 +5195,9 @@
             const idA = document.getElementById('compareEventASelect').value;
             const idB = document.getElementById('compareEventBSelect').value;
             const container = document.getElementById('compareResultsContainer');
-            const applyBtn = document.getElementById('compareApplyBtn');
-            applyBtn.style.display = 'none';
             compareState = null;
+            compareSelectedBlocks.clear();
+            document.getElementById('compareApplyBtn').style.display = 'none';
 
             if (!idA || !idB || idA === idB) {
                 container.innerHTML = '<p style="color:#ef4444;">Pick two different events to compare.</p>';
@@ -5183,39 +5206,70 @@
 
             const evA = events.find(e => e.Event_ID === idA);
             const evB = events.find(e => e.Event_ID === idB);
-            const nameOf = id => { const c = courses.find(c => c.Course_ID === id); return c ? c.Course_Name : id; };
-            const describe = list => (list && list.length)
-                ? list.map(x => `${nameOf(x.courseId)} (Day ${x.startDay}-${x.startDay + x.duration - 1})`).join('<br>')
-                : '<em style="color:#9ca3af;">empty</em>';
-            const key = list => JSON.stringify((list || []).map(x => ({ c: x.courseId, d: x.startDay, len: x.duration })));
+            compareState = { idA, idB, evA, evB };
+            renderCompareGrids();
+        }
 
-            const roomsA = schedule[idA] || {};
-            const roomsB = schedule[idB] || {};
-            const allRooms = new Set([...Object.keys(roomsA), ...Object.keys(roomsB)].map(Number));
-
-            let rows = '';
-            let diffCount = 0;
-            [...allRooms].sort((a, b) => a - b).forEach(r => {
-                const a = roomsA[r] || [];
-                const b = roomsB[r] || [];
-                if (key(a) === key(b)) return;
-                diffCount++;
-                rows += `
-                    <tr>
-                        <td style="font-weight:600;">Room ${r}</td>
-                        <td>${describe(a)}</td>
-                        <td>${describe(b)}</td>
-                        <td style="text-align:center;">
-                            <input type="checkbox" class="cmp-room-checkbox" data-room="${r}">
-                        </td>
-                    </tr>`;
-            });
-
-            if (diffCount === 0) {
-                container.innerHTML = '<p>No differences found between these two events\' schedules.</p>';
-                return;
+        function toggleCompareBlock(source, room, startDay) {
+            if (!compareState) return;
+            const key = `${source}|${room}|${startDay}`;
+            if (compareSelectedBlocks.has(key)) {
+                compareSelectedBlocks.delete(key);
+            } else {
+                const eventId = source === 'A' ? compareState.idA : compareState.idB;
+                const assignment = (schedule[eventId]?.[room] || []).find(a => a.startDay === startDay);
+                if (!assignment) return;
+                compareSelectedBlocks.set(key, { room, assignment: { ...assignment } });
             }
+            renderCompareGrids();
+        }
 
+        function renderCompareGrids() {
+            if (!compareState) return;
+            const { idA, idB, evA, evB } = compareState;
+            const maxRooms = Math.max(parseInt(evA.Room_Count) || 0, parseInt(evB.Room_Count) || 0);
+            const maxDays = Math.max(parseInt(evA.Total_Days) || 0, parseInt(evB.Total_Days) || 0);
+            const nameOf = id => courses.find(c => c.Course_ID === id);
+
+            const buildGrid = (source, eventId) => {
+                let head = '<tr><th class="room-col">Room</th>';
+                for (let d = 1; d <= maxDays; d++) head += `<th>Day ${d}</th>`;
+                head += '</tr>';
+
+                let body = '';
+                for (let room = 1; room <= maxRooms; room++) {
+                    body += `<tr><td class="room-cell">R${room}</td>`;
+                    let day = 1;
+                    while (day <= maxDays) {
+                        const a = findAssignment(eventId, room, day);
+                        if (a && a.startDay === day) {
+                            const course = nameOf(a.courseId);
+                            const key = `${source}|${room}|${a.startDay}`;
+                            const selected = compareSelectedBlocks.has(key);
+                            body += `
+                                <td colspan="${a.duration}">
+                                    <div class="course-block cmp-block ${selected ? 'cmp-block-selected' : ''}"
+                                         onclick="toggleCompareBlock('${source}', ${room}, ${a.startDay})"
+                                         title="Click to ${selected ? 'unselect' : 'select'} this course">
+                                        ${selected ? '<div class="cmp-selected-badge">\u2713</div>' : ''}
+                                        <div class="course-block-name">${course?.Course_Name || a.courseId}</div>
+                                        <div class="course-block-instructor">${course?.Instructor || ''}</div>
+                                    </div>
+                                </td>`;
+                            day += a.duration;
+                        } else if (!a) {
+                            body += '<td></td>';
+                            day++;
+                        } else {
+                            day++;
+                        }
+                    }
+                    body += '</tr>';
+                }
+                return `<table class="data-table schedule-table" style="margin:0 0 16px 0;"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+            };
+
+            const container = document.getElementById('compareResultsContainer');
             container.innerHTML = `
                 <div class="form-group" style="margin-bottom:10px;">
                     <label>Which event should be modified? (the other stays untouched)</label>
@@ -5224,47 +5278,58 @@
                         <option value="${idB}">${evB.Event} (${idB})</option>
                     </select>
                 </div>
-                <p style="font-size:13px;color:#6b7280;margin-bottom:8px;">Check a room to copy the <strong>other</strong> event's version of that room into the event you're modifying.</p>
-                <table class="data-table" style="margin:0;">
-                    <thead><tr><th>Room</th><th>${evA.Event}</th><th>${evB.Event}</th><th>Copy other's version?</th></tr></thead>
-                    <tbody>${rows}</tbody>
-                </table>
+                <p style="font-size:13px;color:#6b7280;margin-bottom:10px;">Click individual course blocks below to select them. Only rooms with at least one selection change on the event you modify — that room becomes exactly the selected blocks (from either grid). Untouched rooms and the other event stay exactly as they are.</p>
+                <div style="font-weight:600;margin-bottom:6px;color:#7c3aed;">${evA.Event} (${idA})</div>
+                <div style="overflow-x:auto;">${buildGrid('A', idA)}</div>
+                <div style="font-weight:600;margin:14px 0 6px;color:#7c3aed;">${evB.Event} (${idB})</div>
+                <div style="overflow-x:auto;">${buildGrid('B', idB)}</div>
             `;
 
-            compareState = { idA, idB, evA, evB };
-            applyBtn.style.display = '';
+            document.getElementById('compareApplyBtn').style.display = compareSelectedBlocks.size > 0 ? '' : 'none';
         }
 
         function applyEventComparisonChanges() {
-            if (!compareState) return;
-            const { idA, idB, evA, evB } = compareState;
-            const targetId = document.getElementById('compareTargetSelect').value;
-            const otherId = targetId === idA ? idB : idA;
-            const otherName = targetId === idA ? evB.Event : evA.Event;
-            const targetName = targetId === idA ? evA.Event : evB.Event;
-            const roomsOther = schedule[otherId] || {};
-
-            let appliedCount = 0;
-            document.querySelectorAll('#compareResultsContainer .cmp-room-checkbox:checked').forEach(cb => {
-                const room = parseInt(cb.dataset.room);
-                if (!schedule[targetId]) schedule[targetId] = {};
-                const before = (schedule[targetId][room] || []).map(x => x.courseId).join(', ') || 'empty';
-                schedule[targetId][room] = JSON.parse(JSON.stringify(roomsOther[room] || []));
-                const after = schedule[targetId][room].map(x => x.courseId).join(', ') || 'empty';
-                addLogEntry('edit', targetId, null, `Room ${room} updated via Compare Events (copied from ${otherName})`, before, after);
-                appliedCount++;
-            });
-
-            if (appliedCount === 0) {
-                showToast('No rooms selected to apply', 'error');
+            if (!compareState || compareSelectedBlocks.size === 0) {
+                showToast('No courses selected to apply', 'error');
                 return;
             }
+            const { idA, evA, evB } = compareState;
+            const targetId = document.getElementById('compareTargetSelect').value;
+            const targetName = targetId === idA ? evA.Event : evB.Event;
+            const otherName = targetId === idA ? evB.Event : evA.Event;
+            const nameOf = id => { const c = courses.find(c => c.Course_ID === id); return c ? c.Course_Name : id; };
 
+            // Group selected blocks by room
+            const byRoom = {};
+            compareSelectedBlocks.forEach(({ room, assignment }) => {
+                (byRoom[room] = byRoom[room] || []).push(assignment);
+            });
+
+            // Validate no overlapping days within any room before applying anything
+            for (const room in byRoom) {
+                const list = byRoom[room].slice().sort((a, b) => a.startDay - b.startDay);
+                for (let i = 1; i < list.length; i++) {
+                    if (list[i].startDay <= list[i - 1].startDay + list[i - 1].duration - 1) {
+                        showToast(`Room ${room} has overlapping selections \u2014 deselect one and try again`, 'error');
+                        return;
+                    }
+                }
+            }
+
+            if (!schedule[targetId]) schedule[targetId] = {};
+            Object.keys(byRoom).forEach(room => {
+                const before = (schedule[targetId][room] || []).map(a => nameOf(a.courseId)).join(', ') || 'empty';
+                schedule[targetId][room] = byRoom[room].map(a => ({ ...a }));
+                const after = byRoom[room].map(a => nameOf(a.courseId)).join(', ');
+                addLogEntry('edit', targetId, null, `Room ${room} updated via Compare Events`, before, after);
+            });
+
+            compareSelectedBlocks.clear();
             reconcileRoomCounts();
             saveToLocalStorage();
             render();
             closeModal('compareEventsModal');
-            showToast(`Applied ${appliedCount} room update(s) to "${targetName}" \u2014 "${otherName}" was left untouched`, 'success');
+            showToast(`Applied changes to "${targetName}" \u2014 "${otherName}" was left untouched`, 'success');
         }
 
         // ==================== CHANGE LOG ====================
