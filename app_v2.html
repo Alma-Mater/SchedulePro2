@@ -888,14 +888,15 @@
         /* ========== COMPARE EVENTS GRID ========== */
         .cmp-legend-dot {
             display: inline-block;
-            width: 14px;
-            height: 14px;
-            border-radius: 4px;
-            margin-right: 6px;
+            width: 24px;
+            height: 24px;
+            border-radius: 5px;
+            margin-right: 8px;
             vertical-align: middle;
         }
         .cmp-legend-a { background: #2563eb; }
         .cmp-legend-b { background: #7c3aed; }
+        .cmp-legend-match { background: #d1d5db; border: 2px solid #9ca3af; }
         .cmp-grid-table td.room-cell {
             background: #f9fafb;
             font-weight: 600;
@@ -1531,7 +1532,7 @@
             <button class="btn" onclick="document.getElementById('catalogImportInput').value=''; document.getElementById('catalogImportInput').click()">📋 Import Course Catalog</button>
             <button class="btn" onclick="exportSchedule()">📤 Export</button>
             <button class="btn" onclick="exportContracts()">📄 Export Contracts</button>
-            <button class="btn" onclick="showCompareEventsModal()">⇄ Compare Events</button>
+            <button class="btn" onclick="showCompareEventsModal()" style="background:#2563eb;color:white;border-color:#1d4ed8;">⇄ Compare Events</button>
             <button class="btn" id="trackingBtn" onclick="toggleTracking()" style="background:#16a34a;color:white;border-color:#15803d;font-weight:600;">💾 SAVE (Start Tracking Changes)</button>
         </div>
         <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="loadExcelFile(event)">
@@ -5359,26 +5360,6 @@
                     </div>`;
             };
 
-            // --- Event metadata diff (dates, location, rooms) — amber band, no red ---
-            const metaFields = [
-                ['Location', 'Location'],
-                ['Room_Count', 'Rooms'],
-                ['First_Event_Day', 'First Day'],
-                ['Last_Event_Day', 'Last Day'],
-                ['Total_Days', 'Total Days']
-            ];
-            const metaRows = metaFields.map(([f, label]) => {
-                const va = evA[f] ?? '';
-                const vb = evB[f] ?? '';
-                const differs = String(va) !== String(vb);
-                const rowStyle = differs ? 'background:#fef3c7;' : '';
-                return `<tr style="${rowStyle}">
-                    <td style="font-weight:700;font-size:15px;">${label}${differs ? ' <span style="font-size:12px;font-weight:700;color:#92400e;">DIFFERS</span>' : ''}</td>
-                    <td style="font-size:15px;">${va}</td>
-                    <td style="font-size:15px;">${vb}</td>
-                </tr>`;
-            }).join('');
-
             // --- Room/day grid: one row per room, differing slots show both events' cards ---
             let head = '<tr><th class="room-col">Room</th>';
             for (let d = 1; d <= maxDays; d++) head += `<th style="min-width:190px;">Day ${d}</th>`;
@@ -5409,14 +5390,11 @@
 
             const container = document.getElementById('compareResultsContainer');
             container.innerHTML = `
-                <div style="display:flex;gap:20px;margin-bottom:12px;font-size:15px;font-weight:600;">
+                <div style="display:flex;gap:24px;align-items:center;margin-bottom:14px;font-size:15px;font-weight:600;">
                     <span><span class="cmp-legend-dot cmp-legend-a"></span>${evA.Event}</span>
                     <span><span class="cmp-legend-dot cmp-legend-b"></span>${evB.Event}</span>
+                    <span><span class="cmp-legend-dot cmp-legend-match"></span>Same in both</span>
                 </div>
-                <table class="data-table" style="margin:0 0 14px 0;max-width:460px;">
-                    <thead><tr><th></th><th>${evA.Event}</th><th>${evB.Event}</th></tr></thead>
-                    <tbody>${metaRows}</tbody>
-                </table>
                 <div class="form-group" style="margin-bottom:10px;">
                     <label>Which event should be modified? (the other stays untouched)</label>
                     <select id="compareTargetSelect">
@@ -5424,7 +5402,7 @@
                         <option value="${idB}">${evB.Event} (${idB})</option>
                     </select>
                 </div>
-                <p style="font-size:14px;color:#6b7280;margin-bottom:10px;">Gray card = same course in both events. Where they differ, click the card you want to keep. Only rooms with at least one selection change on the event you modify.</p>
+                <p style="font-size:14px;color:#6b7280;margin-bottom:10px;">Where they differ, click the card you want to keep. Only rooms with at least one selection change on the event you modify.</p>
                 <div style="overflow-x:auto;">
                     <table class="data-table cmp-grid-table" style="margin:0;">
                         <thead>${head}</thead>
@@ -5433,7 +5411,7 @@
                 </div>
             `;
 
-            document.getElementById('compareApplyBtn').style.display = compareSelectedBlocks.size > 0 ? '' : 'none';
+            document.getElementById('compareApplyBtn').style.display = '';
             document.getElementById('compareSaveDraftBtn').style.display = '';
         }
 
