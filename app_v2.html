@@ -2373,6 +2373,12 @@
             return Math.round((e - s) / (1000 * 60 * 60 * 24)) + 1;
         }
 
+        function hasFourDigitYear(dateStr) {
+            if (!dateStr) return true;
+            const str = String(dateStr).trim();
+            return /^\d{4}[-\/]\d{1,2}[-\/]\d{1,2}$/.test(str) || /^\d{1,2}[-\/]\d{1,2}[-\/]\d{4}$/.test(str);
+        }
+
         function getEventDates(event) {
             const dates = [];
             const start = parseDate(event.First_Event_Day);
